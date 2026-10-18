@@ -23,8 +23,8 @@ if (!helpRequested) {
     );
     process.exit(1);
   }
-  if (command === "deploy" && args.length === 1) {
-    process.exit(await deploy());
+  if (args[0] === "deploy") {
+    process.exit(await deploy(args.slice(1)));
   }
   console.error(
     "Unknown command or unsupported arguments. Run fence-rider --help for usage, or use the Forge CLI directly.",

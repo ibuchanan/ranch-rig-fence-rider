@@ -93,6 +93,7 @@ test.each([
   { args: ["unknown-command"] },
   { args: ["unknown-command", "--help"] },
   { args: ["help", "unknown-command"] },
+  { args: ["help", "deploy", "--unknown-option"] },
   { args: ["--unknown-option"] },
 ])("unknown invocation %j fails without tool calls", async ({ args }) => {
   for (const toolsAvailable of [false, true]) {
@@ -120,10 +121,56 @@ test.each(["install", "tunnel"])(
   },
 );
 
-test("deployment rejects unsupported arguments before tool calls", async () => {
-  const result = await invoke(["deploy", "--unknown-option"], true);
-  expect(result.exitCode).not.toBe(0);
-  expect(result.stderr).toContain("unsupported arguments");
+test.each([
+  { args: ["deploy", "--environment", "production", "--help"] },
+  { args: ["deploy", "--non-interactive", "-h"] },
+  { args: ["deploy", "-fh"] },
+])(
+  "deployment help with options %j stays side-effect-free",
+  async ({ args }) => {
+    const result = await invoke(args, true);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Usage: fence-rider deploy");
+    expect(result.stderr).toBe("");
+  },
+);
+
+test("deployment preserves unrelated options and CI arguments without changing boundaries", async () => {
+  const forwarded = [
+    "--non-interactive",
+    "--tag",
+    sharedValue,
+    "--verbose",
+    "--approve",
+    "MAJOR_VERSION_RULE",
+    "OTHER_RULE",
+    "--major-version",
+    "4",
+    "--inspect",
+    "--no-verify",
+    "--skip-rollout",
+    "--future-option=value",
+  ];
+  const result = await deploy({
+    args: [...forwarded.slice(0, 3), "-e", "production", ...forwarded.slice(3)],
+  });
+  expect(result.exitCode).toBe(0);
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "forge")
+      .map(({ args }) => args),
+  ).toEqual([
+    [
+      "variables",
+      "set",
+      "--encrypt",
+      "--environment",
+      "production",
+      "SHARED",
+      sharedValue,
+    ],
+    ["deploy", "--environment", "production", ...forwarded],
+  ]);
 });
 
 test.each(["secretspec", "forge"])(
@@ -181,7 +228,7 @@ type DeployOptions = {
   manifest?: string;
   missingTool?: string;
   failStage?: string;
-  args?: string[];
+  args?: readonly string[];
   env?: Record<string, string>;
   realSecretSpec?: string;
   dotenv?: string;
@@ -318,6 +365,259 @@ test("deploy resolves once, encrypts only runtime values, then deploys to the co
   }
   expect(result.stdout + result.stderr).not.toContain("synthetic local-only");
 });
+
+test("explicit environment overrides the configured target for every Forge command", async () => {
+  const result = await deploy({ args: ["--environment", "production"] });
+  expect(result.exitCode).toBe(0);
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "forge")
+      .map(({ args }) => args),
+  ).toEqual([
+    [
+      "variables",
+      "set",
+      "--encrypt",
+      "--environment",
+      "production",
+      "SHARED",
+      sharedValue,
+    ],
+    ["deploy", "--environment", "production"],
+  ]);
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "secretspec")
+      .map(({ args }) => args[0]),
+  ).toEqual(["schema", "export"]);
+});
+
+test.each([
+  { args: ["-e", "release_42"] },
+  { args: ["--environment=release_42"] },
+  { args: ["-erelease_42"] },
+])(
+  "verified target form %j reaches uploads and deployment",
+  async ({ args }) => {
+    const result = await deploy({ args });
+    expect(result.exitCode).toBe(0);
+    expect(
+      result.interactions
+        .filter(({ tool }) => tool === "forge")
+        .map(({ args }) => args),
+    ).toEqual([
+      [
+        "variables",
+        "set",
+        "--encrypt",
+        "--environment",
+        "release_42",
+        "SHARED",
+        sharedValue,
+      ],
+      ["deploy", "--environment", "release_42"],
+    ]);
+  },
+);
+
+test.each([
+  { args: ["--environment"] },
+  { args: ["-e"] },
+  { args: ["--environment="] },
+  { args: ["--environment", ""] },
+  { args: ["--environment", "--non-interactive"] },
+  { args: ["-e", "--"] },
+  { args: ["-e=production"] },
+  { args: ["--environment", sharedValue] },
+  { args: ["--environment=bad.target"] },
+  { args: ["-e", "production", "--environment=staging"] },
+  { args: ["--environment=production", "-eproduction"] },
+  { args: ["-feproduction", "--environment", "production"] },
+])(
+  "invalid or duplicate target %j fails before any tool call",
+  async ({ args }) => {
+    const result = await deploy({ args });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.interactions).toEqual([]);
+    expect(result.stderr).toContain("environment option validation");
+    expect(result.stdout).toBe("");
+    expect(result.stderr).not.toContain("bad.target");
+  },
+);
+
+test.each([
+  { args: ["--", "--environment", "production", "-e", "other"] },
+  { args: ["--tag", "--environment", "--non-interactive"] },
+  { args: ["-t", "-e", "--non-interactive"] },
+  {
+    args: [
+      "--tag=--environment=production",
+      "--major-version",
+      "3",
+      "--non-interactive",
+    ],
+  },
+  { args: ["-t--environment=production", "-v3", "--non-interactive"] },
+])("target-like payloads remain untouched %j", async ({ args }) => {
+  const result = await deploy({ args });
+  expect(result.exitCode).toBe(0);
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "forge")
+      .map(({ args: callArgs }) => callArgs),
+  ).toEqual([
+    [
+      "variables",
+      "set",
+      "--encrypt",
+      "--environment",
+      "staging",
+      "SHARED",
+      sharedValue,
+    ],
+    ["deploy", "--environment", "staging", ...args],
+  ]);
+});
+
+test("variadic approval consumes its first required value even when it resembles a target", async () => {
+  const result = await deploy({
+    args: ["--approve", "--environment", "--non-interactive"],
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.interactions.at(-1)?.args).toEqual([
+    "deploy",
+    "--environment",
+    "staging",
+    "--approve",
+    "--environment",
+    "--non-interactive",
+  ]);
+});
+
+test("grouped short flags cannot hide a conflicting deployment target", async () => {
+  const result = await deploy({ args: ["-feproduction", "--non-interactive"] });
+  expect(result.exitCode).toBe(0);
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "forge")
+      .map(({ args }) => args),
+  ).toEqual([
+    [
+      "variables",
+      "set",
+      "--encrypt",
+      "--environment",
+      "production",
+      "SHARED",
+      sharedValue,
+    ],
+    ["deploy", "--environment", "production", "-f", "--non-interactive"],
+  ]);
+});
+
+test("explicit target precedes the terminator and leaves target-like payloads untouched", async () => {
+  const result = await deploy({
+    args: [
+      "--non-interactive",
+      "--environment=production",
+      "--",
+      "--environment",
+      "payload",
+    ],
+  });
+  expect(result.exitCode).toBe(0);
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "forge")
+      .map(({ args }) => args),
+  ).toEqual([
+    [
+      "variables",
+      "set",
+      "--encrypt",
+      "--environment",
+      "production",
+      "SHARED",
+      sharedValue,
+    ],
+    [
+      "deploy",
+      "--environment",
+      "production",
+      "--non-interactive",
+      "--",
+      "--environment",
+      "payload",
+    ],
+  ]);
+});
+
+test("site and product defaults stay local and never become deployment flags or uploads", async () => {
+  const result = await deploy({
+    spec: deploymentSpec.replace(
+      "[profiles.default]",
+      "[profiles.default]\nFORGE_SITE = { required = true }\nFORGE_PRODUCT = { required = true }",
+    ),
+    schema: {
+      ...deploymentSchema,
+      properties: {
+        ...deploymentSchema.properties,
+        FORGE_SITE: { type: "string" },
+        FORGE_PRODUCT: { type: "string" },
+      },
+    },
+    values: {
+      ...deploymentValues,
+      FORGE_SITE: "synthetic.atlassian.net",
+      FORGE_PRODUCT: "jira",
+    },
+    args: ["--non-interactive"],
+  });
+  expect(result.exitCode).toBe(0);
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "forge")
+      .map(({ args }) => args),
+  ).toEqual([
+    [
+      "variables",
+      "set",
+      "--encrypt",
+      "--environment",
+      "staging",
+      "SHARED",
+      sharedValue,
+    ],
+    ["deploy", "--environment", "staging", "--non-interactive"],
+  ]);
+});
+
+test.each(["FORGE_ENV", "FORGE_SITE", "FORGE_PRODUCT"])(
+  "%s cannot be selected for upload even with an explicit target",
+  async (control) => {
+    const result = await deploy({
+      spec: deploymentSpec
+        .replace(
+          "[profiles.default]",
+          `[profiles.default]\n${control === "FORGE_ENV" ? "" : `${control} = { required = true }`}`,
+        )
+        .replace('["SHARED", "OPTIONAL"]', `["SHARED", "${control}"]`),
+      schema: {
+        ...deploymentSchema,
+        properties: {
+          ...deploymentSchema.properties,
+          [control]: { type: "string" },
+        },
+      },
+      values: { ...deploymentValues, [control]: "synthetic-control" },
+      args: ["-e", "production"],
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+  },
+);
 
 test.each([
   { declaration: 'extends = ["parent.toml"]', context: "project.extends" },

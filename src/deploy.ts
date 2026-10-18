@@ -99,14 +99,17 @@ function validateValues(schema: unknown, values: unknown) {
       throw new Error("Unsupported value");
     }
   }
-  const target = values["FORGE_ENV"] ?? "development";
+  return { properties, values: values as Record<string, string> };
+}
+
+function validateTarget(target: string) {
   if (
     typeof target !== "string" ||
     !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(target)
   ) {
     throw new Error("Invalid Forge target");
   }
-  return { properties, target, values: values as Record<string, string> };
+  return target;
 }
 
 function members(
@@ -146,9 +149,51 @@ function validateRuntime(names: string[], values: Record<string, string>) {
   }
 }
 
-export async function deploy(): Promise<number> {
-  let stage = "configuration";
+export async function deploy(args: string[] = []): Promise<number> {
+  let stage = "environment option validation";
   try {
+    let explicitTarget: string | undefined;
+    const forwarded: string[] = [];
+    for (let index = 0; index < args.length; index++) {
+      let arg = args[index] as string;
+      if (/^-f+e/.test(arg)) {
+        const environmentIndex = arg.indexOf("e");
+        forwarded.push(arg.slice(0, environmentIndex));
+        arg = `-${arg.slice(environmentIndex)}`;
+      }
+      if (arg === "--") {
+        forwarded.push(...args.slice(index));
+        break;
+      }
+      if (arg === "--help" || /^-f*h$/.test(arg)) {
+        console.log(
+          "Usage: fence-rider deploy [-e, --environment TARGET] [Forge options]\nTarget: explicit option, resolved FORGE_ENV, then development.\nSecretSpec and Forge must be installed on PATH and authenticated separately.",
+        );
+        return 0;
+      }
+      if (arg === "--tag" || /^-f*t$/.test(arg) || arg === "--approve") {
+        forwarded.push(arg);
+        const value = args[++index];
+        if (value !== undefined) forwarded.push(value);
+        continue;
+      }
+      let candidate: string | undefined;
+      if (arg === "--environment" || arg === "-e") {
+        candidate = args[++index];
+        if (candidate === undefined) throw new Error("Missing environment");
+      } else if (arg.startsWith("--environment=")) {
+        candidate = arg.slice("--environment=".length);
+      } else if (arg.startsWith("-e")) {
+        candidate = arg.slice(2);
+      }
+      if (candidate !== undefined) {
+        if (explicitTarget !== undefined)
+          throw new Error("Duplicate environment");
+        explicitTarget = validateTarget(candidate);
+      } else {
+        forwarded.push(arg);
+      }
+    }
     const tools: Record<string, string> = {};
     for (const tool of ["secretspec", "forge"]) {
       stage = `${tool} prerequisite (install and authenticate separately on PATH)`;
@@ -183,7 +228,10 @@ export async function deploy(): Promise<number> {
       ]),
     );
     stage = "resolved value validation";
-    const { properties, values, target } = validateValues(schema, exported);
+    const { properties, values } = validateValues(schema, exported);
+    const target = validateTarget(
+      explicitTarget ?? values["FORGE_ENV"] ?? "development",
+    );
     stage = `manifest validation (target ${target})`;
     if (config.scopes?.["manifest"]) {
       const missing = await validateManifest(
@@ -211,7 +259,7 @@ export async function deploy(): Promise<number> {
       );
     }
     stage = `deployment (target ${target})`;
-    await run(forge, ["deploy", "--environment", target], env);
+    await run(forge, ["deploy", "--environment", target, ...forwarded], env);
     console.log("Deployment completed.");
     return 0;
   } catch {

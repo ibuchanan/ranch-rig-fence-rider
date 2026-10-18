@@ -1,6 +1,6 @@
 # Deployment compatibility evidence
 
-Ticket 03 implemented the bare `fence-rider deploy` workflow on 2026-10-18.
+Tickets 03 and 04 implemented `fence-rider deploy [options]` on 2026-10-18.
 This page records executable evidence; the [variable contract](reference.md)
 contains the routing policy and deferred compatibility work.
 
@@ -18,15 +18,15 @@ and local value availability, not server acceptance or encryption at rest.
 
 ## Invocation and resolution
 
-Only bare `deploy` is implemented in this slice. Other arguments fail before
-external commands; environment overrides and option forwarding belong to
-ticket 04. Help and version remain side-effect-free.
+Deployment accepts explicit environment targeting and forwards other Forge
+options. Invalid or duplicate targets fail before external commands. Help and
+version remain side-effect-free.
 
 | Setting | Current behavior |
 | --- | --- |
 | Specification | `SECRETSPEC_FILE`, otherwise `secretspec.toml` in the working directory |
 | Profile | `SECRETSPEC_PROFILE`, otherwise explicit `default` |
-| Forge target | Resolved `FORGE_ENV`, otherwise `development` |
+| Forge target | Explicit `-e` / `--environment`, resolved `FORGE_ENV`, then `development` |
 | Authentication | Existing tool configuration and process environment; no automatic login |
 
 Both prerequisites must be executable on `PATH` before resolution starts.
@@ -54,6 +54,42 @@ The local fixture uses `SECRETSPEC_PROVIDER=dotenv:values.env`, isolated home
 and XDG directories, and synthetic values only. Tests skip the real-SecretSpec
 cases explicitly if its executable is unavailable; controlled tests always run.
 No provider SDK, vault credentials, or network provider is used.
+
+## Deployment options
+
+Forge CLI 14.2.0 help and the published CLI source declare `-e` and
+`--environment` with an optional upstream value. Fence Rider requires an
+explicit value to avoid ambiguous targeting. Its accepted forms are
+`-e TARGET`, `-eTARGET`, `--environment TARGET`, and `--environment=TARGET`.
+Commander 14.0.3 documents attached short values and long equals syntax;
+`-e=TARGET` includes the equals sign in the value and is rejected. Repeated
+target options are rejected even when their values match. Invalid targets
+are never echoed in diagnostics.
+
+The chosen target is normalized to one `--environment TARGET` pair for every
+upload and deployment. Deployment receives that pair before all preserved
+arguments, including any `--` terminator. Tokens after `--` are payloads,
+not target options. This preserves upstream parsing; it does not make excess
+positional arguments valid for Forge deployment.
+
+Other options retain their values, order, and argument boundaries. Required
+values for `--tag` / `-t` and the first `--approve` value are consumed even
+when they resemble target options, matching Commander. Boolean `-f` groups
+containing `-e` are split only to remove the target; attached tag and major
+version values stay opaque. Unknown Forge options are forwarded, not certified
+or validated by Fence Rider. Option arity follows the verified Forge version,
+not an extensible general-purpose parser.
+
+`--non-interactive`, `--tag`, `--major-version`, `--approve`, and other deploy
+options go only to `forge deploy`, never to `forge variables set`. In
+particular, `variables set` has no documented `--non-interactive` option.
+Help is wrapper-owned and is not delegated. SecretSpec file/profile selection
+remains environment-only; no additional wrapper flags are introduced.
+`FORGE_SITE` and `FORGE_PRODUCT` stay local and do not generate deployment
+flags or runtime uploads. Installation and tunneling remain unsupported.
+
+Controlled CLI subprocess tests verify these boundaries and target precedence;
+no live app, variable write, or deployment is involved.
 
 ## Selection and destination behavior
 
@@ -102,9 +138,15 @@ live Forge acceptance and activation checks belong to ticket 07.
 ## Sources
 
 - [Subprocess and native integration tests](../../tests/cli.test.ts)
+- [Forge deploy][deploy]
 - [Forge variables set][variables]
+- [Published Forge CLI 14.2.0 package][forge-source]
+- [Commander 14.0.3 option syntax and parser][commander]
 - [Forge manifest variables][manifest]
 - [SecretSpec dotenv provider](https://secretspec.dev/providers/dotenv/)
 
+[deploy]: https://developer.atlassian.com/platform/forge/cli-reference/deploy/
+[forge-source]: https://registry.npmjs.org/@forge/cli/-/cli-14.2.0.tgz
+[commander]: https://github.com/tj/commander.js/tree/v14.0.3
 [variables]: https://developer.atlassian.com/platform/forge/cli-reference/variables-set/
 [manifest]: https://developer.atlassian.com/platform/forge/manifest-reference/environment/
