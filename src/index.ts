@@ -1,4 +1,5 @@
 import { version } from "../package.json";
+import { deploy } from "./deploy";
 
 const args = process.argv.slice(2);
 
@@ -22,11 +23,8 @@ if (!helpRequested) {
     );
     process.exit(1);
   }
-  if (command === "deploy") {
-    console.error(
-      "deploy is not implemented yet. Use the Forge CLI directly: forge deploy",
-    );
-    process.exit(1);
+  if (command === "deploy" && args.length === 1) {
+    process.exit(await deploy());
   }
   console.error(
     "Unknown command or unsupported arguments. Run fence-rider --help for usage, or use the Forge CLI directly.",
@@ -39,7 +37,7 @@ console.log(`Fence Rider — SecretSpec-powered Forge development utility
 Usage: fence-rider <command> [options]
 
 Initial workflow:
-  deploy       Deployment with encrypted runtime variables (not implemented yet)
+  deploy       Deployment with encrypted runtime variables
 
 Discovery:
   help, --help, -h       Show this help
