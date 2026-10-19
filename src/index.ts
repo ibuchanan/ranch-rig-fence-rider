@@ -1,8 +1,12 @@
 import { version } from "../package.json";
 import { deploy } from "./deploy";
 import { lint } from "./lint";
+import { install } from "./install";
 
 const args = process.argv.slice(2);
+if (args.length === 2 && args[0] === "help" && args[1] === "install") {
+  process.exit(await install(["--help"]));
+}
 
 if (args.length === 1 && (args[0] === "--version" || args[0] === "-V")) {
   console.log(`fence-rider ${version}`);
@@ -18,7 +22,8 @@ const helpRequested =
 
 if (!helpRequested) {
   const command = args[0] === "help" ? args[1] : args[0];
-  if (command === "install" || command === "tunnel") {
+  if (args[0] === "install") process.exit(await install(args.slice(1)));
+  if (command === "tunnel") {
     console.error(
       `${command} is unsupported by Fence Rider. Use the Forge CLI directly: forge ${command}`,
     );
@@ -43,6 +48,7 @@ Usage: fence-rider <command> [options]
 Supported workflows:
   deploy       Deployment with encrypted runtime variables
   lint         Configured lint with live, unredacted Forge output
+  install      Configured installation or explicit --upgrade; no runtime writes
 
 Deployment target: explicit option, resolved FORGE_ENVIRONMENT
 (FORGE_ENV legacy alias), then development.
@@ -55,7 +61,10 @@ Discovery:
 Configured workflow prerequisites: SecretSpec CLI and Forge CLI must be installed on
 PATH and authenticated separately. Fence Rider does not install tools or log in.
 
-The install and tunnel workflows are unsupported; use the Forge CLI directly:
-  forge install
+Install targets: explicit options override resolved FORGE_SITE / FORGE_PRODUCT
+and environment independently. Site/product are required. Only environment
+falls back to development. Consent, upgrade, and non-interactive mode are explicit.
+
+Tunnel remains unsupported; use the Forge CLI directly:
   forge tunnel
 `);

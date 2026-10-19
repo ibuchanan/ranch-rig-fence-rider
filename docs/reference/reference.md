@@ -406,16 +406,16 @@ suppress local delivery or Forge's substitution requirements.
 
 SecretSpec schema/export and encrypted-upload stdout remain private and stderr
 is discarded. Deployment retains its existing suppressed-output contract.
-Only the delegated user-facing lint process inherits stdin, stdout, and stderr:
+Delegated user-facing lint and installation inherit stdin, stdout, and stderr:
 output is live, without redaction, and on its original stream; input is available
 without wrapper prompts. Wrapper-owned diagnostics omit values and raw helper
 errors. **Forge output, exception details, application logs, echoed input, and
 terminal sessions may expose values**; Fence Rider provides no passthrough
 redaction or credential isolation. Existing ambient authentication is retained.
 
-This shared user-facing stdio mode is available for subsequent workflow slices;
-it does not implement install, uninstall, or tunnel, or certify terminal-specific
-prompt behavior. Ordinary pipe checks establish input and pre-exit streaming.
+This shared user-facing stdio mode serves lint and installation; it does not
+implement uninstall or tunnel, or certify terminal-specific prompt behavior.
+Ordinary pipe checks establish input and pre-exit streaming.
 POSIX interruption forwards SIGINT/SIGTERM to the active process group, escalates
 after one second, and kills remaining group members, including when the direct
 child exits first. Windows process-tree cleanup remains uncertified.
@@ -435,6 +435,61 @@ file/profile with native inheritance, shared manifest inputs, stale optional
 cleanup despite ambient scope, and controls-only profiles. Controlled Forge
 checks establish delegation, not real Forge lint or manifest substitution.
 No live app was contacted. See the [validation record](validation.md).
+
+## Configured installation
+
+`fence-rider install [Forge options]` resolves the whole active profile once
+and delegates exactly one installation with inherited application values,
+ordinary settings, and existing authentication. It performs no runtime upload,
+remote deletion, deployment, or optional manifest declaration cross-check.
+Controls-only profiles work. Installation does not activate changed runtime
+values. SecretSpec requiredness and environment-alias conflicts still apply
+with explicit target overrides.
+
+| Target | Selection order | Validation |
+| --- | --- | --- |
+| Environment | Explicit option, resolved `FORGE_ENVIRONMENT` / `FORGE_ENV`, `development` | Alphanumeric first character, then alphanumeric, underscore, or hyphen |
+| Site | Explicit option, resolved `FORGE_SITE`; no fallback | Nonempty HTTP(S) URL or hostname, without whitespace, controls, or credentials |
+| Product | Explicit option, resolved `FORGE_PRODUCT`; no fallback | Case-insensitive Jira, Confluence, Compass, or Bitbucket |
+
+Target switches accept separated long/short forms, long equals forms, and
+attached short values: `--site URL`, `-s URL`, `--site=URL`, `-sURL`, and the
+corresponding `--product`/`-p` and `--environment`/`-e` forms. Short equals forms
+such as `-p=jira` are invalid. Missing, empty, invalid, or repeated targets fail
+before Forge; explicit target syntax errors fail before SecretSpec too.
+Missing effective site/product never opens Forge's target selection prompts.
+Bitbucket uses a workspace URL such as `https://bitbucket.org/workspace/`.
+`--demo-site` / `-d` is unsupported because it conflicts with configured site
+selection. Feature-gated Teamwork Graph installation is not certified here.
+
+Upgrade is the same command with an explicit `--upgrade [all|code]` or `-u`
+option. Fence Rider adds no upgrade, consent, non-interactive, license, or
+approval policy. `--confirm-scopes`, `--non-interactive`, optional license
+values, and variadic license/user options retain order and boundaries.
+Required values for `--app-id-override`, `--major-version`, and `--unitId`
+consume even switch-looking payloads; attached/equals payloads and everything
+after `--` are preserved. The wrapper does not implement a universal parser
+for future Forge options.
+
+Forge input/output uses the [live output policy](#output-and-input-policy).
+Numeric failures propagate; private helpers stay suppressed. Help aliases
+`install --help`, `install -h`, and `help install` need no configuration or
+external tools. Help-looking required values and terminator payloads are not
+help requests. POSIX interruption uses the existing bounded process-group
+cleanup; Windows and real terminal-specific prompt behavior remain unverified.
+
+Observed 2026-10-19: installed Forge CLI 14.2.0 `install --help`, published
+14.2.0 installation registration/context parsing source, and `@forge/cli-shared`
+9.8.0 supported-products source establish these option value counts and products.
+Upstream product matching is case-insensitive; site parsing accepts URLs with
+or without a scheme. Source inspection and controlled subprocesses are not
+live site acceptance. Inspection through Bun 1.4.3 emitted Forge's Node.js
+22.x/24.x support warning. Native SecretSpec 0.21.1 dotenv checks establish
+configuration behavior only. No live installation, consent, upgrade, app
+registration, or cleanup was authorized or executed. See the
+[validation record](validation.md) and [consumer procedure][install-guide].
+
+[install-guide]: ../how-to/how-to.md#install-or-upgrade-the-configured-app
 
 ## Verification ownership
 
@@ -467,7 +522,7 @@ checks rather than treating the initial contract as proof.
 | Forge input boundary | Positional argument boundaries and fail-closed restrictions tested locally; server acceptance and safer input mechanisms unverified |
 | Live Forge behavior | Blocked: no authorized disposable app/environment, writes, deployment, or cleanup |
 
-Installation and tunneling remain unsupported by Fence Rider pending their
+Uninstall and tunneling remain unsupported by Fence Rider pending their
 own contracts. Local availability does not imply a general command runner.
 
 ## Sources

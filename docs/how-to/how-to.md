@@ -10,7 +10,7 @@ Live Forge compatibility is not yet certified; see the
 ## Configure a local provider
 
 1. Work from your Forge app directory. Keep its existing registered app ID
-   and valid `manifest.yml`; Fence Rider does not register or install apps.
+   and valid `manifest.yml`; Fence Rider does not register apps.
 2. Create a repository-owned `secretspec.toml` with declarations, not secrets:
 
    ```toml
@@ -101,6 +101,50 @@ streams live **without redaction**; do not assume command output or echoed input
 is safe to publish. Private configuration-helper output stays suppressed; see
 the [output and input policy](../reference/reference.md#output-and-input-policy).
 
+## Install or upgrade the configured app
+
+1. Add site and product defaults to the active SecretSpec profile:
+
+   ```toml
+   FORGE_SITE = { description = "Installation site", default = "example.atlassian.net" }
+   FORGE_PRODUCT = { description = "Installation product", default = "jira" }
+   ```
+
+2. Put the built binary on `PATH` as `fence-rider`. Add these entries to your
+   app's existing package scripts:
+
+   ```json
+   {
+     "install:forge": "fence-rider install",
+     "upgrade:forge": "fence-rider install --upgrade"
+   }
+   ```
+
+3. With your provider configured, run `bun run install:forge` for initial
+   installation, or `bun run upgrade:forge` to upgrade an existing installation.
+   Both change remote installation state; use only an authorized app and site.
+   Forge owns remaining prompts. Add `--confirm-scopes` and `--non-interactive`
+   explicitly only when that consent and interaction policy is intended:
+
+   ```sh
+   SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli install --upgrade --confirm-scopes --non-interactive
+   ```
+
+Override individual targets with `--site URL`, `--product PRODUCT`, and
+`--environment TARGET`. Each wins over its resolved control independently.
+Only environment falls back to `development`; absent site/product fails rather
+than opening a target picker. Canonical `FORGE_ENVIRONMENT` and legacy
+`FORGE_ENV` must agree when both resolve. SecretSpec profile names never select
+Forge environments. Explicit targets do not waive required declarations.
+
+Installation and upgrade do not upload, delete, or activate changed runtime
+values, deploy code, or apply Fence Rider's optional manifest declaration check.
+They resolve the whole profile and run only one `forge install`. Output and input
+are live and not redacted. See the [installation reference][installation] for
+verified grammar, products, and the separate live-verification blocker.
+
+[installation]: ../reference/reference.md#configured-installation
+
 ## Select a profile, file, or deployment target
 
 Use `SECRETSPEC_FILE` for a different single TOML file and
@@ -161,11 +205,10 @@ redacted diagnostics do not remove that risk. Empty and leading-dash runtime
 values are rejected before any upload. Local empty strings and string values
 `"0"` and `"false"` are preserved; absent optionals are not coerced or deleted.
 
-Run `forge install` or `forge tunnel` directly when needed. Fence Rider rejects
-both commands without side effects. Installation needs a separate site,
-product, consent, and environment contract; it is not variable activation.
+Run `forge tunnel` directly when needed; Fence Rider still rejects tunneling.
 Tunneling needs a verified development-target and local secret-injection
-contract, not a reuse of remote runtime uploads.
+contract, not a reuse of remote runtime uploads. Configured installation above
+is not runtime variable activation.
 
 ## Arrange a live smoke test
 

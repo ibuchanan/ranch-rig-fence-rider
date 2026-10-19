@@ -1,5 +1,5 @@
 import {
-  CommandFailure,
+  reportConfiguredFailure,
   checkInterruption,
   checkManifest,
   configure,
@@ -15,24 +15,6 @@ function helpRequested(args: string[]) {
     if (["--", "--help", "-h"].includes(arg as string)) return arg !== "--";
   }
   return false;
-}
-
-function reportFailure(
-  error: unknown,
-  state: { stage: string; signal: AbortSignal },
-) {
-  const detail = error instanceof CommandFailure ? `: ${error.message}` : "";
-  console.error(
-    `Fence Rider: ${state.stage} failed${detail}. No further commands were run.`,
-  );
-  if (state.signal.aborted) return state.signal.reason === "SIGINT" ? 130 : 143;
-  return delegatedFailureStatus(error, state.stage);
-}
-
-function delegatedFailureStatus(error: unknown, stage: string) {
-  return stage === "lint" && error instanceof CommandFailure
-    ? error.exitCode
-    : 1;
 }
 
 /** Run configured Forge lint with inherited input and unredacted live output. */
@@ -53,7 +35,7 @@ export async function lint(args: string[]): Promise<number> {
     checkInterruption(state.signal);
     return 0;
   } catch (error) {
-    return reportFailure(error, state);
+    return reportConfiguredFailure(error, state, "lint");
   } finally {
     interruption.dispose();
   }

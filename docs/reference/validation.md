@@ -202,6 +202,58 @@ No dependency, inventory, resolver, provisioning, general runner, later
 workflow, live app contact, or remote mutation was added. Live verification
 remains blocked pending separate named authorization.
 
+## Configured installation ticket 03 — 2026-10-19
+
+Implemented at the approved compiled public CLI seam. Red-before-green slices
+established one configured install, independent overrides, payload/terminator
+preservation, invalid/duplicate/missing targets, and side-effect-free help.
+Final parser edge checks reject short-equals and attached demo-site bypasses.
+No tests call private helpers. No dependency, parser framework, threshold
+change, suppression, or later workflow implementation was introduced.
+
+One full-profile resolution supplies all local values and exactly one target
+per field. Explicit options override resolved controls independently; only
+environment falls back to development. Canonical and legacy environment names
+must agree even with overrides. Controls-only native profiles work. Missing
+required site, product, runtime, or unscoped values still block installation
+with all explicit targets supplied. Native checks use SecretSpec 0.21.1 and
+synthetic dotenv values, not provider credentials or a live Forge app.
+
+Public checks establish unchanged explicit upgrade/consent/non-interactive
+policy, target-like required option payloads, optional/variadic arguments,
+no uploads/deployment/deletion, and omission of the manifest cross-check.
+Live pipe output before input, inherited settings/authentication, visible
+synthetic echoed values, numeric statuses 2/23/127/255, helper/launch/signal
+failures, and bounded POSIX ignoring-child/descendant cleanup are covered.
+The existing lint failure policy is shared without changing confidentiality.
+
+Interface evidence: installed Forge CLI 14.2.0 `install --help`, published
+14.2.0 installation registration/context parsing, and shared 9.8.0
+supported-products source. Verified products are Jira, Confluence, Compass,
+and Bitbucket; the latter uses a workspace URL. Feature-gated Teamwork Graph
+and demo-site targeting are not supported by this slice. Upgrade has an
+optional `all`/`code` target. Required override/version/unit options consume
+switch-looking payloads. Bun 1.4.3 inspection emitted the existing Forge
+Node.js 22.x/24.x support warning. This proves neither runtime compatibility
+nor server acceptance. See [the full contract](reference.md#configured-installation).
+
+Validation: 262 tests / 1954 assertions, zero failures, up from 201 / 1618.
+All installed native checks ran. `bun run check`, `bun run lint`,
+`bun run lint:docs`, `bun run build`, compiled install help/version, and
+`git diff --check` pass with unchanged gates. Initial native fixture errors
+(required descriptions), documentation wrapping/spelling, and parser health
+findings were corrected; temporary downloaded inspection files and compiler
+intermediates were removed rather than committed.
+
+No live install, upgrade, consent, deployment, registration, or cleanup was
+authorized or performed. Real terminal prompts, Windows process-tree cleanup,
+and live site acceptance remain separately blocked evidence, not passing
+checks. Short install/upgrade scripts and explicit authorization warnings are
+in [the consumer guide](../how-to/how-to.md#install-or-upgrade-the-configured-app).
+Uninstall, tunnel, dependency delivery, and final consumer acceptance remain
+separate tickets. Existing user specification edits are excluded from this
+implementation commit; ignored scratch records remain local.
+
 ## Configured deployment ticket 01 — 2026-10-19
 
 `FORGE_ENVIRONMENT` is canonical for deployment; `FORGE_ENV` remains a legacy

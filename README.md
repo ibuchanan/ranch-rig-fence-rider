@@ -8,15 +8,16 @@ validates configuration, uploads only explicitly selected runtime variables
 with Forge encryption enabled, then delegates deployment to the same Forge
 environment. No vault SDK or Fence Rider code belongs in your deployed app.
 
-Configured `lint` supplies the same validated local/manifest inputs without
-runtime uploads. Its Forge output streams without redaction; see the
-[lint contract](docs/reference/reference.md#configured-lint).
+Configured `lint` and `install` supply validated local inputs without runtime
+uploads. Installation uses configured targets and caller-owned consent/upgrade
+options. Their Forge output streams without redaction; see the
+[workflow contracts](docs/reference/reference.md#configured-installation).
 
-**Status:** single-file deployment and lint are implemented and locally tested with
+**Status:** single-file deployment, lint, and installation are locally tested with
 Bun 1.4.3 and SecretSpec 0.21.1. Forge CLI 14.2.0 command interfaces have been
 inspected; live encryption and deployment activation verification is
 **blocked pending authorization**, not certified. This private source project
-is not published as a package. Installation and tunneling are unsupported;
+is not published as a package. Uninstall and tunneling remain unsupported;
 use the Forge CLI directly for those workflows.
 
 ## Build and try the CLI
@@ -31,7 +32,7 @@ bun run build
 ```
 
 Help and version need no configuration, vault, network, or Forge login.
-Deployment and lint additionally require separately installed and authenticated
+Deployment, lint, and installation require separately installed and authenticated
 SecretSpec and Forge CLIs on `PATH`, a valid registered Forge app, and a
 single SecretSpec file. Fence Rider never installs tools or logs you in.
 
@@ -51,6 +52,7 @@ Only `runtime` scope members upload; other values stay local. Optional
 
 - [Deploy from development or CI](docs/how-to/how-to.md)
 - [Run configured Forge lint](docs/how-to/how-to.md#run-configured-lint)
+- [Install or upgrade the configured app](docs/how-to/how-to.md#install-or-upgrade-the-configured-app)
 - [Variable contract and single-file limits](docs/reference/reference.md)
 - [Version evidence and acceptance checks](docs/reference/deployment.md)
 - [Why local, manifest, and runtime differ](docs/explanation/explanation.md)

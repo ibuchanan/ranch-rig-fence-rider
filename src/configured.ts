@@ -339,6 +339,23 @@ function configuredEnvironment(values: Record<string, string>) {
   return targets.values().next().value;
 }
 
+export function reportConfiguredFailure(
+  error: unknown,
+  state: { stage: string; signal: AbortSignal },
+  delegatedStage: string,
+) {
+  const detail = error instanceof CommandFailure ? `: ${error.message}` : "";
+  console.error(
+    `Fence Rider: ${state.stage} failed${detail}. No further commands were run.`,
+  );
+  if (state.signal.aborted) return state.signal.reason === "SIGINT" ? 130 : 143;
+  return delegatedFailureStatus(error, state.stage === delegatedStage);
+}
+
+function delegatedFailureStatus(error: unknown, delegated: boolean) {
+  return delegated && error instanceof CommandFailure ? error.exitCode : 1;
+}
+
 export async function configure(state: ConfigurationState) {
   const secretspec = prerequisite("secretspec", state);
   const forge = prerequisite("forge", state);

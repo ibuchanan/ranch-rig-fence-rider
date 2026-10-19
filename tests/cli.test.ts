@@ -107,7 +107,7 @@ test.each([
   }
 });
 
-test.each(["install", "tunnel"])(
+test.each(["tunnel"])(
   "%s directs developers to Forge without tool calls",
   async (command) => {
     for (const toolsAvailable of [false, true]) {
@@ -234,7 +234,7 @@ type ToolCall = {
 };
 
 type DeployOptions = {
-  command?: "deploy" | "lint";
+  command?: "deploy" | "lint" | "install";
   spec?: string;
   values?: unknown;
   schema?: unknown;
@@ -280,9 +280,9 @@ if (tool === "secretspec" && process.env.REAL_SECRETSPEC) {
   process.stderr.write(result.stderr);
   process.exit(result.exitCode);
 }
-if (args[0] === "lint") {
-  console.log("synthetic lint result");
-  console.error("synthetic lint warning");
+if (["lint", "install"].includes(args[0])) {
+  console.log("synthetic " + args[0] + " result");
+  console.error("synthetic " + args[0] + " warning");
   if (process.env.LINT_READ_INPUT) Bun.stdin.text().then(input => {
     console.log("input:" + input);
     console.log("ordinary:" + process.env.ORDINARY_SETTING);
@@ -290,7 +290,7 @@ if (args[0] === "lint") {
   });
 } else console.error("synthetic helper noise: " + ${JSON.stringify(sharedValue)});
 if (fixture.failStage === args[0] && (!fixture.failKey || fixture.failKey === args[5])) {
-  if (args[0] !== "lint") console.log(${JSON.stringify(sharedValue)});
+  if (!["lint", "install"].includes(args[0])) console.log(${JSON.stringify(sharedValue)});
   if (fixture.failureMode === "throw") throw new Error("synthetic error details: " + ${JSON.stringify(sharedValue)});
   if (fixture.failureMode === "signal") process.kill(process.pid, "SIGTERM");
   else process.exit(fixture.exitCode ?? 23);
@@ -299,7 +299,7 @@ if (fixture.blockStage === args[0]) {
   if (fixture.spawnDescendant) Bun.spawn([process.execPath, "-e", 'process.on("SIGINT", () => {}); process.on("SIGTERM", () => {}); require("node:fs").writeFileSync("descendant-ready", String(process.pid)); setInterval(() => {}, 1000);'], { stdin: "ignore", stdout: "ignore", stderr: "ignore" });
   for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {
     writeFileSync("received-signal", signal);
-    console.error(args[0] === "lint" ? "synthetic lint interrupted" : "synthetic signal error: " + ${JSON.stringify(sharedValue)});
+    console.error(["lint", "install"].includes(args[0]) ? "synthetic " + args[0] + " interrupted" : "synthetic signal error: " + ${JSON.stringify(sharedValue)});
     if (!fixture.ignoreSignal) process.exit(0);
   });
   setInterval(() => {}, 1000);
@@ -1514,50 +1514,60 @@ test("configured lint without manifest scope needs no manifest and preserves tar
   expect(result.interactions.at(-1)?.values).toEqual(deploymentValues);
 });
 
-test("configured lint streams before exit and inherits input, ordinary settings, and authentication without redaction", async () => {
-  const options: DeployOptions = {
-    env: {
-      LINT_READ_INPUT: "1",
-      ORDINARY_SETTING: "synthetic-setting",
-      FORGE_API_TOKEN: "synthetic-auth",
-    },
-  };
-  const project = prepareProject(options);
-  const child = Bun.spawn([executable, "lint"], {
-    cwd: project,
-    env: deploymentEnv(project, options),
-    stdin: "pipe",
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  let stdout = "";
-  const output = (async () => {
-    for await (const chunk of child.stdout)
-      stdout += new TextDecoder().decode(chunk);
-  })();
-  const errors = new Response(child.stderr).text();
-  try {
-    await waitUntil(
-      () => stdout.includes("synthetic lint result"),
-      "live lint output before input",
-    );
-    expect(child.exitCode).toBeNull();
-    child.stdin.write(sharedValue);
-    child.stdin.end();
-    expect(await child.exited).toBe(0);
-    await output;
-    expect(stdout).toContain(`input:${sharedValue}`);
-    expect(stdout).toContain("ordinary:synthetic-setting");
-    expect(stdout).toContain("auth:synthetic-auth");
-    expect(await errors).toBe("synthetic lint warning\n");
-  } finally {
-    child.stdin.end();
-    child.kill("SIGKILL");
-    await child.exited;
-    await output;
-    await errors;
-  }
-});
+test.each(["lint", "install"] as const)(
+  "configured %s streams before exit and inherits input, ordinary settings, and authentication without redaction",
+  async (command) => {
+    const options: DeployOptions = {
+      ...(command === "install"
+        ? {
+            spec: installationSpec,
+            schema: installationSchema,
+            values: installationValues,
+          }
+        : {}),
+      env: {
+        LINT_READ_INPUT: "1",
+        ORDINARY_SETTING: "synthetic-setting",
+        FORGE_API_TOKEN: "synthetic-auth",
+      },
+    };
+    const project = prepareProject(options);
+    const child = Bun.spawn([executable, command], {
+      cwd: project,
+      env: deploymentEnv(project, options),
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    let stdout = "";
+    const output = (async () => {
+      for await (const chunk of child.stdout)
+        stdout += new TextDecoder().decode(chunk);
+    })();
+    const errors = new Response(child.stderr).text();
+    try {
+      await waitUntil(
+        () => stdout.includes(`synthetic ${command} result`),
+        `live ${command} output before input`,
+      );
+      expect(child.exitCode).toBeNull();
+      child.stdin.write(sharedValue);
+      child.stdin.end();
+      expect(await child.exited).toBe(0);
+      await output;
+      expect(stdout).toContain(`input:${sharedValue}`);
+      expect(stdout).toContain("ordinary:synthetic-setting");
+      expect(stdout).toContain("auth:synthetic-auth");
+      expect(await errors).toBe(`synthetic ${command} warning\n`);
+    } finally {
+      child.stdin.end();
+      child.kill("SIGKILL");
+      await child.exited;
+      await output;
+      await errors;
+    }
+  },
+);
 
 test.skipIf(process.platform === "win32").each([
   {
@@ -1629,7 +1639,527 @@ test.skipIf(process.platform === "win32").each([
   12_000,
 );
 
+test.skipIf(process.platform === "win32").each(["SIGINT", "SIGTERM"] as const)(
+  "configured installation interruption %s cleans ignoring helpers and descendants",
+  async (signal) => {
+    const result = await install({
+      blockStage: "install",
+      ignoreSignal: true,
+      spawnDescendant: true,
+      onSpawn: async (child, project) => {
+        await waitUntil(
+          () =>
+            existsSync(join(project, "ready")) &&
+            existsSync(join(project, "descendant-ready")),
+          "installation readiness",
+        );
+        const pid = Number(await Bun.file(join(project, "ready")).text());
+        const descendant = Number(
+          await Bun.file(join(project, "descendant-ready")).text(),
+        );
+        child.kill(signal);
+        await waitUntil(
+          () =>
+            child.exitCode !== null &&
+            !processRunning(pid) &&
+            !processRunning(descendant),
+          "installation process group cleanup",
+        );
+        expect(await Bun.file(join(project, "received-signal")).text()).toBe(
+          signal,
+        );
+      },
+    });
+    expect(result.exitCode).toBe(signal === "SIGINT" ? 130 : 143);
+    expect(result.stderr).toContain(`interrupted by ${signal}`);
+    expect(
+      result.interactions
+        .filter(({ tool }) => tool === "forge")
+        .map(({ args }) => args[0]),
+    ).toEqual(["install"]);
+  },
+  12_000,
+);
+
+const installationSpec = canonicalSpec.replace(
+  "[profiles.default]",
+  '[profiles.default]\nFORGE_SITE = { description = "Installation site", default = "synthetic.atlassian.net" }\nFORGE_PRODUCT = { description = "Installation product", default = "jira" }',
+);
+const installationSchema = {
+  ...canonicalSchema,
+  properties: {
+    ...canonicalSchema.properties,
+    FORGE_SITE: { type: "string" },
+    FORGE_PRODUCT: { type: "string" },
+  },
+};
+const installationValues = {
+  ...canonicalValues,
+  FORGE_SITE: "synthetic.atlassian.net",
+  FORGE_PRODUCT: "jira",
+};
+
+function install(options: DeployOptions = {}) {
+  return deploy({
+    command: "install",
+    spec: installationSpec,
+    schema: installationSchema,
+    values: installationValues,
+    ...options,
+  });
+}
+
+test("configured installation resolves once and delegates only install with full local values and target defaults", async () => {
+  const result = await install({ env: { OPTIONAL: "stale" } });
+  expect(result.exitCode).toBe(0);
+  expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual([
+    {
+      tool: "forge",
+      args: [
+        "install",
+        "--environment",
+        "staging",
+        "--site",
+        "synthetic.atlassian.net",
+        "--product",
+        "jira",
+      ],
+      values: installationValues,
+    },
+  ]);
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "secretspec")
+      .map(({ args }) => args[0]),
+  ).toEqual(["schema", "export"]);
+  expect(result.stdout).toContain("synthetic install result");
+  expect(result.stderr).toBe("synthetic install warning\n");
+});
+
+test("configured installation overrides targets independently and preserves explicit upgrade policy", async () => {
+  const result = await install({
+    args: [
+      "--verbose",
+      "-sother.atlassian.net",
+      "--upgrade",
+      "code",
+      "--confirm-scopes",
+      "--non-interactive",
+    ],
+  });
+  expect(result.exitCode).toBe(0);
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "forge")
+      .map(({ args }) => args),
+  ).toEqual([
+    [
+      "install",
+      "--environment",
+      "staging",
+      "--site",
+      "other.atlassian.net",
+      "--product",
+      "jira",
+      "--verbose",
+      "--upgrade",
+      "code",
+      "--confirm-scopes",
+      "--non-interactive",
+    ],
+  ]);
+});
+
+test.each([
+  {
+    args: [
+      "--app-id-override",
+      "--site",
+      "--upgrade",
+      "code",
+      "--license-modes",
+      "user-access",
+      "--users-with-access",
+      "synthetic-user",
+      "--major-version",
+      "--environment",
+      "--unitId",
+      "--product",
+    ],
+  },
+  {
+    args: [
+      "--license",
+      "active",
+      "--app-id-override=--site",
+      "-ltrial",
+      "--upgrade=all",
+      "--",
+      "--site",
+      "payload",
+      "-p",
+      "confluence",
+      "--help",
+    ],
+  },
+])(
+  "configured installation preserves target-like option payloads and terminators %j",
+  async ({ args }) => {
+    const result = await install({ args });
+    expect(result.exitCode).toBe(0);
+    expect(
+      result.interactions
+        .filter(({ tool }) => tool === "forge")
+        .map(({ args }) => args),
+    ).toEqual([
+      [
+        "install",
+        "--environment",
+        "staging",
+        "--site",
+        "synthetic.atlassian.net",
+        "--product",
+        "jira",
+        ...args,
+      ],
+    ]);
+  },
+);
+
+test.each(
+  [
+    ["--site"],
+    ["-s=synthetic.atlassian.net"],
+    ["-dsother.atlassian.net"],
+    ["--demo-site=true"],
+    ["-p"],
+    ["--environment="],
+    ["--site", ""],
+    ["--site", "--non-interactive"],
+    ["-p=jira"],
+    ["--product", "jsm"],
+    ["--environment", "bad.target"],
+    ["--site", "not a site"],
+    ["--site", "one.atlassian.net", "-stwo.atlassian.net"],
+    ["-pjira", "--product=jira"],
+    ["-eproduction", "--environment", "staging"],
+    ["--demo-site"],
+    ["-d"],
+  ].map((args) => ({ args })),
+)(
+  "configured installation rejects invalid or duplicate explicit targets %j before tools",
+  async ({ args }) => {
+    const result = await install({ args });
+    expect(result.exitCode).toBe(1);
+    expect(result.interactions).toEqual([]);
+    expect(result.stderr).toContain("installation option validation");
+  },
+);
+
+test.each(["FORGE_SITE", "FORGE_PRODUCT"])(
+  "configured installation rejects absent effective %s without prompting",
+  async (missing) => {
+    const values: Record<string, string> = { ...installationValues };
+    delete values[missing];
+    const result = await install({ values });
+    expect(result.exitCode).toBe(1);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stderr).toContain("installation target validation");
+  },
+);
+
+test.each(
+  [
+    ["install", "--help"],
+    ["install", "-h"],
+    ["help", "install"],
+    ["install", "--upgrade", "--help"],
+    ["install", "--license-modes", "user-access", "--help"],
+  ].map((args) => ({ args })),
+)(
+  "configured installation help %j stays configuration-free",
+  async ({ args }) => {
+    const result = await invoke(args, true);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("install");
+    expect(result.stdout).toContain("FORGE_SITE");
+    expect(result.stdout).toContain("unredacted");
+    expect(result.stderr).toBe("");
+  },
+);
+
+test.each([
+  {
+    args: ["-upconfluence"],
+    target: ["staging", "synthetic.atlassian.net", "jira"],
+    forwarded: ["-upconfluence"],
+  },
+  {
+    args: ["-u", "--app-id-override", "--help"],
+    target: ["staging", "synthetic.atlassian.net", "jira"],
+    forwarded: ["-u", "--app-id-override", "--help"],
+  },
+  {
+    args: ["-e", "production"],
+    target: ["production", "synthetic.atlassian.net", "jira"],
+  },
+  {
+    args: [
+      "--environment=production",
+      "--site=https://other.atlassian.net",
+      "--product=confluence",
+    ],
+    target: ["production", "https://other.atlassian.net", "confluence"],
+  },
+  {
+    args: ["-eproduction", "-shttps://bitbucket.org/synthetic/", "-pbitbucket"],
+    target: ["production", "https://bitbucket.org/synthetic/", "bitbucket"],
+  },
+  {
+    args: ["-p", "compass"],
+    target: ["staging", "synthetic.atlassian.net", "compass"],
+  },
+  {
+    args: ["--upgrade"],
+    target: ["staging", "synthetic.atlassian.net", "jira"],
+    forwarded: ["--upgrade"],
+  },
+  {
+    args: [
+      "-uall",
+      "--license=active",
+      "--license-modes",
+      "user-access",
+      "--users-with-access",
+      "one",
+      "two",
+      "--non-interactive",
+    ],
+    target: ["staging", "synthetic.atlassian.net", "jira"],
+    forwarded: [
+      "-uall",
+      "--license=active",
+      "--license-modes",
+      "user-access",
+      "--users-with-access",
+      "one",
+      "two",
+      "--non-interactive",
+    ],
+  },
+])(
+  "configured installation supports verified target and policy forms %j",
+  async ({ args, target, forwarded = [] }) => {
+    const result = await install({ args });
+    expect(result.exitCode).toBe(0);
+    expect(
+      result.interactions
+        .filter(({ tool }) => tool === "forge")
+        .map(({ args }) => args),
+    ).toEqual([
+      [
+        "install",
+        "--environment",
+        target[0],
+        "--site",
+        target[1],
+        "--product",
+        target[2],
+        ...forwarded,
+      ],
+    ]);
+  },
+);
+
+test.each([2, 23, 127, 255])(
+  "configured installation preserves Forge status %i",
+  async (exitCode) => {
+    const result = await install({ failStage: "install", exitCode });
+    expect(result.exitCode).toBe(exitCode);
+    expect(result.stdout).toContain("synthetic install result");
+    expect(result.stderr).toContain(
+      `installation failed: exit status ${exitCode}`,
+    );
+    expect(result.interactions.at(-1)?.args[0]).toBe("install");
+  },
+);
+
+test.each([
+  { failStage: "schema" },
+  { failStage: "export" },
+  { launchTool: "secretspec" },
+  { launchTool: "forge" },
+  { missingTool: "secretspec" },
+  { missingTool: "forge" },
+  { failStage: "install", failureMode: "signal" as const },
+])(
+  "configured installation fails safely without follow-up commands %j",
+  async (options) => {
+    const result = await install(options);
+    expect(result.exitCode).toBe(1);
+    expect(
+      result.interactions.filter(({ tool }) => tool === "forge").length,
+    ).toBe(options.failStage === "install" ? 1 : 0);
+    expect(result.stderr).not.toContain("synthetic helper noise");
+  },
+);
+
+test("configured installation ignores deployment-only scope checks and needs no manifest", async () => {
+  const result = await install({
+    manifest: null,
+    spec: `${installationSpec.replace('["SHARED", "OPTIONAL"]', '["FORGE_SITE", "SHARED"]')}\n[scopes.manifest]\nsecrets = ["SHARED", "OPTIONAL"]\n`,
+    values: { ...installationValues, OPTIONAL: "--local-only" },
+  });
+  expect(result.exitCode).toBe(0);
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "forge")
+      .map(({ args }) => args[0]),
+  ).toEqual(["install"]);
+});
+
 const realSecretSpec = Bun.which("secretspec");
+
+test.skipIf(!realSecretSpec).each([
+  {
+    name: "canonical",
+    declarations: 'FORGE_ENVIRONMENT = { default = "staging" }',
+    target: "staging",
+    args: [],
+    pass: true,
+  },
+  {
+    name: "legacy",
+    declarations: 'FORGE_ENV = { default = "staging" }',
+    target: "staging",
+    args: [],
+    pass: true,
+  },
+  {
+    name: "matching aliases",
+    declarations:
+      'FORGE_ENVIRONMENT = { default = "staging" }\nFORGE_ENV = { default = "staging" }',
+    target: "staging",
+    args: [],
+    pass: true,
+  },
+  {
+    name: "explicit override",
+    declarations: 'FORGE_ENVIRONMENT = { default = "staging" }',
+    target: "production",
+    args: ["-eproduction"],
+    pass: true,
+  },
+  {
+    name: "absent optional environment",
+    declarations: "FORGE_ENVIRONMENT = { required = false }",
+    target: "development",
+    args: [],
+    pass: true,
+  },
+  {
+    name: "conflicting aliases despite override",
+    declarations:
+      'FORGE_ENVIRONMENT = { default = "staging" }\nFORGE_ENV = { default = "production" }',
+    target: "unused",
+    args: ["-edevelopment"],
+    pass: false,
+  },
+  {
+    name: "required environment despite override",
+    declarations: "FORGE_ENVIRONMENT = { required = true }",
+    target: "unused",
+    args: ["-edevelopment"],
+    pass: false,
+  },
+])(
+  "native configured installation controls-only profile: $name",
+  async ({ declarations, target, args, pass }) => {
+    const result = await install({
+      realSecretSpec: realSecretSpec ?? "",
+      spec: `[project]\nname = "synthetic-install"\nrevision = "1.0"\n[profiles.default]\n${declarations.replaceAll(" = {", ' = { description = "Synthetic control",')}\nFORGE_SITE = { description = "Installation site", default = "synthetic.atlassian.net" }\nFORGE_PRODUCT = { description = "Installation product", default = "jira" }\n`,
+      schema: {
+        properties: {
+          FORGE_ENVIRONMENT: {},
+          FORGE_ENV: {},
+          FORGE_SITE: {},
+          FORGE_PRODUCT: {},
+        },
+      },
+      env: {
+        SECRETSPEC_PROVIDER: "dotenv:values.env",
+        SECRETSPEC_PROFILE: "default",
+        FORGE_ENVIRONMENT: "stale",
+      },
+      dotenv: "",
+      args,
+      manifest: null,
+    });
+    expect(result.exitCode).toBe(pass ? 0 : 1);
+    expect(
+      result.interactions
+        .filter(({ tool }) => tool === "forge")
+        .map(({ args }) => args),
+    ).toEqual(
+      pass
+        ? [
+            [
+              "install",
+              "--environment",
+              target,
+              "--site",
+              "synthetic.atlassian.net",
+              "--product",
+              "jira",
+            ],
+          ]
+        : [],
+    );
+    if (pass)
+      expect(
+        result.interactions
+          .filter(({ tool }) => tool === "secretspec")
+          .map(({ args }) => args[0]),
+      ).toEqual(["schema", "export"]);
+  },
+);
+
+test
+  .skipIf(!realSecretSpec)
+  .each(["FORGE_SITE", "FORGE_PRODUCT", "SHARED", "LOCAL_ONLY"])(
+  "native configured installation still requires %s despite overrides",
+  async (missing) => {
+    const spec = installationSpec
+      .replace('default = "synthetic.atlassian.net"', "required = true")
+      .replace('default = "jira"', "required = true");
+    const values = {
+      FORGE_SITE: "synthetic.atlassian.net",
+      FORGE_PRODUCT: "jira",
+      SHARED: "synthetic-native-shared",
+      LOCAL_ONLY: "synthetic-native-local",
+    };
+    const result = await install({
+      realSecretSpec: realSecretSpec ?? "",
+      spec,
+      env: {
+        SECRETSPEC_PROVIDER: "dotenv:values.env",
+        SECRETSPEC_SCOPE: "runtime",
+      },
+      dotenv: Object.entries(values)
+        .filter(([name]) => name !== missing)
+        .map(([name, value]) => `${name}=${value}\n`)
+        .join(""),
+      args: ["-sother.atlassian.net", "-pconfluence", "-eproduction"],
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stderr).toContain("SecretSpec resolution");
+  },
+);
 
 test.skipIf(!realSecretSpec).each(["SHARED", "LOCAL_ONLY"])(
   "native configured lint blocks missing whole-profile requirement %s",
