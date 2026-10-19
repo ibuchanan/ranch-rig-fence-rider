@@ -74,12 +74,25 @@ function validateValues(schema: unknown, values: unknown) {
     throw new Error("Malformed native output");
   }
   const properties = schema["properties"];
-  const required = schema["required"] ?? [];
-  if (!Array.isArray(required))
+  const required = schema["required"] === undefined ? [] : schema["required"];
+  if (!Array.isArray(required) || new Set(required).size !== required.length)
     throw new Error("Malformed required declarations");
-  for (const key of Object.keys(properties)) {
+  if (schema["type"] !== "object") throw new Error("Malformed schema type");
+  for (const [key, declaration] of Object.entries(properties)) {
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key))
       throw new Error("Invalid variable name");
+    if (
+      !isObject(declaration) ||
+      (declaration["type"] !== "string" &&
+        !(
+          Array.isArray(declaration["type"]) &&
+          declaration["type"].length === 2 &&
+          declaration["type"].includes("string") &&
+          declaration["type"].includes("null")
+        ))
+    ) {
+      throw new Error("Unsupported native declaration");
+    }
   }
   for (const key of required) {
     if (
@@ -151,6 +164,7 @@ function validateRuntime(names: string[], values: Record<string, string>) {
 
 export async function deploy(args: string[] = []): Promise<number> {
   let stage = "environment option validation";
+  let target: string | undefined;
   try {
     let explicitTarget: string | undefined;
     const forwarded: string[] = [];
@@ -194,6 +208,7 @@ export async function deploy(args: string[] = []): Promise<number> {
         forwarded.push(arg);
       }
     }
+    target = explicitTarget;
     const tools: Record<string, string> = {};
     for (const tool of ["secretspec", "forge"]) {
       stage = `${tool} prerequisite (install and authenticate separately on PATH)`;
@@ -229,7 +244,7 @@ export async function deploy(args: string[] = []): Promise<number> {
     );
     stage = "resolved value validation";
     const { properties, values } = validateValues(schema, exported);
-    const target = validateTarget(
+    target = validateTarget(
       explicitTarget ?? values["FORGE_ENV"] ?? "development",
     );
     stage = `manifest validation (target ${target})`;
@@ -264,7 +279,7 @@ export async function deploy(args: string[] = []): Promise<number> {
     return 0;
   } catch {
     console.error(
-      `Fence Rider: ${stage} failed. No further commands were run.`,
+      `Fence Rider: ${stage}${target && !stage.includes("(target ") ? ` (target ${target})` : ""} failed. No further commands were run.`,
     );
     return 1;
   }

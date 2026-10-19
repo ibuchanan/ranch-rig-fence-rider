@@ -1,6 +1,7 @@
 # Deployment compatibility evidence
 
-Tickets 03 and 04 implemented `fence-rider deploy [options]` on 2026-10-18.
+Tickets 03–05 implemented and validated `fence-rider deploy [options]` on
+2026-10-18 and 2026-10-19.
 This page records executable evidence; the [variable contract](reference.md)
 contains the routing policy and deferred compatibility work.
 
@@ -48,7 +49,18 @@ an absent optional value is omitted, not exported as null. The blank scope
 clears ambient scope selection. A real dotenv test confirms that a missing
 unscoped required value fails full-profile resolution despite an inherited
 `SECRETSPEC_SCOPE=runtime`. Another confirms native default-profile inheritance
-with the same explicit non-default profile for schema and export.
+with the same explicit non-default profile for schema and export. A standalone
+profile with `[profiles.release.defaults] inherit = false` excludes inherited
+requirements and permits an empty runtime intersection. It must redeclare
+native-required descriptions; Fence Rider does not merge profile fields.
+
+An unknown ambient `SECRETSPEC_SCOPE` is also cleared, not interpreted as an
+explicit request. Fence Rider has no scope-selection option: `runtime` and
+`manifest` are fixed routing metadata, and native export always resolves the
+full profile. Empty scope declarations and undeclared scope members fail
+before native resolution. An empty native profile is invalid, while a profile
+with only absent optional declarations exports `{}` and can deploy without
+uploads. Empty `project.extends` is exercised with the native CLI as well.
 
 The local fixture uses `SECRETSPEC_PROVIDER=dotenv:values.env`, isolated home
 and XDG directories, and synthetic values only. Tests skip the real-SecretSpec
@@ -96,7 +108,27 @@ no live app, variable write, or deployment is involved.
 The single TOML file supplies scope metadata. Effective membership is its
 intersection with native schema declaration names. All required and exported
 values are validated before any upload. Only strings without NUL are accepted;
-structured values are rejected, not coerced.
+structured values are rejected, not coerced. Native schema must describe an
+object with string or nullable-string properties and a valid, unique required
+name list. Null, array, malformed JSON, invalid names, and unsupported property
+types fail closed; an optional nullable declaration does not authorize a null
+exported value.
+
+The native dotenv checks confirm the following value boundary:
+
+| Representation | Observed behavior |
+| --- | --- |
+| Absent optional | Omitted from export and uploads; stale inherited process value removed before Forge runs |
+| Explicit empty local string | Preserved in the Forge child environment |
+| Explicit empty runtime string | Rejected before all uploads; never silently omitted |
+| Strings `"0"` and `"false"` | Preserved unchanged locally and in encrypted upload arguments |
+| JSON number, boolean, null, array, or object | Rejected without coercion, even after a valid selected entry |
+| Numeric or boolean TOML default | Rejected by SecretSpec configuration validation |
+| Native secret type `"number"` | Rejected by SecretSpec; its `type` field is not a JSON primitive type |
+| Missing dotenv provider file | Resolution fails before any Forge command |
+
+Only synthetic dotenv-provider behavior is verified. Other providers and Forge
+server-side acceptance of key/value forms are not certified by these checks.
 
 - All resolved application values are available to every Forge child. Declared
   but absent optional values do not inherit stale process values.
@@ -123,7 +155,9 @@ structured values are rejected, not coerced.
 
 Helper output is captured in memory and never forwarded verbatim. Diagnostics
 identify the safe stage, declared variable name, and validated target when
-available. Resolved values, secret-bearing command lines, raw helper errors,
+available, including an explicit validated target during early configuration,
+schema, and resolution failures. Invalid target values are never echoed.
+Resolved values, secret-bearing command lines, raw helper errors,
 and provider output are not logged or written by Fence Rider to caches or
 intermediate files. Native SecretSpec retains ownership of its own audit and
 provider behavior.
@@ -132,8 +166,9 @@ Resolution, validation, and upload failure prevent deployment. Delegation
 failure returns nonzero. Sequential writes are not transactional: an earlier
 successful write may remain changed if a later operation fails. Exact numeric
 status propagation, partial-state warnings, and interruption cleanup remain
-with ticket 06. Exhaustive value/provider edges belong to ticket 05; authorized
-live Forge acceptance and activation checks belong to ticket 07.
+with ticket 06. Ticket 05 validates configuration, value, and local-provider
+edges before mutation; authorized live Forge acceptance and activation checks
+belong to ticket 07.
 
 ## Sources
 

@@ -223,9 +223,12 @@ type ToolCall = {
 
 type DeployOptions = {
   spec?: string;
-  values?: Record<string, unknown>;
+  values?: unknown;
   schema?: unknown;
-  manifest?: string;
+  schemaOutput?: string;
+  exportOutput?: string;
+  files?: Record<string, string>;
+  manifest?: string | null;
   missingTool?: string;
   failStage?: string;
   args?: readonly string[];
@@ -242,7 +245,7 @@ const { appendFileSync } = require("node:fs");
 const args = process.argv.slice(2);
 const tool = ${JSON.stringify(tool)};
 const fixture = JSON.parse(process.env.FIXTURE);
-const names = Object.keys(fixture.schema.properties);
+const names = Object.keys(fixture.schema?.properties ?? {});
 appendFileSync(process.env.TOOL_CALL_LOG, JSON.stringify({
   tool, args,
   values: Object.fromEntries(names.filter(name => process.env[name] !== undefined).map(name => [name, process.env[name]]))
@@ -258,7 +261,7 @@ if (fixture.failStage === args[0]) {
   console.log(${JSON.stringify(sharedValue)});
   process.exit(23);
 }
-if (tool === "secretspec") console.log(JSON.stringify(args[0] === "schema" ? fixture.schema : fixture.values));
+if (tool === "secretspec") console.log((args[0] === "schema" ? fixture.schemaOutput : fixture.exportOutput) ?? JSON.stringify(args[0] === "schema" ? fixture.schema : fixture.values));
 `,
     { mode: 0o755 },
   );
@@ -274,8 +277,14 @@ function deploymentEnv(project: string, options: DeployOptions) {
     TMPDIR: project,
     TOOL_CALL_LOG: join(project, "tool-calls"),
     FIXTURE: JSON.stringify({
-      schema: options.schema ?? deploymentSchema,
-      values: options.values ?? deploymentValues,
+      schema: Object.hasOwn(options, "schema")
+        ? options.schema
+        : deploymentSchema,
+      values: Object.hasOwn(options, "values")
+        ? options.values
+        : deploymentValues,
+      schemaOutput: options.schemaOutput,
+      exportOutput: options.exportOutput,
       failStage: options.failStage,
     }),
     ...(options.realSecretSpec
@@ -297,7 +306,13 @@ async function deploy(options: DeployOptions = {}) {
     join(project, "secretspec.toml"),
     options.spec ?? deploymentSpec,
   );
-  writeFileSync(join(project, "manifest.yml"), options.manifest ?? "app: {}\n");
+  if (options.manifest !== null)
+    writeFileSync(
+      join(project, "manifest.yml"),
+      options.manifest ?? "app: {}\n",
+    );
+  for (const [name, content] of Object.entries(options.files ?? {}))
+    writeFileSync(join(project, name), content);
   if (options.dotenv !== undefined)
     writeFileSync(join(project, "values.env"), options.dotenv);
   const child = Bun.spawn([executable, "deploy", ...(options.args ?? [])], {
@@ -631,6 +646,7 @@ test.each([
         'revision = "1.0"',
         `revision = "1.0"\n${declaration}`,
       ),
+      files: { "parent.toml": deploymentSpec },
     });
     expect(result.exitCode).not.toBe(0);
     expect(result.interactions).toEqual([]);
@@ -660,6 +676,104 @@ test.each([
     expect(result.stderr).toContain("scope metadata");
   },
 );
+
+test.each([
+  { name: "null schema", options: { schema: null } },
+  { name: "array schema", options: { schema: [] } },
+  {
+    name: "array properties",
+    options: { schema: { type: "object", properties: [] } },
+  },
+  {
+    name: "wrong root type",
+    options: { schema: { ...deploymentSchema, type: "array" } },
+  },
+  {
+    name: "null property",
+    options: {
+      schema: {
+        ...deploymentSchema,
+        properties: { ...deploymentSchema.properties, OPTIONAL: null },
+      },
+    },
+  },
+  {
+    name: "numeric property",
+    options: {
+      schema: {
+        ...deploymentSchema,
+        properties: {
+          ...deploymentSchema.properties,
+          OPTIONAL: { type: "number" },
+        },
+      },
+    },
+  },
+  {
+    name: "null required",
+    options: { schema: { ...deploymentSchema, required: null } },
+  },
+  {
+    name: "string required",
+    options: { schema: { ...deploymentSchema, required: "SHARED" } },
+  },
+  {
+    name: "non-string required",
+    options: { schema: { ...deploymentSchema, required: [42] } },
+  },
+  {
+    name: "unknown required",
+    options: { schema: { ...deploymentSchema, required: ["UNKNOWN"] } },
+  },
+  {
+    name: "duplicate required",
+    options: {
+      schema: { ...deploymentSchema, required: ["SHARED", "SHARED"] },
+    },
+  },
+  {
+    name: "invalid key",
+    options: {
+      schema: {
+        ...deploymentSchema,
+        properties: {
+          ...deploymentSchema.properties,
+          [sharedValue]: { type: "string" },
+        },
+      },
+    },
+  },
+  { name: "null export", options: { values: null } },
+  { name: "array export", options: { values: [] } },
+  { name: "string export", options: { values: sharedValue } },
+  { name: "broken schema JSON", options: { schemaOutput: `{${sharedValue}` } },
+  { name: "broken export JSON", options: { exportOutput: `{${sharedValue}` } },
+])(
+  "malformed native output: $name stops before all Forge commands",
+  async ({ options }) => {
+    const result = await deploy({ ...options, args: ["-e", "production"] });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("target production");
+    expect(result.stderr).not.toContain("synthetic helper noise");
+  },
+);
+
+test("preflight failures retain a validated explicit target without leaking invalid values", async () => {
+  const result = await deploy({
+    args: ["-e", "production"],
+    values: { ...deploymentValues, OPTIONAL: { secret: sharedValue } },
+  });
+  expect(result.exitCode).not.toBe(0);
+  expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+    [],
+  );
+  expect(result.stderr).toContain("resolved value validation");
+  expect(result.stderr).toContain("target production");
+});
 
 test("validates every resolved value and required declaration before the first upload", async () => {
   for (const values of [
@@ -724,7 +838,7 @@ test("rejects control-variable upload selection and unsupported runtime inputs b
 });
 
 test("resolution, upload, and deployment failures never report success or leak helper output", async () => {
-  for (const failStage of ["export", "variables", "deploy"]) {
+  for (const failStage of ["schema", "export", "variables", "deploy"]) {
     const result = await deploy({ failStage });
     expect(result.exitCode).not.toBe(0);
     expect(result.stdout).toBe("");
@@ -737,7 +851,11 @@ test("resolution, upload, and deployment failures never report success or leak h
       ).toBe(false);
     }
     expect(result.stderr).toContain(
-      failStage === "export" ? "SecretSpec resolution" : "staging",
+      failStage === "schema"
+        ? "SecretSpec schema"
+        : failStage === "export"
+          ? "SecretSpec resolution"
+          : "staging",
     );
   }
 });
@@ -910,6 +1028,312 @@ test.skipIf(!realSecretSpec)(
       SHARED: "synthetic-release",
       LOCAL_ONLY: "synthetic-local",
     });
+  },
+);
+
+test.skipIf(!realSecretSpec)(
+  "native standalone profile omits inherited requirements and permits empty runtime intersection",
+  async () => {
+    const result = await deploy({
+      realSecretSpec: realSecretSpec ?? "",
+      spec: `${deploymentSpec}\n[profiles.release.defaults]\ninherit = false\n[profiles.release]\nFORGE_ENV = { description = "Standalone target", default = "production" }\nLOCAL_ONLY = { description = "Standalone value", required = true }\n`,
+      env: {
+        SECRETSPEC_PROVIDER: "dotenv:values.env",
+        SECRETSPEC_PROFILE: "release",
+      },
+      dotenv: "LOCAL_ONLY=synthetic-standalone\n",
+    });
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    const forge = result.interactions.filter(({ tool }) => tool === "forge");
+    expect(forge.map(({ args }) => args)).toEqual([
+      ["deploy", "--environment", "production"],
+    ]);
+    expect(forge[0]?.values).toEqual({
+      FORGE_ENV: "production",
+      LOCAL_ONLY: "synthetic-standalone",
+    });
+  },
+);
+
+test.skipIf(!realSecretSpec)(
+  "native absent optional overrides stale ambient values without narrowing the full profile",
+  async () => {
+    const result = await deploy({
+      realSecretSpec: realSecretSpec ?? "",
+      env: {
+        SECRETSPEC_PROVIDER: "dotenv:values.env",
+        SECRETSPEC_SCOPE: "unknown-ambient-scope",
+        OPTIONAL: "synthetic-stale-optional",
+      },
+      dotenv:
+        "SHARED=synthetic-native-shared\nLOCAL_ONLY=synthetic-native-local\n",
+    });
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    const forge = result.interactions.filter(({ tool }) => tool === "forge");
+    expect(forge).toHaveLength(2);
+    for (const call of forge) {
+      expect(call.values).toEqual({
+        FORGE_ENV: "staging",
+        SHARED: "synthetic-native-shared",
+        LOCAL_ONLY: "synthetic-native-local",
+      });
+      expect(call.values).not.toHaveProperty("OPTIONAL");
+    }
+    expect(result.stdout + result.stderr).not.toContain("synthetic-stale");
+  },
+);
+
+test.skipIf(!realSecretSpec).each([
+  {
+    name: "local empty",
+    local: "",
+    runtime: "synthetic-runtime",
+    succeeds: true,
+  },
+  { name: "string zero", local: "false", runtime: "0", succeeds: true },
+  { name: "string false", local: "0", runtime: "false", succeeds: true },
+  {
+    name: "runtime empty",
+    local: "synthetic-local",
+    runtime: "",
+    succeeds: false,
+  },
+])(
+  "native dotenv values: $name preserves strings or rejects before mutation",
+  async ({ local, runtime, succeeds }) => {
+    const result = await deploy({
+      realSecretSpec: realSecretSpec ?? "",
+      env: { SECRETSPEC_PROVIDER: "dotenv:values.env" },
+      dotenv: `SHARED=${runtime}\nLOCAL_ONLY=${local}\n`,
+    });
+    expect(result.exitCode === 0).toBe(succeeds);
+    const forge = result.interactions.filter(({ tool }) => tool === "forge");
+    if (succeeds) {
+      expect(forge.map(({ args }) => args)).toEqual([
+        [
+          "variables",
+          "set",
+          "--encrypt",
+          "--environment",
+          "staging",
+          "SHARED",
+          runtime,
+        ],
+        ["deploy", "--environment", "staging"],
+      ]);
+      for (const call of forge)
+        expect(call.values).toEqual({
+          FORGE_ENV: "staging",
+          SHARED: runtime,
+          LOCAL_ONLY: local,
+        });
+    } else {
+      expect(forge).toEqual([]);
+      expect(result.stderr).toContain("runtime selection validation");
+      expect(result.stderr).toContain("empty");
+    }
+  },
+);
+
+test.each([
+  { name: "null", value: null },
+  { name: "number zero", value: 0 },
+  { name: "boolean false", value: false },
+  { name: "array", value: [sharedValue] },
+  { name: "object", value: { secret: sharedValue } },
+  { name: "NUL", value: `before\u0000${sharedValue}` },
+  { name: "empty runtime", value: "" },
+  { name: "leading dash", value: "--synthetic" },
+])(
+  "late invalid runtime value: $name prevents the earlier valid upload",
+  async ({ value }) => {
+    const result = await deploy({
+      values: { ...deploymentValues, OPTIONAL: value },
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stdout).toBe("");
+  },
+);
+
+test.each(["SHARED", "LOCAL_ONLY"])(
+  "missing required %s blocks writes even without runtime selection",
+  async (key) => {
+    for (const withRuntime of [false, true]) {
+      const values: Record<string, unknown> = { ...deploymentValues };
+      delete values[key];
+      const result = await deploy({
+        spec: `${withRuntime ? deploymentSpec : deploymentSpec.split("[scopes.runtime]")[0]}\n[scopes.manifest]\nsecrets = ["LOCAL_ONLY"]\n`,
+        values,
+        manifest: "environment:\n  variables: [LOCAL_ONLY]\n",
+      });
+      expect(result.exitCode).not.toBe(0);
+      expect(
+        result.interactions.filter(({ tool }) => tool === "forge"),
+      ).toEqual([]);
+      expect(result.stderr).toContain("resolved value validation");
+    }
+  },
+);
+
+test("omitted manifest scope does not require a manifest file or suppress local values", async () => {
+  const result = await deploy({ manifest: null });
+  expect(result.exitCode).toBe(0);
+  expect(result.interactions.at(-1)?.values).toEqual(deploymentValues);
+});
+
+test.skipIf(!realSecretSpec).each([
+  {
+    name: "empty extends",
+    spec: deploymentSpec.replace(
+      'revision = "1.0"',
+      'revision = "1.0"\nextends = []',
+    ),
+    succeeds: true,
+  },
+  {
+    name: "omitted runtime",
+    spec: deploymentSpec.split("[scopes.runtime]")[0] ?? "",
+    succeeds: true,
+  },
+  {
+    name: "empty scope",
+    spec: deploymentSpec.replace('["SHARED", "OPTIONAL"]', "[]"),
+    succeeds: false,
+  },
+  {
+    name: "unknown scope member",
+    spec: deploymentSpec.replace('["SHARED", "OPTIONAL"]', '["UNKNOWN"]'),
+    succeeds: false,
+  },
+  {
+    name: "numeric default",
+    spec: deploymentSpec.replace('default = "staging"', "default = 0"),
+    succeeds: false,
+  },
+  {
+    name: "boolean default",
+    spec: deploymentSpec.replace('default = "staging"', "default = false"),
+    succeeds: false,
+  },
+  {
+    name: "invalid native type",
+    spec: deploymentSpec.replace(
+      "required = false",
+      'required = false, type = "number"',
+    ),
+    succeeds: false,
+  },
+  {
+    name: "empty profile",
+    spec: '[project]\nname = "synthetic"\nrevision = "1.0"\n[profiles.default]\n',
+    succeeds: false,
+  },
+  {
+    name: "empty optional profile",
+    spec: '[project]\nname = "synthetic"\nrevision = "1.0"\n[profiles.default]\nOPTIONAL = { description = "Optional", required = false }\n',
+    succeeds: true,
+  },
+])(
+  "native configuration: $name is validated without remote writes",
+  async ({ name, spec, succeeds }) => {
+    const result = await deploy({
+      realSecretSpec: realSecretSpec ?? "",
+      spec,
+      env: { SECRETSPEC_PROVIDER: "dotenv:values.env" },
+      dotenv:
+        "SHARED=synthetic-native-shared\nLOCAL_ONLY=synthetic-native-local\n",
+    });
+    expect({
+      exitCode: result.exitCode === 0,
+      stderr: succeeds ? result.stderr : "",
+    }).toEqual({ exitCode: succeeds, stderr: "" });
+    const forge = result.interactions.filter(({ tool }) => tool === "forge");
+    if (succeeds) {
+      expect(forge.at(-1)?.args[0]).toBe("deploy");
+      if (name !== "empty extends") expect(forge).toHaveLength(1);
+      if (name === "empty optional profile")
+        expect(forge[0]?.values).toEqual({});
+    } else {
+      expect(forge).toEqual([]);
+    }
+  },
+);
+
+test.each([
+  { name: "invalid TOML", spec: `not valid TOML ${sharedValue}` },
+  { name: "missing specification", env: { SECRETSPEC_FILE: "missing.toml" } },
+  {
+    name: "malformed scope table",
+    spec: `scopes = "invalid"\n${deploymentSpec}`,
+  },
+])(
+  "invalid configuration: $name fails with secret-safe diagnostics",
+  async ({ spec, env }) => {
+    const result = await deploy({
+      ...(spec === undefined ? {} : { spec }),
+      ...(env === undefined ? {} : { env }),
+      args: ["-e", "production"],
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("target production");
+  },
+);
+
+test.skipIf(!realSecretSpec).each([
+  {
+    name: "manifest requirement",
+    spec: `${deploymentSpec}\n[scopes.manifest]\nsecrets = ["LOCAL_ONLY"]\n`,
+    provider: "dotenv:values.env",
+    dotenv: "SHARED=synthetic-native-shared\n",
+  },
+  {
+    name: "missing local provider file",
+    spec: deploymentSpec,
+    provider: "dotenv:missing.env",
+    dotenv: "",
+  },
+  {
+    name: "unknown active profile",
+    spec: deploymentSpec,
+    provider: "dotenv:values.env",
+    dotenv: "",
+    profile: "unknown-profile",
+  },
+])(
+  "native resolution failure: $name prevents every Forge command",
+  async ({ spec, provider, dotenv, profile }) => {
+    const result = await deploy({
+      realSecretSpec: realSecretSpec ?? "",
+      spec,
+      env: {
+        SECRETSPEC_PROVIDER: provider,
+        SECRETSPEC_SCOPE: "runtime",
+        ...(profile ? { SECRETSPEC_PROFILE: profile } : {}),
+      },
+      dotenv,
+      manifest: "environment:\n  variables: [LOCAL_ONLY]\n",
+      args: ["-e", "production"],
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stderr).toContain("SecretSpec");
+    expect(result.stderr).toContain("target production");
+    expect(result.stdout + result.stderr).not.toContain("synthetic-native");
   },
 );
 
