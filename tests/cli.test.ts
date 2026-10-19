@@ -185,7 +185,7 @@ test.each(["secretspec", "forge"])(
 );
 
 const sharedValue =
-  "synthetic shared \"quoted\" 'value'\n$HOME; $(touch injected); `id`";
+  "synthetic shared FENCE_RIDER_SYNTHETIC_SECRET_06 \"quoted\" 'value'\n$HOME; $(touch injected); `id`";
 const deploymentSpec = `[project]
 name = "fence-rider-test"
 revision = "1.0"
@@ -231,6 +231,17 @@ type DeployOptions = {
   manifest?: string | null;
   missingTool?: string;
   failStage?: string;
+  failKey?: string;
+  exitCode?: number;
+  failureMode?: "throw" | "signal";
+  launchTool?: string;
+  blockStage?: string;
+  ignoreSignal?: boolean;
+  spawnDescendant?: boolean;
+  onSpawn?: (
+    child: Bun.Subprocess<"ignore", "pipe", "pipe">,
+    project: string,
+  ) => Promise<void>;
   args?: readonly string[];
   env?: Record<string, string>;
   realSecretSpec?: string;
@@ -241,7 +252,7 @@ function writeTool(path: string, tool: string) {
   writeFileSync(
     path,
     `#!${process.execPath}
-const { appendFileSync } = require("node:fs");
+const { appendFileSync, writeFileSync } = require("node:fs");
 const args = process.argv.slice(2);
 const tool = ${JSON.stringify(tool)};
 const fixture = JSON.parse(process.env.FIXTURE);
@@ -257,11 +268,22 @@ if (tool === "secretspec" && process.env.REAL_SECRETSPEC) {
   process.exit(result.exitCode);
 }
 console.error("synthetic helper noise: " + ${JSON.stringify(sharedValue)});
-if (fixture.failStage === args[0]) {
+if (fixture.failStage === args[0] && (!fixture.failKey || fixture.failKey === args[5])) {
   console.log(${JSON.stringify(sharedValue)});
-  process.exit(23);
+  if (fixture.failureMode === "throw") throw new Error("synthetic error details: " + ${JSON.stringify(sharedValue)});
+  if (fixture.failureMode === "signal") process.kill(process.pid, "SIGTERM");
+  else process.exit(fixture.exitCode ?? 23);
 }
-if (tool === "secretspec") console.log((args[0] === "schema" ? fixture.schemaOutput : fixture.exportOutput) ?? JSON.stringify(args[0] === "schema" ? fixture.schema : fixture.values));
+if (fixture.blockStage === args[0]) {
+  if (fixture.spawnDescendant) Bun.spawn([process.execPath, "-e", 'process.on("SIGINT", () => {}); process.on("SIGTERM", () => {}); require("node:fs").writeFileSync("descendant-ready", String(process.pid)); setInterval(() => {}, 1000);'], { stdin: "ignore", stdout: "ignore", stderr: "ignore" });
+  for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {
+    writeFileSync("received-signal", signal);
+    console.error("synthetic signal error: " + ${JSON.stringify(sharedValue)});
+    if (!fixture.ignoreSignal) process.exit(0);
+  });
+  setInterval(() => {}, 1000);
+  writeFileSync("ready", String(process.pid));
+} else if (tool === "secretspec") console.log((args[0] === "schema" ? fixture.schemaOutput : fixture.exportOutput) ?? JSON.stringify(args[0] === "schema" ? fixture.schema : fixture.values));
 `,
     { mode: 0o755 },
   );
@@ -286,6 +308,12 @@ function deploymentEnv(project: string, options: DeployOptions) {
       schemaOutput: options.schemaOutput,
       exportOutput: options.exportOutput,
       failStage: options.failStage,
+      failKey: options.failKey,
+      exitCode: options.exitCode,
+      failureMode: options.failureMode,
+      blockStage: options.blockStage,
+      ignoreSignal: options.ignoreSignal,
+      spawnDescendant: options.spawnDescendant,
     }),
     ...(options.realSecretSpec
       ? { REAL_SECRETSPEC: options.realSecretSpec }
@@ -300,7 +328,15 @@ async function deploy(options: DeployOptions = {}) {
   const calls = join(project, "tool-calls");
   mkdirSync(bin);
   for (const tool of ["secretspec", "forge"]) {
-    if (options.missingTool !== tool) writeTool(join(bin, tool), tool);
+    if (options.missingTool !== tool) {
+      writeTool(join(bin, tool), tool);
+      if (options.launchTool === tool)
+        writeFileSync(
+          join(bin, tool),
+          `#!${join(project, "missing-interpreter")}\n${sharedValue}\n`,
+          { mode: 0o755 },
+        );
+    }
   }
   writeFileSync(
     join(project, "secretspec.toml"),
@@ -318,23 +354,46 @@ async function deploy(options: DeployOptions = {}) {
   const child = Bun.spawn([executable, "deploy", ...(options.args ?? [])], {
     cwd: project,
     env: deploymentEnv(project, options),
+    stdin: "ignore",
     stdout: "pipe",
     stderr: "pipe",
+    detached: process.platform !== "win32",
   });
-  const [exitCode, stdout, stderr] = await Promise.all([
+  const output = Promise.all([
     child.exited,
     new Response(child.stdout).text(),
     new Response(child.stderr).text(),
   ]);
-  const interactions: ToolCall[] = existsSync(calls)
-    ? (await Bun.file(calls).text())
-        .trim()
-        .split("\n")
-        .map((line) => JSON.parse(line))
-    : [];
-  expect(stdout + stderr).not.toContain(sharedValue);
-  expect(existsSync(join(project, "injected"))).toBe(false);
-  return { exitCode, stdout, stderr, interactions, project };
+  try {
+    await options.onSpawn?.(child, project);
+    const [exitCode, stdout, stderr] = await output;
+    const interactions: ToolCall[] = existsSync(calls)
+      ? (await Bun.file(calls).text())
+          .trim()
+          .split("\n")
+          .map((line) => JSON.parse(line))
+      : [];
+    expect(stdout + stderr).not.toContain(sharedValue);
+    expect(stdout + stderr).not.toContain("FENCE_RIDER_SYNTHETIC_SECRET_06");
+    expect(existsSync(join(project, "injected"))).toBe(false);
+    return { exitCode, stdout, stderr, interactions, project };
+  } finally {
+    child.kill("SIGKILL");
+    const ready = join(project, "ready");
+    if (existsSync(ready)) {
+      const pid = Number(await Bun.file(ready).text());
+      try {
+        process.kill(pid, "SIGKILL");
+      } catch {}
+    }
+    const descendant = join(project, "descendant-ready");
+    if (existsSync(descendant)) {
+      try {
+        process.kill(Number(await Bun.file(descendant).text()), "SIGKILL");
+      } catch {}
+    }
+    await child.exited;
+  }
 }
 
 test("deploy resolves once, encrypts only runtime values, then deploys to the configured target", async () => {
@@ -841,7 +900,7 @@ test("resolution, upload, and deployment failures never report success or leak h
   for (const failStage of ["schema", "export", "variables", "deploy"]) {
     const result = await deploy({ failStage });
     expect(result.exitCode).not.toBe(0);
-    expect(result.stdout).toBe("");
+    expect(result.stdout).not.toContain("Deployment completed");
     expect(result.stderr).not.toContain("synthetic helper noise");
     if (failStage !== "deploy") {
       expect(
@@ -859,6 +918,201 @@ test("resolution, upload, and deployment failures never report success or leak h
     );
   }
 });
+
+async function waitUntil(check: () => boolean, description: string) {
+  const deadline = Date.now() + 4_000;
+  while (!check()) {
+    if (Date.now() >= deadline)
+      throw new Error(`Timed out waiting for ${description}`);
+    await Bun.sleep(10);
+  }
+}
+
+function processRunning(pid: number) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+test.skipIf(process.platform === "win32").each([
+  { blockStage: "schema", signal: "SIGINT", ignoreSignal: false },
+  { blockStage: "export", signal: "SIGTERM", ignoreSignal: false },
+  { blockStage: "variables", signal: "SIGINT", ignoreSignal: false },
+  { blockStage: "deploy", signal: "SIGINT", ignoreSignal: false },
+  { blockStage: "deploy", signal: "SIGTERM", ignoreSignal: false },
+  { blockStage: "deploy", signal: "SIGTERM", ignoreSignal: true },
+] as const)(
+  "operator interruption $signal during $blockStage cleans up (ignores signal: $ignoreSignal)",
+  async ({ blockStage, signal, ignoreSignal }) => {
+    const result = await deploy({
+      blockStage,
+      ignoreSignal,
+      args: ["-e", "production"],
+      onSpawn: async (child, project) => {
+        await waitUntil(
+          () => existsSync(join(project, "ready")),
+          "active helper readiness",
+        );
+        const pid = Number(await Bun.file(join(project, "ready")).text());
+        child.kill(signal);
+        await waitUntil(
+          () => child.exitCode !== null || child.signalCode !== null,
+          "Fence Rider exit",
+        );
+        await waitUntil(() => !processRunning(pid), "delegated helper exit");
+        expect(await Bun.file(join(project, "received-signal")).text()).toBe(
+          signal,
+        );
+      },
+    });
+    expect(result.exitCode).toBe(signal === "SIGINT" ? 130 : 143);
+    expect(result.stderr).toContain(`interrupted by ${signal}`);
+    expect(result.stderr).toContain("target production");
+    expect(result.interactions.at(-1)?.args[0]).toBe(blockStage);
+    expect(result.stdout).not.toContain("Deployment completed");
+    if (["variables", "deploy"].includes(blockStage))
+      expect(result.stderr).toContain(
+        "Remote variables may already have changed",
+      );
+  },
+  12_000,
+);
+
+test.skipIf(process.platform === "win32")(
+  "interruption cleans up descendants even when the active helper exits first",
+  async () => {
+    const result = await deploy({
+      blockStage: "deploy",
+      spawnDescendant: true,
+      onSpawn: async (child, project) => {
+        await waitUntil(
+          () =>
+            existsSync(join(project, "ready")) &&
+            existsSync(join(project, "descendant-ready")),
+          "process group readiness",
+        );
+        const parent = Number(await Bun.file(join(project, "ready")).text());
+        const descendant = Number(
+          await Bun.file(join(project, "descendant-ready")).text(),
+        );
+        child.kill("SIGTERM");
+        await waitUntil(
+          () => !processRunning(parent) && !processRunning(descendant),
+          "entire delegated process group exit",
+        );
+        await waitUntil(() => child.exitCode !== null, "Fence Rider exit");
+      },
+    });
+    expect(result.exitCode).toBe(143);
+    expect(result.stderr).toContain("interrupted by SIGTERM");
+  },
+  12_000,
+);
+
+test.each(["secretspec", "forge"])(
+  "unlaunchable %s executable reports safe actionable context",
+  async (launchTool) => {
+    const result = await deploy({ launchTool, args: ["-e", "production"] });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("unable to launch");
+    expect(result.stderr).toContain("executable");
+    expect(result.stderr).toContain("target production");
+    expect(result.interactions.some(({ tool }) => tool === launchTool)).toBe(
+      false,
+    );
+    expect(result.stdout).not.toContain("Deployment completed");
+  },
+);
+
+test.each(["schema", "export", "variables", "deploy"])(
+  "child signal termination during %s cannot become success",
+  async (failStage) => {
+    const result = await deploy({
+      failStage,
+      failureMode: "signal",
+      args: ["-e", "production"],
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("terminated by SIGTERM");
+    expect(result.stderr).toContain("target production");
+    expect(result.interactions.at(-1)?.args[0]).toBe(failStage);
+    expect(result.stdout).not.toContain("Deployment completed");
+  },
+);
+
+test.each(["schema", "export", "variables", "deploy"])(
+  "helper exception during %s never leaks stdout stderr or error details",
+  async (failStage) => {
+    const result = await deploy({
+      failStage,
+      failureMode: "throw",
+      args: ["-e", "production"],
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("target production");
+    expect(result.interactions.at(-1)?.args[0]).toBe(failStage);
+    expect(result.stdout + result.stderr).not.toContain(
+      "synthetic error details",
+    );
+    expect(result.stdout + result.stderr).not.toContain(
+      "synthetic helper noise",
+    );
+  },
+);
+
+test("deployment emits safe stage progress without forwarding helper streams", async () => {
+  const result = await deploy();
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain(
+    "Fence Rider: encrypted upload for SHARED (target staging).",
+  );
+  expect(result.stdout).toContain("Fence Rider: deployment (target staging).");
+  expect(result.stdout).toContain("Deployment completed.");
+  expect(result.stdout + result.stderr).not.toContain("synthetic helper noise");
+});
+
+test.each([2, 23, 127, 255])(
+  "delegated deployment preserves exit status %i without raw helper output",
+  async (exitCode) => {
+    const result = await deploy({ failStage: "deploy", exitCode });
+    expect(result.exitCode).toBe(exitCode);
+    expect(
+      result.interactions.filter(({ args }) => args[0] === "deploy"),
+    ).toHaveLength(1);
+    expect(result.stderr).toContain(`exit status ${exitCode}`);
+    expect(result.stderr).toContain("deployment (target staging)");
+    expect(result.stderr).toContain(
+      "Remote variables may already have changed",
+    );
+    expect(result.stdout).not.toContain("Deployment completed");
+  },
+);
+
+test.each(["SHARED", "OPTIONAL"])(
+  "failed upload for %s stops later writes and reports possible partial state",
+  async (failKey) => {
+    const result = await deploy({
+      values: { ...deploymentValues, OPTIONAL: "second synthetic value" },
+      failStage: "variables",
+      failKey,
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(
+      result.interactions
+        .filter(({ tool }) => tool === "forge")
+        .map(({ args }) => args[5]),
+    ).toEqual(failKey === "SHARED" ? ["SHARED"] : ["SHARED", "OPTIONAL"]);
+    expect(result.stderr).toContain(`encrypted upload for ${failKey}`);
+    expect(result.stderr).toContain("target staging");
+    expect(result.stderr).toContain(
+      "Remote variables may already have changed",
+    );
+    expect(result.stdout).not.toContain("Deployment completed");
+  },
+);
 
 test("omitted runtime scope and empty active-profile intersection deploy without writes or deletion", async () => {
   for (const spec of [

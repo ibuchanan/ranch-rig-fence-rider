@@ -1,6 +1,6 @@
 # Deployment compatibility evidence
 
-Tickets 03–05 implemented and validated `fence-rider deploy [options]` on
+Tickets 03–06 implemented and validated `fence-rider deploy [options]` on
 2026-10-18 and 2026-10-19.
 This page records executable evidence; the [variable contract](reference.md)
 contains the routing policy and deferred compatibility work.
@@ -153,7 +153,9 @@ server-side acceptance of key/value forms are not certified by these checks.
 
 ## Failure and confidentiality boundary
 
-Helper output is captured in memory and never forwarded verbatim. Diagnostics
+Helper stdout is captured in memory and never forwarded verbatim; stderr
+is discarded. Wrapper-owned progress identifies uploads and deployment without
+printing values, command lines, or third-party output. Diagnostics
 identify the safe stage, declared variable name, and validated target when
 available, including an explicit validated target during early configuration,
 schema, and resolution failures. Invalid target values are never echoed.
@@ -162,13 +164,43 @@ and provider output are not logged or written by Fence Rider to caches or
 intermediate files. Native SecretSpec retains ownership of its own audit and
 provider behavior.
 
-Resolution, validation, and upload failure prevent deployment. Delegation
-failure returns nonzero. Sequential writes are not transactional: an earlier
-successful write may remain changed if a later operation fails. Exact numeric
-status propagation, partial-state warnings, and interruption cleanup remain
-with ticket 06. Ticket 05 validates configuration, value, and local-provider
-edges before mutation; authorized live Forge acceptance and activation checks
-belong to ticket 07.
+Resolution, validation, and upload failure prevent every later command.
+Normal numeric deployment exit statuses are preserved exactly, including
+nonzero statuses. Launch failures, child signal termination, and invalid
+subprocess statuses cannot become success. Diagnostics report safe exit or
+signal context; missing executables and launch failures identify the stage
+and installation prerequisite without exposing native error details.
+
+Sequential writes are not transactional. Once an upload is attempted, any
+failure warns that remote variables may already have changed, including when
+the first upload fails: an error does not prove that the destination rejected
+the write. There are no retries, automatic rollback, or remote deletions.
+
+### Interruption contract
+
+The tested contract is POSIX process groups with Bun 1.4.3 on macOS. Each helper
+has its own process group. Fence Rider forwards operator `SIGINT` or `SIGTERM`
+to the active group and stops the workflow, returning 130 or 143 respectively,
+even if the helper handles interruption by exiting zero. A helper that does
+not exit within one second receives `SIGKILL`. Remaining group members are
+killed when an interrupted helper exits, so descendants cannot survive merely
+by ignoring the initial signal. Cleanup waits for the direct child to exit.
+
+Compiled-CLI tests cover resolution, uploads, deployment, signal receipt,
+non-success exit, and observable process termination, including an ignoring
+helper and an ignoring descendant whose parent exits first. Every interruption
+scenario uses an isolated CLI process, readiness records, bounded waits, and
+cleanup on assertion failure. Synthetic secret markers in helper stdout,
+stderr, exceptions, and interruption diagnostics remain absent from CLI output.
+Malformed native JSON/schema/export tests exercise the data-result boundary;
+impossible runtime status shapes are guarded without mocking Bun internals.
+
+Windows signal/process-tree cleanup is not certified. POSIX descendants that
+explicitly leave their process group, termination of Fence Rider that cannot
+be handled such as `SIGKILL`, and operating-system failure are outside this cleanup
+contract. Cleanup cannot undo remote writes or cancel work already accepted
+by a remote service. Authorized live Forge acceptance and activation checks
+remain ticket 07.
 
 ## Sources
 

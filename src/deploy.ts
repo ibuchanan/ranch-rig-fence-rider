@@ -45,20 +45,86 @@ function validateScopes(config: Specification) {
   }
 }
 
-async function run(tool: string, args: string[], env = process.env) {
-  const child = Bun.spawn([tool, ...args], {
-    env,
-    stdin: "ignore",
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [code, stdout] = await Promise.all([
-    child.exited,
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-  ]);
-  if (code !== 0) throw new Error("External command failed");
-  return stdout;
+class CommandFailure extends Error {
+  constructor(
+    message: string,
+    readonly exitCode = 1,
+  ) {
+    super(message);
+  }
+}
+
+function checkInterruption(signal: AbortSignal) {
+  if (signal.aborted)
+    throw new CommandFailure(
+      `interrupted by ${signal.reason}`,
+      signal.reason === "SIGINT" ? 130 : 143,
+    );
+}
+
+async function run(
+  tool: string,
+  args: string[],
+  signal: AbortSignal,
+  env = process.env,
+) {
+  checkInterruption(signal);
+  let child: Bun.Subprocess<"ignore", "pipe", "ignore">;
+  let launchError = false;
+  try {
+    child = Bun.spawn([tool, ...args], {
+      env,
+      stdin: "ignore",
+      stdout: "pipe",
+      stderr: "ignore",
+      detached: process.platform !== "win32",
+      onExit(_child, _code, _signal, error) {
+        launchError = error !== undefined;
+      },
+    });
+  } catch {
+    throw new CommandFailure(
+      "unable to launch executable; check installation and its interpreter",
+    );
+  }
+  const active = child;
+  let escalation: ReturnType<typeof setTimeout> | undefined;
+  const terminate = (kind: NodeJS.Signals) => {
+    try {
+      if (process.platform === "win32") active.kill(kind);
+      else process.kill(-active.pid, kind);
+    } catch {
+      // The process may have exited before the signal was delivered.
+    }
+  };
+  const interrupt = () => {
+    terminate(signal.reason);
+    escalation ??= setTimeout(() => terminate("SIGKILL"), 1_000);
+  };
+  signal.addEventListener("abort", interrupt, { once: true });
+  try {
+    const [code, stdout] = await Promise.all([
+      active.exited,
+      new Response(active.stdout).text(),
+    ]);
+    checkInterruption(signal);
+    if (launchError)
+      throw new CommandFailure(
+        "executable failed to start; check installation",
+      );
+    if (active.signalCode !== null)
+      throw new CommandFailure(`terminated by ${active.signalCode}`);
+    if (!Number.isInteger(code) || code < 0 || code > 255)
+      throw new CommandFailure("invalid subprocess status");
+    if (code !== 0) throw new CommandFailure(`exit status ${code}`, code);
+    return stdout;
+  } finally {
+    // A helper can exit on interruption while its descendants keep running.
+    if (signal.aborted) terminate("SIGKILL");
+    signal.removeEventListener("abort", interrupt);
+    clearTimeout(escalation);
+    await active.exited;
+  }
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -162,9 +228,17 @@ function validateRuntime(names: string[], values: Record<string, string>) {
   }
 }
 
+/** Synchronize selected encrypted variables, then deploy with secret-safe diagnostics. */
 export async function deploy(args: string[] = []): Promise<number> {
   let stage = "environment option validation";
   let target: string | undefined;
+  let uploadAttempted = false;
+  const interruption = new AbortController();
+  const onInterrupt = () => interruption.abort("SIGINT");
+  const onTerminate = () => interruption.abort("SIGTERM");
+  process.on("SIGINT", onInterrupt);
+  process.on("SIGTERM", onTerminate);
+  const signal = interruption.signal;
   try {
     let explicitTarget: string | undefined;
     const forwarded: string[] = [];
@@ -229,18 +303,15 @@ export async function deploy(args: string[] = []): Promise<number> {
     const nativeArgs = ["--file", file, "--profile", profile];
     stage = "SecretSpec schema";
     const schema: unknown = JSON.parse(
-      await run(secretspec, ["schema", ...nativeArgs]),
+      await run(secretspec, ["schema", ...nativeArgs], signal),
     );
     stage = "SecretSpec resolution";
     const exported: unknown = JSON.parse(
-      await run(secretspec, [
-        "export",
-        ...nativeArgs,
-        "--scope",
-        "",
-        "--format",
-        "json",
-      ]),
+      await run(
+        secretspec,
+        ["export", ...nativeArgs, "--scope", "", "--format", "json"],
+        signal,
+      ),
     );
     stage = "resolved value validation";
     const { properties, values } = validateValues(schema, exported);
@@ -267,20 +338,36 @@ export async function deploy(args: string[] = []): Promise<number> {
       const value = values[key];
       if (value === undefined) continue;
       stage = `encrypted upload for ${key} (target ${target})`;
+      uploadAttempted = true;
+      console.log(`Fence Rider: ${stage}.`);
       await run(
         forge,
         ["variables", "set", "--encrypt", "--environment", target, key, value],
+        signal,
         env,
       );
     }
     stage = `deployment (target ${target})`;
-    await run(forge, ["deploy", "--environment", target, ...forwarded], env);
+    console.log(`Fence Rider: ${stage}.`);
+    await run(
+      forge,
+      ["deploy", "--environment", target, ...forwarded],
+      signal,
+      env,
+    );
+    checkInterruption(signal);
     console.log("Deployment completed.");
     return 0;
-  } catch {
+  } catch (error) {
     console.error(
-      `Fence Rider: ${stage}${target && !stage.includes("(target ") ? ` (target ${target})` : ""} failed. No further commands were run.`,
+      `Fence Rider: ${stage}${target && !stage.includes("(target ") ? ` (target ${target})` : ""} failed${error instanceof CommandFailure ? `: ${error.message}` : ""}. No further commands were run.${uploadAttempted ? " Remote variables may already have changed; no rollback was attempted." : ""}`,
     );
-    return 1;
+    if (signal.aborted) return signal.reason === "SIGINT" ? 130 : 143;
+    return error instanceof CommandFailure && stage.startsWith("deployment (")
+      ? error.exitCode
+      : 1;
+  } finally {
+    process.removeListener("SIGINT", onInterrupt);
+    process.removeListener("SIGTERM", onTerminate);
   }
 }
