@@ -50,9 +50,10 @@ printed on any nonzero status, including tool errors. Run
 `check` uses Bun's `--only-failures`; ordinary `test` remains verbose.
 
 `check` does not include documentation lint or build, so run those separately.
-Known baseline failures and final results are recorded in the deployment
-reference; a clean Git tree does not imply a green quality gate. Do not raise
-thresholds or suppress findings just to make this ticket pass.
+The current `check` passes after the Fallow cleanup; historical failures and
+current results are recorded in the [validation record](docs/reference/validation.md).
+Whole-document lint still has separate historical issues outside `check`.
+Do not raise thresholds or suppress findings to make a gate pass.
 
 ## Repository layout
 

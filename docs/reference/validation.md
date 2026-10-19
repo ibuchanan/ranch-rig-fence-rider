@@ -91,7 +91,7 @@ duplication passed. Baseline documentation lint reported 81 issues, including
 scaffold policy documents, the placeholder README, product spec table
 formatting, and the unchanged historical exploration.
 
-| Final command | Result |
+| Ticket 07 command | Result |
 | --- | --- |
 | `bun run test:check` | PASS: 156 tests, zero failures, 1293 assertions; all installed native checks ran |
 | `bun run check` | FAIL: same seven pre-existing Fallow health thresholds; tests pass, passing case names hidden, full Fallow failure report retained |
@@ -115,3 +115,30 @@ preserved and included rather than left uncommitted.
 A clean Git working tree is separate from a green validation gate. The local
 scratch ticket records completion and the remaining live blocker; this
 tracked page preserves the results in the commit.
+
+## Fallow cleanup follow-up — 2026-10-19
+
+The requested health cleanup now passes `bun run check` with exit status 0.
+Fallow reports zero dead-code issues and zero functions above the existing
+health thresholds. Cyclomatic 20, cognitive 15, and risk-score 30 limits are
+unchanged; no suppression, baseline exemption, dependency, or analysis skip
+was added. Quiet Fallow success and failure-only test reporting remain intact.
+
+The deployment function now coordinates explicit configuration, resolution,
+manifest validation, upload, and deployment phases using shared diagnostic
+state. Native declarations, required membership, runtime values, options,
+and subprocess exit status have focused validators. The test fixture now
+separates project setup from invocation and reuses parent/descendant cleanup.
+Public CLI tests remain the regression boundary; no private helpers are
+exported just for tests and no fake coverage evidence was added.
+
+Fallow's static coverage estimate still cannot observe compiled subprocess
+tests. The refactoring reduces per-function branching rather than changing
+that model or claiming measured runtime coverage. This redistributes some
+existing decisions into named responsibilities; it does not claim the
+workflow has fewer total decisions.
+
+The complete existing 156-test suite passes with 1293 assertions. Biome lint,
+formatting, typecheck, and compiled build pass. The historical whole-doc lint
+issues are outside `check` and remain separate. Live Forge verification is
+still blocked; no live app was contacted during this cleanup.

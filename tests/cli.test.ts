@@ -323,22 +323,24 @@ function deploymentEnv(project: string, options: DeployOptions) {
   };
 }
 
-async function deploy(options: DeployOptions = {}) {
-  const project = mkdtempSync(join(workspace, "deployment-"));
+function prepareTools(project: string, options: DeployOptions) {
   const bin = join(project, "bin");
-  const calls = join(project, "tool-calls");
   mkdirSync(bin);
   for (const tool of ["secretspec", "forge"]) {
-    if (options.missingTool !== tool) {
-      writeTool(join(bin, tool), tool);
-      if (options.launchTool === tool)
-        writeFileSync(
-          join(bin, tool),
-          `#!${join(project, "missing-interpreter")}\n${sharedValue}\n`,
-          { mode: 0o755 },
-        );
-    }
+    if (options.missingTool === tool) continue;
+    writeTool(join(bin, tool), tool);
+    if (options.launchTool === tool)
+      writeFileSync(
+        join(bin, tool),
+        `#!${join(project, "missing-interpreter")}\n${sharedValue}\n`,
+        { mode: 0o755 },
+      );
   }
+}
+
+function prepareProject(options: DeployOptions) {
+  const project = mkdtempSync(join(workspace, "deployment-"));
+  prepareTools(project, options);
   writeFileSync(
     join(project, "secretspec.toml"),
     options.spec ?? deploymentSpec,
@@ -352,6 +354,20 @@ async function deploy(options: DeployOptions = {}) {
     writeFileSync(join(project, name), content);
   if (options.dotenv !== undefined)
     writeFileSync(join(project, "values.env"), options.dotenv);
+  return project;
+}
+
+async function killFixtureProcess(path: string) {
+  if (!existsSync(path)) return;
+  const pid = Number(await Bun.file(path).text());
+  try {
+    process.kill(pid, "SIGKILL");
+  } catch {}
+}
+
+async function deploy(options: DeployOptions = {}) {
+  const project = prepareProject(options);
+  const calls = join(project, "tool-calls");
   const child = Bun.spawn([executable, "deploy", ...(options.args ?? [])], {
     cwd: project,
     env: deploymentEnv(project, options),
@@ -380,19 +396,8 @@ async function deploy(options: DeployOptions = {}) {
     return { exitCode, stdout, stderr, interactions, project };
   } finally {
     child.kill("SIGKILL");
-    const ready = join(project, "ready");
-    if (existsSync(ready)) {
-      const pid = Number(await Bun.file(ready).text());
-      try {
-        process.kill(pid, "SIGKILL");
-      } catch {}
-    }
-    const descendant = join(project, "descendant-ready");
-    if (existsSync(descendant)) {
-      try {
-        process.kill(Number(await Bun.file(descendant).text()), "SIGKILL");
-      } catch {}
-    }
+    await killFixtureProcess(join(project, "ready"));
+    await killFixtureProcess(join(project, "descendant-ready"));
     await child.exited;
   }
 }
