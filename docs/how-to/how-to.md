@@ -70,6 +70,37 @@ Live Forge compatibility is not yet certified; see the
    values are not deleted. `SERVICE_URL` remains local for the manifest.
    Progress prints names, targets, and stages, never values or helper output.
 
+## Run configured lint
+
+From the configured app directory, use the same provider and built binary:
+
+```sh
+SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli lint
+```
+
+To use a short package script, put the built binary on `PATH` as `fence-rider`
+and add this entry to the app's existing `scripts` object:
+
+```json
+{ "lint:forge": "fence-rider lint" }
+```
+
+Run `bun run lint:forge`, or append explicit Forge options such as `--verbose`.
+No target-variable expansion, Bash helper, or second variable inventory is
+needed. Package/dependency executable delivery is not implemented yet; the
+binary and separately installed SecretSpec/Forge CLIs must already be available.
+
+Resolve every required profile declaration, including runtime credentials,
+before lint. Use native optional declarations or a suitable profile for
+legitimate absence; a manifest scope does not narrow requiredness. If manifest
+membership is present, declare each effective member in `environment.variables`.
+
+Lint performs no runtime uploads or deployment and adds no target flags.
+Forge's `--fix` can change local files only when you request it. Forge output
+streams live **without redaction**; do not assume command output or echoed input
+is safe to publish. Private configuration-helper output stays suppressed; see
+the [output and input policy](../reference/reference.md#output-and-input-policy).
+
 ## Select a profile, file, or deployment target
 
 Use `SECRETSPEC_FILE` for a different single TOML file and

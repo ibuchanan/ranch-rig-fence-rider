@@ -164,6 +164,44 @@ continues to identify this guide as historical input, not current guidance.
 156 tests and 1293 assertions. No application code, validation configuration,
 dependency, or Forge authorization changed. Live verification remains blocked.
 
+## Configured lint ticket 02 — 2026-10-19
+
+`fence-rider lint [Forge options]` uses one full active-profile export, local
+value delivery, stale optional cleanup, and the shared optional manifest check.
+It injects no targeting flags and performs exactly one lint without runtime
+writes or other Forge commands. Numeric lint statuses are preserved. Help is
+configuration-free. The [consumer script](../how-to/how-to.md#run-configured-lint)
+and [output contract](reference.md#output-and-input-policy) document prerequisites
+and the deliberate passthrough boundary.
+
+Red-before-green slices established configured lint delegation/output,
+manifest consistency, and side-effect-free discovery. Public CLI regressions
+then exercise whole-profile requiredness, manifest omission, special argument
+boundaries, private schema/export failures, launch and child-signal failures,
+statuses 2/23/127/255, live output before input, ordinary settings/authentication,
+and POSIX interruption with ignoring helpers/descendants. A synthetic marker
+printed by the delegated child is intentionally visible: Forge output and
+input are not redacted. Private helper markers and deployment output remain
+suppressed; no global confidentiality assertion was weakened.
+
+Native SecretSpec 0.21.1 dotenv checks cover missing runtime and manifest
+requirements despite ambient scope, explicit file/profile with native in-file
+inheritance, shared manifest values, absent optional cleanup, and controls-only
+profiles. Installed Forge CLI 14.2.0 version/help were inspected through Bun
+1.4.3 without an app command; its Node.js 22.x/24.x support warning is recorded.
+This establishes the lint interface only, not real manifest substitution,
+Forge runtime compatibility, live lint, or remote acceptance.
+
+Validation: 201 tests / 1618 assertions, zero failures, up from the fresh
+173-test / 1426-assertion baseline. All native checks ran. `bun run check`,
+`bun run lint:docs`, `bun run build`, compiled help/version, and
+`git diff --check` pass. Static checks retain existing thresholds with no
+suppression or disabled category. Shared manifest checking, signal setup, and
+an explicit user-facing stdio mode reuse the deployment execution boundary.
+No dependency, inventory, resolver, provisioning, general runner, later
+workflow, live app contact, or remote mutation was added. Live verification
+remains blocked pending separate named authorization.
+
 ## Configured deployment ticket 01 — 2026-10-19
 
 `FORGE_ENVIRONMENT` is canonical for deployment; `FORGE_ENV` remains a legacy

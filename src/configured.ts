@@ -8,6 +8,65 @@ type Specification = {
 
 type ConfigurationState = { stage: string; signal: AbortSignal };
 
+/** Install operator signal handlers for one configured workflow; dispose after cleanup. */
+export function workflowInterruption() {
+  const controller = new AbortController();
+  const onInterrupt = () => controller.abort("SIGINT");
+  const onTerminate = () => controller.abort("SIGTERM");
+  process.on("SIGINT", onInterrupt);
+  process.on("SIGTERM", onTerminate);
+  return {
+    signal: controller.signal,
+    dispose() {
+      process.removeListener("SIGINT", onInterrupt);
+      process.removeListener("SIGTERM", onTerminate);
+    },
+  };
+}
+
+/** Select scope declarations present in the effective native profile schema. */
+export function members(
+  config: Specification,
+  scope: string,
+  properties: Record<string, unknown>,
+) {
+  return (config.scopes?.[scope]?.secrets ?? []).filter((key) =>
+    Object.hasOwn(properties, key),
+  );
+}
+
+async function validateManifest(names: string[]) {
+  const manifest = Bun.YAML.parse(await Bun.file("manifest.yml").text()) as {
+    environment?: { variables?: (string | { key: string })[] };
+  };
+  const declarations = manifest?.environment?.variables ?? [];
+  if (!Array.isArray(declarations))
+    throw new Error("Invalid manifest variables");
+  const keys = new Set(
+    declarations.map((entry) =>
+      typeof entry === "string" ? entry : entry?.key,
+    ),
+  );
+  return names.find((key) => !keys.has(key));
+}
+
+/** Cross-check optional manifest scope metadata, without limiting local delivery. */
+export async function checkManifest(
+  config: Specification,
+  properties: Record<string, unknown>,
+  state: ConfigurationState,
+  context = "",
+) {
+  state.stage = `manifest validation${context}`;
+  if (!config.scopes?.["manifest"]) return;
+  const missing = await validateManifest(
+    members(config, "manifest", properties),
+  );
+  if (!missing) return;
+  state.stage = `manifest declaration for ${missing}${context}`;
+  throw new Error("Missing manifest declaration");
+}
+
 function validateInheritance({ project = {} }: Specification) {
   const parents = project.extends;
   if (parents === undefined) return;
@@ -70,21 +129,27 @@ export function checkInterruption(signal: AbortSignal) {
     );
 }
 
+/** Keep helper streams private by default; user-facing commands inherit unredacted stdio. */
 export async function run(
   tool: string,
   args: string[],
   signal: AbortSignal,
   env = process.env,
+  userFacing = false,
 ) {
   checkInterruption(signal);
-  let child: Bun.Subprocess<"ignore", "pipe", "ignore">;
+  let child: Bun.Subprocess<
+    "ignore" | "inherit",
+    "pipe" | "inherit",
+    "ignore" | "inherit"
+  >;
   let launchError = false;
   try {
     child = Bun.spawn([tool, ...args], {
       env,
-      stdin: "ignore",
-      stdout: "pipe",
-      stderr: "ignore",
+      ...(userFacing
+        ? ({ stdin: "inherit", stdout: "inherit", stderr: "inherit" } as const)
+        : ({ stdin: "ignore", stdout: "pipe", stderr: "ignore" } as const)),
       detached: process.platform !== "win32",
       onExit(_child, _code, _signal, error) {
         launchError = error !== undefined;

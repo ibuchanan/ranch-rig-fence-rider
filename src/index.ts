@@ -1,5 +1,6 @@
 import { version } from "../package.json";
 import { deploy } from "./deploy";
+import { lint } from "./lint";
 
 const args = process.argv.slice(2);
 
@@ -12,7 +13,7 @@ const helpRequested =
   args.length === 0 ||
   (args.length === 1 && ["help", "--help", "-h"].includes(args[0] ?? "")) ||
   (args.length === 2 &&
-    ((args[0] === "help" && args[1] === "deploy") ||
+    ((args[0] === "help" && ["deploy", "lint"].includes(args[1] ?? "")) ||
       (args[0] === "deploy" && ["--help", "-h"].includes(args[1] ?? ""))));
 
 if (!helpRequested) {
@@ -22,6 +23,9 @@ if (!helpRequested) {
       `${command} is unsupported by Fence Rider. Use the Forge CLI directly: forge ${command}`,
     );
     process.exit(1);
+  }
+  if (args[0] === "lint") {
+    process.exit(await lint(args.slice(1)));
   }
   if (args[0] === "deploy") {
     process.exit(await deploy(args.slice(1)));
@@ -36,8 +40,9 @@ console.log(`Fence Rider — SecretSpec-powered Forge development utility
 
 Usage: fence-rider <command> [options]
 
-Initial workflow:
+Supported workflows:
   deploy       Deployment with encrypted runtime variables
+  lint         Configured lint with live, unredacted Forge output
 
 Deployment target: explicit option, resolved FORGE_ENVIRONMENT
 (FORGE_ENV legacy alias), then development.
@@ -47,7 +52,7 @@ Discovery:
   help, --help, -h       Show this help
   --version, -V          Show the version
 
-Deployment prerequisites: SecretSpec CLI and Forge CLI must be installed on
+Configured workflow prerequisites: SecretSpec CLI and Forge CLI must be installed on
 PATH and authenticated separately. Fence Rider does not install tools or log in.
 
 The install and tunnel workflows are unsupported; use the Forge CLI directly:

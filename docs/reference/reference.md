@@ -6,7 +6,10 @@ Status: Single-file deployment implemented and locally verified on
 controlled Forge behavior, and unverified upstream acceptance.
 
 This reference defines variable declarations, local availability, manifest
-checks, and runtime upload selection for the initial deployment workflow.
+checks, and runtime upload selection for deployment. Configured lint reuses
+full-profile validation, local delivery, and the optional manifest check,
+without uploads or injected target flags; its [output boundary](#configured-lint)
+differs from private deployment output.
 The repository-owned `secretspec.toml` specifies and validates every variable.
 There is no separate Fence Rider variable inventory or provider schema.
 
@@ -382,6 +385,56 @@ already have changed remote state. There is no automatic rollback.
 Diagnostics omit resolved values, raw helper output, and secret-bearing
 command lines. Numeric deployment exit status is preserved; launch failure,
 signal termination, or interruption cannot become success.
+
+## Configured lint
+
+`fence-rider lint [Forge options]` resolves and validates the entire active
+profile once, delivers every resolved application value to `forge lint`, and
+applies the optional manifest check. A required local, manifest, runtime, or
+control value can block lint even when lint does not use it: this is
+whole-profile repository readiness, not command-scoped requiredness. Native
+optional declarations and profiles represent legitimate absence.
+
+No environment/site/product flags are injected. Explicit lint arguments,
+including Forge's environment option, retain their boundaries and order; Forge
+owns their validation. Runtime scope membership causes no upload, deployment,
+installation, deletion, or other follow-up command. Controls-only profiles
+work without dummy application secrets. Omitted manifest metadata does not
+suppress local delivery or Forge's substitution requirements.
+
+### Output and input policy
+
+SecretSpec schema/export and encrypted-upload stdout remain private and stderr
+is discarded. Deployment retains its existing suppressed-output contract.
+Only the delegated user-facing lint process inherits stdin, stdout, and stderr:
+output is live, without redaction, and on its original stream; input is available
+without wrapper prompts. Wrapper-owned diagnostics omit values and raw helper
+errors. **Forge output, exception details, application logs, echoed input, and
+terminal sessions may expose values**; Fence Rider provides no passthrough
+redaction or credential isolation. Existing ambient authentication is retained.
+
+This shared user-facing stdio mode is available for subsequent workflow slices;
+it does not implement install, uninstall, or tunnel, or certify terminal-specific
+prompt behavior. Ordinary pipe checks establish input and pre-exit streaming.
+POSIX interruption forwards SIGINT/SIGTERM to the active process group, escalates
+after one second, and kills remaining group members, including when the direct
+child exits first. Windows process-tree cleanup remains uncertified.
+
+Numeric Forge lint statuses are preserved. Resolution, validation, launch,
+signal termination, and interruption are non-success; operator interruption
+returns 130/143. Help (`lint --help`, `lint -h`, `help lint`) does not resolve
+configuration or run tools. Help-looking option values and terminator payloads
+are not discovery requests.
+
+Observed 2026-10-19: installed Forge CLI 14.2.0 `lint --help` lists `--verbose`,
+`--fix`, `--approve <rule...>`, `-e, --environment [environment]`, and help.
+Inspection used Bun 1.4.3; Forge warned it supports Node.js 22.x or 24.x, so this
+is interface evidence, not runtime certification. Native SecretSpec 0.21.1
+synthetic dotenv tests cover missing runtime/manifest requirements, explicit
+file/profile with native inheritance, shared manifest inputs, stale optional
+cleanup despite ambient scope, and controls-only profiles. Controlled Forge
+checks establish delegation, not real Forge lint or manifest substitution.
+No live app was contacted. See the [validation record](validation.md).
 
 ## Verification ownership
 

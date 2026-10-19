@@ -234,6 +234,7 @@ type ToolCall = {
 };
 
 type DeployOptions = {
+  command?: "deploy" | "lint";
   spec?: string;
   values?: unknown;
   schema?: unknown;
@@ -279,9 +280,17 @@ if (tool === "secretspec" && process.env.REAL_SECRETSPEC) {
   process.stderr.write(result.stderr);
   process.exit(result.exitCode);
 }
-console.error("synthetic helper noise: " + ${JSON.stringify(sharedValue)});
+if (args[0] === "lint") {
+  console.log("synthetic lint result");
+  console.error("synthetic lint warning");
+  if (process.env.LINT_READ_INPUT) Bun.stdin.text().then(input => {
+    console.log("input:" + input);
+    console.log("ordinary:" + process.env.ORDINARY_SETTING);
+    console.log("auth:" + process.env.FORGE_API_TOKEN);
+  });
+} else console.error("synthetic helper noise: " + ${JSON.stringify(sharedValue)});
 if (fixture.failStage === args[0] && (!fixture.failKey || fixture.failKey === args[5])) {
-  console.log(${JSON.stringify(sharedValue)});
+  if (args[0] !== "lint") console.log(${JSON.stringify(sharedValue)});
   if (fixture.failureMode === "throw") throw new Error("synthetic error details: " + ${JSON.stringify(sharedValue)});
   if (fixture.failureMode === "signal") process.kill(process.pid, "SIGTERM");
   else process.exit(fixture.exitCode ?? 23);
@@ -290,7 +299,7 @@ if (fixture.blockStage === args[0]) {
   if (fixture.spawnDescendant) Bun.spawn([process.execPath, "-e", 'process.on("SIGINT", () => {}); process.on("SIGTERM", () => {}); require("node:fs").writeFileSync("descendant-ready", String(process.pid)); setInterval(() => {}, 1000);'], { stdin: "ignore", stdout: "ignore", stderr: "ignore" });
   for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {
     writeFileSync("received-signal", signal);
-    console.error("synthetic signal error: " + ${JSON.stringify(sharedValue)});
+    console.error(args[0] === "lint" ? "synthetic lint interrupted" : "synthetic signal error: " + ${JSON.stringify(sharedValue)});
     if (!fixture.ignoreSignal) process.exit(0);
   });
   setInterval(() => {}, 1000);
@@ -379,14 +388,17 @@ async function killFixtureProcess(path: string) {
 async function deploy(options: DeployOptions = {}) {
   const project = prepareProject(options);
   const calls = join(project, "tool-calls");
-  const child = Bun.spawn([executable, "deploy", ...(options.args ?? [])], {
-    cwd: project,
-    env: deploymentEnv(project, options),
-    stdin: "ignore",
-    stdout: "pipe",
-    stderr: "pipe",
-    detached: process.platform !== "win32",
-  });
+  const child = Bun.spawn(
+    [executable, options.command ?? "deploy", ...(options.args ?? [])],
+    {
+      cwd: project,
+      env: deploymentEnv(project, options),
+      stdin: "ignore",
+      stdout: "pipe",
+      stderr: "pipe",
+      detached: process.platform !== "win32",
+    },
+  );
   const output = Promise.all([
     child.exited,
     new Response(child.stdout).text(),
@@ -1353,7 +1365,376 @@ test("all encrypted writes complete before exactly one deployment", async () => 
   ]);
 });
 
+test("configured lint resolves once, preserves values and arguments, streams results, and never writes", async () => {
+  const args = [
+    "--fix",
+    "--verbose",
+    "--approve",
+    sharedValue,
+    "--",
+    "--environment",
+    "production",
+  ];
+  const result = await deploy({
+    command: "lint",
+    args,
+    env: { OPTIONAL: "stale" },
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual([
+    { tool: "forge", args: ["lint", ...args], values: deploymentValues },
+  ]);
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "secretspec")
+      .map(({ args }) => args[0]),
+  ).toEqual(["schema", "export"]);
+  expect(result.stdout).toContain("synthetic lint result");
+  expect(result.stderr).toBe("synthetic lint warning\n");
+  expect(result.stdout + result.stderr).not.toContain("synthetic helper noise");
+});
+
+test("configured lint checks manifest declarations including absent optionals before Forge", async () => {
+  const spec = `${deploymentSpec}\n[scopes.manifest]\nsecrets = ["SHARED", "OPTIONAL"]\n`;
+  const mismatch = await deploy({
+    command: "lint",
+    spec,
+    manifest: "environment:\n  variables: [SHARED]\n",
+  });
+  expect(mismatch.exitCode).toBe(1);
+  expect(mismatch.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+    [],
+  );
+  expect(mismatch.stderr).toContain("manifest declaration for OPTIONAL");
+  const match = await deploy({
+    command: "lint",
+    spec,
+    manifest:
+      "environment:\n  variables:\n    - SHARED\n    - key: OPTIONAL\n      default: fallback\n",
+  });
+  expect(match.exitCode).toBe(0);
+  expect(
+    match.interactions
+      .filter(({ tool }) => tool === "forge")
+      .map(({ args }) => args),
+  ).toEqual([["lint"]]);
+});
+
+test.each([
+  { args: ["lint", "--help"] },
+  { args: ["lint", "-h"] },
+  { args: ["help", "lint"] },
+  { args: ["lint", "--fix", "--help"] },
+])("configured lint discovery %j never invokes tools", async ({ args }) => {
+  const result = await invoke(args, true);
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain("lint");
+  expect(result.stdout).toContain("unredacted");
+  expect(result.stderr).toBe("");
+});
+
+test.each(["SHARED", "LOCAL_ONLY", "FORGE_ENV"])(
+  "configured lint requires the whole profile including %s",
+  async (missing) => {
+    const values: Record<string, string> = { ...deploymentValues };
+    delete values[missing];
+    const result = await deploy({
+      command: "lint",
+      values,
+      env: { SECRETSPEC_SCOPE: "manifest" },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stderr).toContain("resolved value validation");
+  },
+);
+
+test.each([2, 23, 127, 255])(
+  "configured lint preserves Forge status %i and useful diagnostics",
+  async (exitCode) => {
+    const result = await deploy({
+      command: "lint",
+      failStage: "lint",
+      exitCode,
+    });
+    expect(result.exitCode).toBe(exitCode);
+    expect(result.stdout).toContain("synthetic lint result");
+    expect(result.stderr).toContain("synthetic lint warning");
+    expect(result.stderr).toContain(`lint failed: exit status ${exitCode}`);
+    expect(result.interactions.at(-1)?.args).toEqual(["lint"]);
+  },
+);
+
+test.each(["schema", "export"])(
+  "configured lint keeps failing %s output private",
+  async (failStage) => {
+    const result = await deploy({ command: "lint", failStage });
+    expect(result.exitCode).toBe(1);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stderr).toContain("SecretSpec");
+    expect(result.stderr).not.toContain("synthetic helper noise");
+  },
+);
+
+test.each(["secretspec", "forge"])(
+  "configured lint fails safely for unlaunchable %s",
+  async (launchTool) => {
+    const result = await deploy({ command: "lint", launchTool });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("executable");
+    expect(result.interactions.some(({ tool }) => tool === launchTool)).toBe(
+      false,
+    );
+  },
+);
+
+test("configured lint treats child signal termination as failure", async () => {
+  const result = await deploy({
+    command: "lint",
+    failStage: "lint",
+    failureMode: "signal",
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.stderr).toContain("terminated by SIGTERM");
+});
+
+test("configured lint without manifest scope needs no manifest and preserves target-like payloads", async () => {
+  const args = ["--approve", "--help", "--", "-h"];
+  const result = await deploy({ command: "lint", manifest: null, args });
+  expect(result.exitCode).toBe(0);
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "forge")
+      .map(({ args }) => args),
+  ).toEqual([["lint", ...args]]);
+  expect(result.interactions.at(-1)?.values).toEqual(deploymentValues);
+});
+
+test("configured lint streams before exit and inherits input, ordinary settings, and authentication without redaction", async () => {
+  const options: DeployOptions = {
+    env: {
+      LINT_READ_INPUT: "1",
+      ORDINARY_SETTING: "synthetic-setting",
+      FORGE_API_TOKEN: "synthetic-auth",
+    },
+  };
+  const project = prepareProject(options);
+  const child = Bun.spawn([executable, "lint"], {
+    cwd: project,
+    env: deploymentEnv(project, options),
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  let stdout = "";
+  const output = (async () => {
+    for await (const chunk of child.stdout)
+      stdout += new TextDecoder().decode(chunk);
+  })();
+  const errors = new Response(child.stderr).text();
+  try {
+    await waitUntil(
+      () => stdout.includes("synthetic lint result"),
+      "live lint output before input",
+    );
+    expect(child.exitCode).toBeNull();
+    child.stdin.write(sharedValue);
+    child.stdin.end();
+    expect(await child.exited).toBe(0);
+    await output;
+    expect(stdout).toContain(`input:${sharedValue}`);
+    expect(stdout).toContain("ordinary:synthetic-setting");
+    expect(stdout).toContain("auth:synthetic-auth");
+    expect(await errors).toBe("synthetic lint warning\n");
+  } finally {
+    child.stdin.end();
+    child.kill("SIGKILL");
+    await child.exited;
+    await output;
+    await errors;
+  }
+});
+
+test.skipIf(process.platform === "win32").each([
+  {
+    blockStage: "schema",
+    signal: "SIGINT",
+    ignoreSignal: false,
+    spawnDescendant: false,
+  },
+  {
+    blockStage: "export",
+    signal: "SIGTERM",
+    ignoreSignal: false,
+    spawnDescendant: false,
+  },
+  {
+    blockStage: "lint",
+    signal: "SIGINT",
+    ignoreSignal: false,
+    spawnDescendant: true,
+  },
+  {
+    blockStage: "lint",
+    signal: "SIGTERM",
+    ignoreSignal: true,
+    spawnDescendant: true,
+  },
+] as const)(
+  "configured lint interruption $signal at $blockStage cleans up the active process group",
+  async ({ blockStage, signal, ignoreSignal, spawnDescendant }) => {
+    const result = await deploy({
+      command: "lint",
+      blockStage,
+      ignoreSignal,
+      spawnDescendant,
+      onSpawn: async (child, project) => {
+        await waitUntil(
+          () =>
+            existsSync(join(project, "ready")) &&
+            (!spawnDescendant || existsSync(join(project, "descendant-ready"))),
+          "lint process readiness",
+        );
+        const pid = Number(await Bun.file(join(project, "ready")).text());
+        const descendant = spawnDescendant
+          ? Number(await Bun.file(join(project, "descendant-ready")).text())
+          : undefined;
+        child.kill(signal);
+        await waitUntil(
+          () => child.exitCode !== null || child.signalCode !== null,
+          "interrupted wrapper exit",
+        );
+        await waitUntil(
+          () =>
+            !processRunning(pid) &&
+            (descendant === undefined || !processRunning(descendant)),
+          "lint process group cleanup",
+        );
+        expect(await Bun.file(join(project, "received-signal")).text()).toBe(
+          signal,
+        );
+      },
+    });
+    expect(result.exitCode).toBe(signal === "SIGINT" ? 130 : 143);
+    expect(result.stderr).toContain(`interrupted by ${signal}`);
+    expect(result.interactions.at(-1)?.args[0]).toBe(blockStage);
+    expect(result.stderr).not.toContain(
+      "Remote variables may already have changed",
+    );
+  },
+  12_000,
+);
+
 const realSecretSpec = Bun.which("secretspec");
+
+test.skipIf(!realSecretSpec).each(["SHARED", "LOCAL_ONLY"])(
+  "native configured lint blocks missing whole-profile requirement %s",
+  async (missing) => {
+    const result = await deploy({
+      command: "lint",
+      realSecretSpec: realSecretSpec ?? "",
+      spec: `${deploymentSpec}\n[scopes.manifest]\nsecrets = ["LOCAL_ONLY"]\n`,
+      env: {
+        SECRETSPEC_PROVIDER: "dotenv:values.env",
+        SECRETSPEC_SCOPE: "manifest",
+      },
+      dotenv:
+        missing === "SHARED"
+          ? "LOCAL_ONLY=synthetic-native-local\n"
+          : "SHARED=synthetic-native-shared\n",
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stderr).toContain("SecretSpec resolution");
+    expect(result.stderr).not.toContain("synthetic-native");
+  },
+);
+
+test.skipIf(!realSecretSpec)(
+  "native configured lint delivers a selected inherited profile, shared manifest value, and cleared optionals once",
+  async () => {
+    const spec = `${canonicalSpec.replace("[scopes.runtime]", '[profiles.release]\nLOCAL_ONLY = { description = "Local override", default = "synthetic-release" }\n\n[scopes.runtime]')}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`;
+    const result = await deploy({
+      command: "lint",
+      realSecretSpec: realSecretSpec ?? "",
+      spec,
+      files: { "selected.toml": spec },
+      manifest: "environment:\n  variables: [SHARED]\n",
+      schema: canonicalSchema,
+      env: {
+        SECRETSPEC_FILE: "selected.toml",
+        SECRETSPEC_PROFILE: "release",
+        SECRETSPEC_PROVIDER: "dotenv:values.env",
+        SECRETSPEC_SCOPE: "runtime",
+        OPTIONAL: "stale",
+      },
+      dotenv: "SHARED=synthetic-native-shared\n",
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual([
+      {
+        tool: "forge",
+        args: ["lint"],
+        values: {
+          FORGE_ENVIRONMENT: "staging",
+          SHARED: "synthetic-native-shared",
+          LOCAL_ONLY: "synthetic-release",
+        },
+      },
+    ]);
+    const native = result.interactions.filter(
+      ({ tool }) => tool === "secretspec",
+    );
+    expect(native.map(({ args }) => args[0])).toEqual(["schema", "export"]);
+    for (const { args } of native) {
+      expect(args.slice(1, 5)).toEqual([
+        "--file",
+        join(result.project, "selected.toml"),
+        "--profile",
+        "release",
+      ]);
+    }
+  },
+);
+
+test.skipIf(!realSecretSpec)(
+  "native configured lint supports controls-only profiles without target injection or manifest file",
+  async () => {
+    const result = await deploy({
+      command: "lint",
+      realSecretSpec: realSecretSpec ?? "",
+      spec: '[project]\nname = "synthetic-lint-controls"\nrevision = "1.0"\n[profiles.default]\nFORGE_ENVIRONMENT = { description = "Target", default = "staging" }\nFORGE_SITE = { description = "Site", default = "synthetic.atlassian.net" }\nFORGE_PRODUCT = { description = "Product", default = "jira" }\n',
+      manifest: null,
+      schema: {
+        properties: {
+          FORGE_ENVIRONMENT: {},
+          FORGE_SITE: {},
+          FORGE_PRODUCT: {},
+        },
+      },
+      env: { SECRETSPEC_PROVIDER: "dotenv:values.env" },
+      dotenv: "",
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual([
+      {
+        tool: "forge",
+        args: ["lint"],
+        values: {
+          FORGE_ENVIRONMENT: "staging",
+          FORGE_SITE: "synthetic.atlassian.net",
+          FORGE_PRODUCT: "jira",
+        },
+      },
+    ]);
+  },
+);
 
 test.skipIf(!realSecretSpec).each([
   {
