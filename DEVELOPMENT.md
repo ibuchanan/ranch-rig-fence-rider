@@ -59,7 +59,10 @@ Do not raise thresholds or suppress findings to make a gate pass.
 ## Repository layout
 
 - `src/index.ts`: CLI discovery and command dispatch.
-- `src/deploy.ts`: single-file validation and secret-safe subprocess workflow.
+- `src/configured.ts`: single-file validation, native profile resolution, child
+  environment preparation, and private subprocess execution.
+- `src/deploy.ts`: target options, manifest checks, and encrypted deployment
+  lifecycle.
 - `tests/`: compiled CLI and validation-command behavior.
 - `docs/`: task guides, reference, and architectural explanation.
 - `specs/fence-rider-spec.md`: product contract and AC-01 through AC-18.

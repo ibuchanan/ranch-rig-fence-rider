@@ -170,15 +170,28 @@ Selecting a profile does not automatically select a same-named environment.
 
 | Local control | Meaning | Deployment treatment |
 | --- | --- | --- |
-| `FORGE_ENV` | Configured Forge environment | Used after an explicit CLI environment option and before the `development` fallback |
+| `FORGE_ENVIRONMENT` | Canonical configured Forge environment | Used after an explicit CLI environment option and before the `development` fallback |
+| `FORGE_ENV` | Legacy environment alias | Accepted alone or with a matching resolved `FORGE_ENVIRONMENT` |
 | `FORGE_SITE` | Site default for future supported commands | Validated when declared; not injected as an unsupported deployment option |
 | `FORGE_PRODUCT` | Product default for future supported commands | Validated when declared; not injected as an unsupported deployment option |
 
-These controls need no named scope and are not implicitly uploaded. Defaults
-are native SecretSpec declaration fields, not a second configuration format.
-Required declarations remain subject to SecretSpec validation even when a
-CLI option supplies the final target; an optional declaration or native
-default represents legitimate absence.
+These controls need no named scope. Selecting any of them for runtime upload
+fails before the first write, including both environment names. Defaults are
+native SecretSpec declaration fields, not a second configuration format.
+
+`FORGE_ENVIRONMENT` is canonical; `FORGE_ENV` remains supported for existing
+specifications. Either name alone works. When both resolve, their strings must
+match exactly. Conflicting resolved names fail before any Forge command, even
+with an explicit environment option. There is no alias migration precedence.
+Absent optional controls do not conflict with present values or retain stale
+inherited values. Existing examples using `FORGE_ENV` remain valid.
+
+Validation covers the whole active profile, not only the command's selected
+values. Required declarations remain subject to SecretSpec validation even
+when a CLI option supplies the final target; an optional declaration or native
+default represents legitimate absence. SecretSpec 0.21.1 synthetic dotenv checks
+confirm that a missing required `FORGE_ENVIRONMENT` still blocks an explicit
+`-e production` invocation before Forge execution.
 
 Uploads and deployment use one resolved Forge target explicitly. Site and
 product defaults do not make installation a supported Fence Rider command.

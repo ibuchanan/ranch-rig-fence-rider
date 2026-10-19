@@ -42,7 +42,7 @@ unless explicitly labeled native SecretSpec. This is not live certification.
 | AC-13 | `operator interruption...` across schema/export/upload/deploy with SIGINT/SIGTERM; `interruption cleans up descendants even when the active helper exits first` |
 | AC-14 | `missing required %s blocks writes even without runtime selection`; native full-profile and manifest-requirement failures prevent every Forge command |
 | AC-15 | `native full-profile validation blocks uploads when an unscoped requirement is missing`; native absent-optional case clears unknown ambient scope and preserves the full local environment |
-| AC-16 | `native SecretSpec schema and full dotenv export share values and omit absent optionals`: exactly one export; identical local value and encrypted upload argument |
+| AC-16 | `native SecretSpec schema and full dotenv export share %s values and omit absent optionals`: exactly one export; identical local value and encrypted upload argument for either environment control |
 | AC-17 | `omitted manifest scope does not require a manifest file or suppress local values`; `manifest scope checks declarations including absent optionals before uploads`: missing declaration blocks writes; strings and keyed objects accepted |
 | AC-18 | Unsupported/malformed inheritance rejected before helpers; empty extends accepted; native inherited and standalone profiles exercised with identical explicit profile for schema/export |
 
@@ -163,3 +163,35 @@ continues to identify this guide as historical input, not current guidance.
 14 documents with zero issues. `bun run check` also passes with the existing
 156 tests and 1293 assertions. No application code, validation configuration,
 dependency, or Forge authorization changed. Live verification remains blocked.
+
+## Configured deployment ticket 01 — 2026-10-19
+
+`FORGE_ENVIRONMENT` is canonical for deployment; `FORGE_ENV` remains a legacy
+alias. Either alone and matching dual values work. Conflicting resolved values
+fail before Forge, including with an explicit target option. Both environment
+names, site, and product are protected against runtime selection. Migration
+and whole-profile requiredness are recorded in the
+[deployment reference](deployment.md#environment-name-migration--2026-10-19)
+and [variable contract](reference.md#profiles-and-forge-targets).
+
+Red-before-green public CLI checks established canonical selection, alias
+conflict rejection, canonical upload protection, and side-effect-free help.
+Native SecretSpec 0.21.1 dotenv checks cover controls-only profiles, both names,
+matching/conflicting defaults, overrides, optional stale-value removal,
+required controls despite explicit target overrides, and shared local,
+manifest, and runtime values from one full export. Existing regression checks
+retain option forwarding, single-file limits, in-file profiles, manifest
+checking, fail-fast ordering, numeric statuses, and process-group cleanup.
+
+The existing configuration and private subprocess implementation is reused
+through `src/configured.ts`; tests still invoke only the compiled public CLI.
+No second resolver, provider SDK, inventory, dependency, or command framework
+was introduced. Later workflows and package provisioning remain unimplemented.
+
+Validation: 173 tests pass with 1426 assertions, up from 156 and 1293. The
+forced `bun run check` gate, Biome lint/formatting, typecheck, Fallow, compiled
+build, documentation lint/spelling, and `git diff --check` pass. The alias
+check uses a native distinct-value set; no thresholds or suppressions changed.
+Bun 1.4.3 and SecretSpec 0.21.1 were observed locally. Forge CLI 14.2.0 evidence
+remains the previously inspected interface, not a new live check. No real
+Forge app, secret provider credentials, remote write, or deployment was used.

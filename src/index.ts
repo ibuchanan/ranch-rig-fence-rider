@@ -39,6 +39,10 @@ Usage: fence-rider <command> [options]
 Initial workflow:
   deploy       Deployment with encrypted runtime variables
 
+Deployment target: explicit option, resolved FORGE_ENVIRONMENT
+(FORGE_ENV legacy alias), then development.
+Conflicting resolved names fail even with an explicit target.
+
 Discovery:
   help, --help, -h       Show this help
   --version, -V          Show the version

@@ -136,6 +136,17 @@ test.each([
   },
 );
 
+test("deployment help documents canonical migration without resolving secrets", async () => {
+  const result = await invoke(["deploy", "--help"], true);
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain("FORGE_ENVIRONMENT");
+  expect(result.stdout).toContain("FORGE_ENV legacy alias");
+  expect(result.stdout).toContain(
+    "Conflicting resolved names fail even with an explicit target.",
+  );
+  expect(result.stderr).toBe("");
+});
+
 test("deployment preserves unrelated options and CI arguments without changing boundaries", async () => {
   const forwarded = [
     "--non-interactive",
@@ -452,6 +463,142 @@ test("deploy resolves once, encrypts only runtime values, then deploys to the co
   ]);
 });
 
+const canonicalSpec = deploymentSpec.replaceAll(
+  "FORGE_ENV",
+  "FORGE_ENVIRONMENT",
+);
+const canonicalSchema = {
+  ...deploymentSchema,
+  properties: {
+    FORGE_ENVIRONMENT: { type: "string" },
+    SHARED: { type: "string" },
+    LOCAL_ONLY: { type: "string" },
+    OPTIONAL: { type: ["string", "null"] },
+  },
+  required: ["FORGE_ENVIRONMENT", "SHARED", "LOCAL_ONLY"],
+};
+const canonicalValues = {
+  FORGE_ENVIRONMENT: "staging",
+  SHARED: sharedValue,
+  LOCAL_ONLY: "synthetic local-only",
+};
+
+test("canonical environment selects the same target for encrypted uploads and one deployment", async () => {
+  const result = await deploy({
+    spec: canonicalSpec,
+    schema: canonicalSchema,
+    values: canonicalValues,
+  });
+  expect(result.exitCode).toBe(0);
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "forge")
+      .map(({ args }) => args),
+  ).toEqual([
+    [
+      "variables",
+      "set",
+      "--encrypt",
+      "--environment",
+      "staging",
+      "SHARED",
+      sharedValue,
+    ],
+    ["deploy", "--environment", "staging"],
+  ]);
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "secretspec")
+      .map(({ args }) => args[0]),
+  ).toEqual(["schema", "export"]);
+  for (const call of result.interactions.filter(
+    ({ tool }) => tool === "forge",
+  )) {
+    expect(call.values).toEqual(canonicalValues);
+  }
+});
+
+test.each([{ args: [] }, { args: ["--environment", "production"] }])(
+  "conflicting environment names fail before Forge even with override %j",
+  async ({ args }) => {
+    const result = await deploy({
+      spec: canonicalSpec.replace(
+        "[profiles.default]",
+        '[profiles.default]\nFORGE_ENV = { description = "Legacy target" }',
+      ),
+      schema: {
+        ...canonicalSchema,
+        properties: {
+          ...canonicalSchema.properties,
+          FORGE_ENV: { type: "string" },
+        },
+      },
+      values: { ...canonicalValues, FORGE_ENV: "conflicting-synthetic-target" },
+      args,
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.interactions.map(({ args }) => args[0])).toEqual([
+      "schema",
+      "export",
+    ]);
+    expect(result.stderr).toContain("FORGE_ENVIRONMENT and FORGE_ENV conflict");
+    expect(result.stdout).toBe("");
+    expect(result.stderr).not.toContain("conflicting-synthetic-target");
+    expect(result.stderr).not.toContain(
+      "Remote variables may already have changed",
+    );
+  },
+);
+
+test.each([
+  { name: "canonical", legacy: false, args: ["-e", "production"] },
+  { name: "matching dual", legacy: true, args: [] },
+  {
+    name: "matching dual override",
+    legacy: true,
+    args: ["--environment=production"],
+  },
+])(
+  "$name environment controls preserve selection and child values",
+  async ({ legacy, args }) => {
+    const result = await deploy({
+      spec: legacy
+        ? canonicalSpec.replace(
+            "[profiles.default]",
+            '[profiles.default]\nFORGE_ENV = { description = "Legacy target" }',
+          )
+        : canonicalSpec,
+      schema: {
+        ...canonicalSchema,
+        properties: {
+          ...canonicalSchema.properties,
+          ...(legacy ? { FORGE_ENV: { type: "string" } } : {}),
+        },
+      },
+      values: {
+        ...canonicalValues,
+        ...(legacy ? { FORGE_ENV: "staging" } : {}),
+      },
+      args,
+    });
+    expect(result.exitCode).toBe(0);
+    const forge = result.interactions.filter(({ tool }) => tool === "forge");
+    expect(
+      forge.map(({ args }) => args[args.indexOf("--environment") + 1]),
+    ).toEqual(
+      args.length ? ["production", "production"] : ["staging", "staging"],
+    );
+    expect(forge.map(({ args }) => args[0])).toEqual(["variables", "deploy"]);
+    expect(forge.at(-1)?.values).toEqual({
+      ...canonicalValues,
+      ...(legacy ? { FORGE_ENV: "staging" } : {}),
+    });
+  },
+);
+
 test("explicit environment overrides the configured target for every Forge command", async () => {
   const result = await deploy({ args: ["--environment", "production"] });
   expect(result.exitCode).toBe(0);
@@ -678,7 +825,7 @@ test("site and product defaults stay local and never become deployment flags or 
   ]);
 });
 
-test.each(["FORGE_ENV", "FORGE_SITE", "FORGE_PRODUCT"])(
+test.each(["FORGE_ENVIRONMENT", "FORGE_ENV", "FORGE_SITE", "FORGE_PRODUCT"])(
   "%s cannot be selected for upload even with an explicit target",
   async (control) => {
     const result = await deploy({
@@ -695,13 +842,14 @@ test.each(["FORGE_ENV", "FORGE_SITE", "FORGE_PRODUCT"])(
           [control]: { type: "string" },
         },
       },
-      values: { ...deploymentValues, [control]: "synthetic-control" },
+      values: { ...deploymentValues, [control]: "staging" },
       args: ["-e", "production"],
     });
     expect(result.exitCode).not.toBe(0);
     expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
       [],
     );
+    expect(result.stderr).toContain("runtime selection validation");
   },
 );
 
@@ -1206,11 +1354,138 @@ test("all encrypted writes complete before exactly one deployment", async () => 
 });
 
 const realSecretSpec = Bun.which("secretspec");
+
+test.skipIf(!realSecretSpec).each([
+  {
+    name: "canonical",
+    declarations:
+      'FORGE_ENVIRONMENT = { description = "Canonical target", default = "staging" }',
+    env: {},
+    target: "staging",
+    args: [],
+  },
+  {
+    name: "legacy",
+    declarations:
+      'FORGE_ENV = { description = "Legacy target", default = "staging" }',
+    env: {},
+    target: "staging",
+    args: [],
+  },
+  {
+    name: "matching dual",
+    declarations:
+      'FORGE_ENVIRONMENT = { description = "Canonical target", default = "staging" }\nFORGE_ENV = { description = "Legacy target", default = "staging" }',
+    env: {},
+    target: "staging",
+    args: [],
+  },
+  {
+    name: "canonical override",
+    declarations:
+      'FORGE_ENVIRONMENT = { description = "Canonical target", default = "staging" }',
+    env: {},
+    target: "production",
+    args: ["--environment", "production"],
+  },
+  {
+    name: "absent canonical clears stale ambient target",
+    declarations:
+      'FORGE_ENVIRONMENT = { description = "Optional target", required = false }',
+    env: { FORGE_ENVIRONMENT: "stale-production" },
+    target: "development",
+    args: [],
+  },
+])(
+  "native controls-only profile: $name deploys without writes",
+  async ({ declarations, env, target, args }) => {
+    const result = await deploy({
+      realSecretSpec: realSecretSpec ?? "",
+      spec: `[project]\nname = "synthetic-controls"\nrevision = "1.0"\n[profiles.default]\n${declarations}\n`,
+      schema: { properties: { FORGE_ENVIRONMENT: {}, FORGE_ENV: {} } },
+      env: { SECRETSPEC_PROVIDER: "dotenv:values.env", ...env },
+      dotenv: "",
+      args,
+    });
+    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
+    const forge = result.interactions.filter(({ tool }) => tool === "forge");
+    expect(forge.map(({ args }) => args)).toEqual([
+      ["deploy", "--environment", target],
+    ]);
+    expect(forge[0]?.values).not.toHaveProperty(
+      "FORGE_ENVIRONMENT",
+      "stale-production",
+    );
+    expect(
+      result.interactions
+        .filter(({ tool }) => tool === "secretspec")
+        .map(({ args }) => args[0]),
+    ).toEqual(["schema", "export"]);
+  },
+);
+
 test.skipIf(!realSecretSpec)(
-  "native SecretSpec schema and full dotenv export share values and omit absent optionals",
+  "native canonical required control still blocks an explicit target override",
   async () => {
     const result = await deploy({
       realSecretSpec: realSecretSpec ?? "",
+      spec: canonicalSpec.replace('default = "staging"', "required = true"),
+      args: ["-e", "production"],
+      env: {
+        SECRETSPEC_PROVIDER: "dotenv:values.env",
+        SECRETSPEC_SCOPE: "runtime",
+      },
+      dotenv:
+        "SHARED=synthetic-native-shared\nLOCAL_ONLY=synthetic-native-local\n",
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stderr).toContain("SecretSpec resolution");
+    expect(result.stderr).not.toContain("synthetic-native");
+  },
+);
+
+test
+  .skipIf(!realSecretSpec)
+  .each([{ args: [] }, { args: ["-e", "production"] }])(
+  "native conflicting environment defaults fail before Forge with %j",
+  async ({ args }) => {
+    const result = await deploy({
+      realSecretSpec: realSecretSpec ?? "",
+      spec: canonicalSpec.replace(
+        "[profiles.default]",
+        '[profiles.default]\nFORGE_ENV = { description = "Legacy target", default = "synthetic-conflict" }',
+      ),
+      args,
+      env: { SECRETSPEC_PROVIDER: "dotenv:values.env" },
+      dotenv:
+        "SHARED=synthetic-native-shared\nLOCAL_ONLY=synthetic-native-local\n",
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stderr).toContain("FORGE_ENVIRONMENT and FORGE_ENV conflict");
+    expect(result.stdout).toBe("");
+    expect(result.stderr).not.toContain("synthetic-conflict");
+    expect(result.stderr).not.toContain("synthetic-native");
+  },
+);
+
+test.skipIf(!realSecretSpec).each(["FORGE_ENV", "FORGE_ENVIRONMENT"])(
+  "native SecretSpec schema and full dotenv export share %s values and omit absent optionals",
+  async (control) => {
+    const result = await deploy({
+      realSecretSpec: realSecretSpec ?? "",
+      spec: `${deploymentSpec.replaceAll("FORGE_ENV", control)}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`,
+      manifest: "environment:\n  variables: [SHARED]\n",
+      schema:
+        control === "FORGE_ENVIRONMENT" ? canonicalSchema : deploymentSchema,
       env: { SECRETSPEC_PROVIDER: "dotenv:values.env" },
       dotenv:
         "SHARED=synthetic-native-shared\nLOCAL_ONLY=synthetic-native-local\n",
@@ -1236,7 +1511,7 @@ test.skipIf(!realSecretSpec)(
     ]);
     for (const call of forge) {
       expect(call.values).toEqual({
-        FORGE_ENV: "staging",
+        [control]: "staging",
         SHARED: "synthetic-native-shared",
         LOCAL_ONLY: "synthetic-native-local",
       });

@@ -38,7 +38,7 @@ version remain side-effect-free.
 | --- | --- |
 | Specification | `SECRETSPEC_FILE`, otherwise `secretspec.toml` in the working directory |
 | Profile | `SECRETSPEC_PROFILE`, otherwise explicit `default` |
-| Forge target | Explicit `-e` / `--environment`, resolved `FORGE_ENV`, then `development` |
+| Forge target | Explicit `-e` / `--environment`, resolved `FORGE_ENVIRONMENT` (legacy alias `FORGE_ENV`), then `development` |
 | Authentication | Existing tool configuration and process environment; no automatic login |
 
 Both prerequisites must be executable on `PATH` before resolution starts.
@@ -77,6 +77,35 @@ The local fixture uses `SECRETSPEC_PROVIDER=dotenv:values.env`, isolated home
 and XDG directories, and synthetic values only. Tests skip the real-SecretSpec
 cases explicitly if its executable is unavailable; controlled tests always run.
 No provider SDK, vault credentials, or network provider is used.
+
+## Environment-name migration — 2026-10-19
+
+Configured-workflows ticket 01 adds `FORGE_ENVIRONMENT` as the canonical
+control. `FORGE_ENV` remains a supported legacy alias. Either alone selects
+the configured target; matching resolved names are accepted. Conflicting
+strings fail before any Forge command, including with an explicit override.
+Both names, site, and product are rejected as runtime upload selections.
+Explicit options override selection only, not whole-profile requiredness.
+
+Native SecretSpec 0.21.1 dotenv checks exercise canonical/legacy controls-only
+profiles, matching dual defaults, explicit overrides, absent optional cleanup,
+and conflicting defaults. A required canonical control missing from the
+provider blocks even `-e production` with ambient scope set to `runtime`.
+The existing shared-value integration covers both names with manifest and
+runtime membership using one full export and the same local/upload values.
+These tests use Bun 1.4.3 and the compiled public CLI, not private helpers.
+
+`src/configured.ts` contains the reused single-file metadata validation,
+native schema/full-export resolution, alias consistency check, declared
+optional cleanup, and private subprocess execution. Deployment retains its
+manifest cross-check, option parsing, runtime preflight, encrypted writes,
+status propagation, and interruption lifecycle. No second resolver, provider
+SDK, variable inventory, shell evaluator, or general command framework is added.
+
+This ticket does not implement lint, installation, uninstall, tunnel, or
+package/executable provisioning. SecretSpec and Forge remain separately
+available prerequisites. Forge CLI 14.2.0 interface evidence is unchanged;
+no live Forge contact or mutation is part of these checks.
 
 ## Deployment options
 
@@ -149,8 +178,9 @@ server-side acceptance of key/value forms are not certified by these checks.
   manifest substitution and complete manifest validation.
 - Only present `runtime` members are uploaded. Omission or an empty active-profile
   intersection still validates the full profile and deploys without writes or
-  deletion. Local controls `FORGE_ENV`, `FORGE_SITE`, and `FORGE_PRODUCT` cannot
-  be runtime uploads; selecting them fails before every upload.
+  deletion. Local controls `FORGE_ENVIRONMENT`, `FORGE_ENV`, `FORGE_SITE`, and
+  `FORGE_PRODUCT` cannot be runtime uploads; selecting them fails before every
+  upload.
 - Every write uses `forge variables set --encrypt --environment TARGET KEY VALUE`.
   After all writes succeed, exactly one `forge deploy --environment TARGET` runs.
   The same resolved string supplies local use and remote upload.
