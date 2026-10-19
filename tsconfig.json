@@ -9,9 +9,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "lib": ["ES2022"],
-    "types": [
-      "bun"
-    ],
+    "types": ["bun"],
 
     /* Drop Calf policy defaults: enforced on update, though Forge does not force them */
     "strict": true,

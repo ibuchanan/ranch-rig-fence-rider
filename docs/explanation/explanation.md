@@ -1,15 +1,176 @@
-# Explanation
+# Why Forge has three kinds of environment variables
 
-This is just a placeholder.
-Remove this file
-when a real explanation is ready.
+An environment variable is a name and a value available to a particular
+process. It is not a shared setting that automatically follows an application
+from a developer's terminal into the cloud. In Forge development, the same
+phrase covers three different consumers: local tooling, the manifest parser,
+and the deployed application.
 
-[Diataxis](https://diataxis.fr/explanation/) explains:
+That distinction explains a common source of confusion: a value can be
+available in a terminal and still be missing from an app. The important
+questions are who needs the value, when they need it, and how it reaches them.
 
-> Explanation is a discursive treatment of a subject, that permits reflection.
-> Explanation is understanding-oriented.
+Fence Rider's design brings the declarations and validation for these three
+categories into one SecretSpec specification. It does not turn their
+separate delivery mechanisms into one environment. The deployment workflow
+is implemented and locally tested; live Forge activation remains unverified.
+This explanation describes the model and the Forge boundaries it respects.
+Exact rules and compatibility evidence belong in the
+[variable compatibility reference](../reference/reference.md).
 
-In the context of Forge sample apps,
-what usually needs explaining is how the parts fit together:
-the architecture.
-Sometimes, a specific part or configuration is worthy of additional focus.
+## Local variables guide the development workflow
+
+Local variables are consumed by tools running on a workstation or CI runner.
+For example, Fence Rider can use `FORGE_ENV` to choose a deployment target.
+That value controls an operation; the deployed app does not need to receive
+it merely because the deployment tool did.
+
+Here, "local" describes the consumer rather than a physical laptop. A CI
+runner is also local to the tool process. A variable may come from a vault,
+an environment file, or another SecretSpec provider without changing its
+role in the workflow.
+
+Local availability is the starting point, not a named destination that
+needs an explicit `local` scope. SecretSpec can resolve the whole active
+profile into a local process environment. A variable outside Fence Rider's
+recognized scopes is still valid, validated local configuration, and the
+resolved application environment is available to delegated Forge tooling.
+
+Local values do not automatically become Forge runtime variables. Uploading
+all of them would confuse deployment controls with app configuration and
+could expose credentials that only a local tool needs. Conversely, declaring
+a local value does not mean Fence Rider supports every development command
+that might use it. Its initial workflow is deployment, not a general-purpose
+command runner.
+
+## Manifest variables shape the deployed configuration
+
+Manifest variables are consumed by the Forge CLI while it parses the
+manifest. Consider a service URL used to configure a remote endpoint. The
+CLI needs that URL while interpreting the app's configuration, before the
+app runs.
+
+The URL reaches the parser through the Forge CLI process environment. Forge
+also requires the variable to be declared in the manifest's native
+`environment.variables` field. A variable stored only in the remote Forge
+runtime environment does not supply that local parser input.
+
+This creates two declarations with different jobs, not two competing sources
+of truth. SecretSpec describes the value's requirements. The Forge manifest
+describes where the parser can substitute it. An optional SecretSpec
+`manifest` scope adds a consistency check: its members must also be declared
+for use in the Forge manifest. It does not decide which values are injected
+into the local process environment.
+
+Without that scope, a resolved local value can still supply a substitution.
+Forge validates its own manifest declarations; it does not know whether a
+SecretSpec scope exists. Omitting the scope alone therefore does not cause
+Forge lint to fail. The optional check helps keep the two files consistent
+without replacing Forge's parser or SecretSpec's validation rules.
+
+A manifest input is not automatically a runtime variable. Its value can
+influence the deployed configuration without becoming an entry in the app's
+`process.env`. It is also not necessarily private: the manifest field that
+uses it may expose configuration through the resulting app behavior.
+
+## Runtime variables configure the running app
+
+Runtime variables are consumed by the app executing inside Forge. An API
+credential needed by a backend function is a typical example. The developer
+workstation's environment is not the environment of that remote function.
+
+Forge provides a separate variable-setting mechanism for these values.
+Fence Rider's design uploads runtime-selected values with encryption enabled,
+then deploys the app to the same Forge environment. The deployment matters:
+changing a stored remote variable does not update the values used by an
+already deployed app until it is redeployed to that environment.
+
+Runtime variables belong to an app and a Forge environment. A value uploaded
+to development does not automatically appear in staging or production.
+Likewise, choosing an installation site is not a substitute for selecting
+the environment whose runtime configuration is being changed.
+
+Encryption protects stored remote values; the function still receives a
+usable value at runtime. It does not make a value safe to log, return to a
+browser, or embed in public configuration. Neither local nor manifest values
+are necessarily non-secret, and not every runtime value is a credential.
+Destination and sensitivity are separate concerns.
+
+## One declaration can serve more than one consumer
+
+These categories describe destinations, not mutually exclusive value types.
+A service URL might be needed both in manifest configuration and by backend
+code. Duplicating its declaration would create two values that could drift
+apart even though they represent the same setting.
+
+All declared variables are resolved and validated locally, so a separate
+`local` scope is unnecessary. The two recognized scopes add different
+behaviors to that local baseline: `manifest` adds a declaration check, and
+`runtime` authorizes an encrypted remote upload.
+
+A variable can be declared once and included in both scopes. Fence Rider's
+contract calls for the same resolved value to reach the local Forge CLI
+process and the remote variable store. This avoids separate provider reads
+producing different values for a shared setting. Scope membership alone
+does not make a value secret or non-secret.
+
+A variable outside both scopes remains local configuration. In particular,
+no `runtime` scope means no uploads, not an error and not a request to upload
+everything. A valid runtime scope can also have no members in the active
+profile. Omitting the scope expresses that absence without an invalid empty
+native scope declaration. Neither case erases previously stored remote
+variables: selecting values to upload is not remote state reconciliation.
+
+Profiles answer a different question. They select a set of declarations,
+defaults, and provider behavior; the recognized scopes add checks or upload
+selection within that configuration. A SecretSpec profile named `production`
+does not, by its name alone, select Forge's production environment.
+
+## A provider is a source, not a destination
+
+An environment file and a vault are alternative places to obtain values.
+Neither determines whether a value belongs to local tooling, the manifest,
+or the running app. Replacing a vault with an environment file does not
+remove the need for manifest injection or remote runtime uploads.
+
+That separation is especially useful for sample app forks. A maintainer can
+use one provider and a downstream developer another, while both share the
+repository's `secretspec.toml`: the required inputs and their destination
+scopes remain visible and reviewable without committing actual secrets.
+Provider authentication stays a SecretSpec concern rather than becoming
+application runtime code.
+
+## Validation belongs before the first remote change
+
+A deployment depends on more than its runtime credentials. A missing local
+target setting or required manifest URL can make it invalid even when every
+runtime value is present. Validating runtime values alone would allow remote
+uploads to succeed before a later manifest error stops deployment.
+
+Fence Rider's intended boundary therefore validates the complete deployment
+configuration before any upload. SecretSpec owns the supported declaration
+constraints and provider resolution; Fence Rider adds checks for routing,
+control values, and Forge's input restrictions. One specification covers all
+three categories without pretending that all three have the same consumer.
+
+This early boundary prevents avoidable partial changes caused by invalid
+inputs. It cannot make a sequence of remote writes atomic: an upload can
+still fail after an earlier upload succeeds. The distinction between input
+validation and remote execution remains important even with one source of
+variable specifications.
+
+The central idea is that **one specification does not mean one destination**.
+Local tooling, manifest parsing, and application execution need different
+values at different times. Shared declarations and explicit scopes make
+those boundaries understandable instead of hiding them behind a single
+label, "environment variables."
+
+## Related material
+
+- [Variable compatibility reference](../reference/reference.md)
+- [SecretSpec scopes](https://secretspec.dev/concepts/scopes/)
+- [Forge manifest variables][manifest]
+- [Forge environments and runtime variables][environments]
+
+[manifest]: https://developer.atlassian.com/platform/forge/manifest-reference/environment/
+[environments]: https://developer.atlassian.com/platform/forge/environments/

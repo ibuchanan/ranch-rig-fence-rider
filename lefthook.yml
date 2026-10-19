@@ -24,7 +24,7 @@ pre-push:
     lint:
       run: bun run --if-present lint
     test:
-      run: bun run --if-present test
+      run: bun run --if-present test:check
     size:
       run: bun run --if-present size:check
     pack:

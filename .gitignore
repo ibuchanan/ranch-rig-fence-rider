@@ -243,6 +243,8 @@ $RECYCLE.BIN/
 # Additional ignores
 .fallow/
 .scratch/
+# Isolated subprocess fixtures must not enter parallel repository checks.
+/tmp_rovo_*/
 .session/
 
 # CocoIndex Code (ccc)

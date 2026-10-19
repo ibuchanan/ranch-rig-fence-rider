@@ -1,6 +1,16 @@
 {
   "version": "0.2",
   "language": "en",
-  "words": ["diataxis", "secretspec", "webtriggers"],
+  "words": [
+    "Bitwarden",
+    "bunx",
+    "diataxis",
+    "pocock",
+    "preimplementation",
+    "requiredness",
+    "secretspec",
+    "unlaunchable",
+    "webtriggers"
+  ],
   "ignorePaths": ["node_modules/**", "vendor/**"]
 }

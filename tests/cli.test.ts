@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -438,6 +439,12 @@ test("deploy resolves once, encrypts only runtime values, then deploys to the co
     expect(call.values).toEqual(deploymentValues);
   }
   expect(result.stdout + result.stderr).not.toContain("synthetic local-only");
+  expect(readdirSync(result.project).sort()).toEqual([
+    "bin",
+    "manifest.yml",
+    "secretspec.toml",
+    "tool-calls",
+  ]);
 });
 
 test("explicit environment overrides the configured target for every Forge command", async () => {

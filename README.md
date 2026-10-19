@@ -1,51 +1,71 @@
-> Please remove this quote block and replace the others with meaningful content. If you're looking at this on Bitbucket, be assured that it looks great on GitHub.
+# Fence Rider
 
-# ranch-rig-fence-rider
+[![Atlassian license][license-badge]](LICENSE)
+[![PRs Welcome][prs-badge]](CONTRIBUTING.md)
 
-[![Atlassian license](https://img.shields.io/badge/license-Apache%202.0-blue.svg?style=flat-square)](LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
+Fence Rider is a development-time CLI that resolves a SecretSpec profile,
+validates configuration, uploads only explicitly selected runtime variables
+with Forge encryption enabled, then delegates deployment to the same Forge
+environment. No vault SDK or Fence Rider code belongs in your deployed app.
 
-> Provide an introduction/overview of your project, and articulate the problem it solves for the broader engineering community. Potential consumers should understand **what** the project is, and **why** it exists.
+**Status:** single-file deployment is implemented and locally tested with
+Bun 1.4.3 and SecretSpec 0.21.1. Forge CLI 14.2.0 command interfaces have been
+inspected; live encryption and deployment activation verification is
+**blocked pending authorization**, not certified. This private source project
+is not published as a package. Installation and tunneling are unsupported;
+use the Forge CLI directly for those workflows.
 
-> Other recommended badges are a [version](https://shields.io/category/version) badge (e.g. `npm`) and a [build](https://shields.io/category/build) badge (e.g., `circleci` or `travis`). Order should be `license - version - build - PRs`. Please use the `flat-sqare` style.
->
-> See e.g.
->
-> [![npm version](https://img.shields.io/npm/v/react-beautiful-dnd.svg?style=flat-square)](https://www.npmjs.com/package/react-beautiful-dnd) [![npm version](https://img.shields.io/npm/v/@atlaskit/button.svg?style=flat-square)](https://www.npmjs.com/package/@atlaskit/button) [![Build Status](https://img.shields.io/travis/stricter/stricter/master?style=flat-square)](https://travis-ci.org/stricter/stricter)
+## Build and try the CLI
 
+With Bun 1.4.3 installed, run from this checkout:
 
-## Usage
+```sh
+bun install
+bun run build
+./dist/cli --help
+./dist/cli --version
+```
 
-> Provide a simple and concise (code) example of your project. Consumers should understand **how** your project solves their problem.
+Help and version need no configuration, vault, network, or Forge login.
+Deployment additionally requires separately installed and authenticated
+SecretSpec and Forge CLIs on `PATH`, a valid registered Forge app, and a
+single SecretSpec file. Fence Rider never installs tools or logs you in.
 
-## Installation
+From that app's directory, using the absolute path to the built binary:
 
-> Provide instructions on how to install and configure the project.
+```sh
+SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli deploy --environment development --non-interactive
+```
+
+**This deployment command changes remote state.** Set up and review the
+[local-provider deployment workflow](docs/how-to/how-to.md) first. It lets
+contributors supply their own values without access to a maintainer's vault.
+Only `runtime` scope members upload; other values stay local. Optional
+`manifest` membership adds a declaration check, not an injection allowlist.
 
 ## Documentation
 
-> If your project is small and simple enough, documentation can be added here. For larger projects, provide a link to where the documentation lives.
+- [Deploy from development or CI](docs/how-to/how-to.md)
+- [Variable contract and single-file limits](docs/reference/reference.md)
+- [Version evidence and acceptance checks](docs/reference/deployment.md)
+- [Why local, manifest, and runtime differ](docs/explanation/explanation.md)
+- [Development and validation](DEVELOPMENT.md)
+- [Product specification](specs/fence-rider-spec.md)
 
-## Tests
+The [original exploration](specs/SecretSpec%20Atlassian%20Forge%20Integration%20Guide.md)
+is historical input, not installation or provider guidance.
 
-> Describe and show how to run the tests with code examples.
+## Contributing and support
 
-## Contributions
-
-Contributions to ranch-rig-fence-rider are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+Run `bun run test` for the public CLI suite, or `bun run check` for the
+repository gate. See [DEVELOPMENT.md](DEVELOPMENT.md) for prerequisites,
+optional native checks, and known validation failures. Contributions are
+welcome under [CONTRIBUTING.md](CONTRIBUTING.md); report vulnerabilities
+through [SECURITY.md](SECURITY.md).
 
 ## License
 
-Copyright (c) [YYYY] Atlassian US., Inc.
-Apache 2.0 licensed, see [LICENSE](LICENSE) file.
+Apache 2.0 licensed; see [LICENSE](LICENSE).
 
-<br/>
-
-> Pick one of the following:
-
-[![With ❤️ from Atlassian](https://raw.githubusercontent.com/atlassian-internal/oss-assets/master/banner-cheers.png)](https://www.atlassian.com)
-
-[![With ❤️ from Atlassian](https://raw.githubusercontent.com/atlassian-internal/oss-assets/master/banner-with-thanks.png)](https://www.atlassian.com)
-
-[![With ❤️ from Atlassian](https://raw.githubusercontent.com/atlassian-internal/oss-assets/master/banner-with-thanks-light.png)](https://www.atlassian.com)
-
-[![With ❤️ from Atlassian](https://raw.githubusercontent.com/atlassian-internal/oss-assets/master/banner-cheers-light.png)](https://www.atlassian.com)
+[license-badge]: https://img.shields.io/badge/license-Apache%202.0-blue.svg?style=flat-square
+[prs-badge]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square

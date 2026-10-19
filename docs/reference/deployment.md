@@ -1,9 +1,20 @@
 # Deployment compatibility evidence
 
-Tickets 03–06 implemented and validated `fence-rider deploy [options]` on
-2026-10-18 and 2026-10-19.
-This page records executable evidence; the [variable contract](reference.md)
-contains the routing policy and deferred compatibility work.
+Tickets 03–07 implemented and locally validated `fence-rider deploy [options]`
+on 2026-10-18 and 2026-10-19. This page records interface evidence; the
+[variable contract](reference.md) contains the routing policy.
+
+The [workflow validation record](validation.md) maps AC-01 through AC-18 to
+passing public checks and records final validation outcomes. **Live Forge
+verification remains blocked by explicit user choice**: no destination or
+remote changes were authorized. Local results are not final readiness proof.
+
+## Acceptance traceability
+
+The [criterion-by-criterion map](validation.md#acceptance-traceability) reuses
+`tests/cli.test.ts`, including real SecretSpec dotenv checks. AC-17 covers both
+an omitted manifest scope and a present scope with a missing declaration.
+There is no separate duplicate native proof suite.
 
 ## Tested interfaces
 
