@@ -52,7 +52,8 @@ printed on any nonzero status, including tool errors. Run
 `check` does not include documentation lint or build, so run those separately.
 The current `check` passes after the Fallow cleanup; historical failures and
 current results are recorded in the [validation record](docs/reference/validation.md).
-Whole-document lint still has separate historical issues outside `check`.
+Documentation lint also passes after the formatting cleanup; run it separately
+because it is not included in `check`.
 Do not raise thresholds or suppress findings to make a gate pass.
 
 ## Repository layout

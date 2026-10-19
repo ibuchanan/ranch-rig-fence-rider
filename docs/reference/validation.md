@@ -142,3 +142,24 @@ The complete existing 156-test suite passes with 1293 assertions. Biome lint,
 formatting, typecheck, and compiled build pass. The historical whole-doc lint
 issues are outside `check` and remain separate. Live Forge verification is
 still blocked; no live app was contacted during this cleanup.
+
+## Markdown cleanup follow-up — 2026-10-19
+
+The remaining 55 Markdown findings are resolved without changing lint rules
+or excluding documents. Code of Conduct, contribution, and security policy
+wording is unchanged apart from whitespace; paragraph and list continuations
+now meet the existing line-length limit. Missing final newlines, trailing
+whitespace, and compact table spacing are corrected.
+
+The historical integration guide retains its exploratory wording and
+claims, not new compatibility certification. Three escaped example blocks
+are enclosed in `text` fences so original sample lines remain intact rather
+than wrapping inside strings. Each example block was compared with the
+committed original: all non-trailing-whitespace content is unchanged. Prose
+is wrapped and blockquote/list continuations remain explicit. The README
+continues to identify this guide as historical input, not current guidance.
+
+`bun run lint:docs` passes: Markdown reports zero issues, and spelling checks
+14 documents with zero issues. `bun run check` also passes with the existing
+156 tests and 1293 assertions. No application code, validation configuration,
+dependency, or Forge authorization changed. Live verification remains blocked.
