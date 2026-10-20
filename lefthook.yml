@@ -21,11 +21,5 @@ pre-commit:
 pre-push:
   parallel: true
   commands:
-    lint:
-      run: bun run --if-present lint
-    test:
-      run: bun run --if-present test:check
-    size:
-      run: bun run --if-present size:check
-    pack:
-      run: bun run --if-present pack:check
+    check:
+      run: bun run check
