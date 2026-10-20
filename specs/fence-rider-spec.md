@@ -287,7 +287,7 @@ sample project, with controlled SecretSpec and Forge executables. Observe
 exit status, redacted output, and the external tool interactions. Exercise
 real argument parsing and orchestration without a vault or a live Forge app.
 
-This seam was confirmed and implemented in `tests/cli.test.ts`; it avoids
+This seam was confirmed and implemented in the CLI test files in `tests/`; it avoids
 private helper tests. Ticket 07 also confirms observable validation-command
 output/status as a seam in `tests/check.test.ts`. Bun is the configured test
 runner. The [acceptance map](../docs/reference/deployment.md#acceptance-traceability)

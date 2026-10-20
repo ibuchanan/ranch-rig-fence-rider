@@ -253,3 +253,6 @@ $RECYCLE.BIN/
 # CocoIndex Code (ccc)
 /.cocoindex_code/
 # End of drop-calf additional ignores
+
+# Per-file test durations used to start the slowest files first
+.test-timings.json

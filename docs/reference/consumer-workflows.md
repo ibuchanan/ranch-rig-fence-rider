@@ -19,7 +19,8 @@ The original deployment AC-01–AC-18 record remains in [validation](validation.
   every claim below; no destination or exact operations/cleanup authorized.
 
 All tests live at the approved CLI/installed-consumer process seams in
-[`tests/cli.test.ts`][tests]. No private helper tests or duplicate proof harness.
+[the CLI test files in `tests/`][tests]. No private helper tests or duplicate
+proof harness.
 Exact test names below are searchable. Installed examples run under Bun 1.4.3
 on macOS arm64, with Forge controlled. Supported package platforms/runtime and
 fresh-download versus mirrored/cached evidence are in [tool delivery][delivery].
@@ -119,6 +120,6 @@ for procedures and the [validation log](validation.md) for command outcomes.
 
 [plan]: ../../specs/configured-forge-workflows-spec.md
 [contract]: reference.md
-[tests]: ../../tests/cli.test.ts
+[tests]: ../../tests/
 [delivery]: installation.md
 [guide]: ../how-to/consumer-workflows.md

@@ -12,11 +12,16 @@ bun run build
 
 ## Public test boundaries
 
-`tests/cli.test.ts` builds the real CLI and invokes it in isolated projects
+The CLI test files in `tests/` build the real CLI and invoke it in isolated projects
 with controlled executables. Tests observe status, safe output, argument
 boundaries, child environments, and process cleanup, not private helpers.
 They need no credentials, network, vault, or real Forge app. Synthetic
 fixture files and interaction records are removed after the suite.
+
+`bun run test` runs the files in parallel worker processes. Each file builds its
+own CLI in a private workspace (`useBuiltCli()` in `tests/support/cli.ts`), so
+new tests must use per-test temp directories and avoid fixed ports, a shared
+cwd, or other shared mutable state.
 
 When SecretSpec is on `PATH`, the same suite also runs native synthetic
 dotenv integration checks. Install SecretSpec 0.21.1 separately to reproduce
@@ -33,8 +38,9 @@ needed. The acceptance map is in the
 
 The package executable requires Bun 1.4.3+ and explicit `fence-rider setup`;
 standalone compiled tests retain PATH-based tools. Packaging tests in
-`tests/cli.test.ts` pack a local artifact, install it with lifecycle scripts
-blocked, and invoke its installed executable in isolated consumers. Native setup
+`tests/packaged-consumer.test.ts` pack a local artifact, install it with
+lifecycle scripts blocked, and invoke its installed executable in isolated
+consumers. Native setup
 checks additionally require pinned release assets in `SECRETSPEC_TEST_ASSETS`;
 without them they skip, not pass. Provide `secretspec-installer.sh` and the host's
 native archive from SecretSpec 0.21.1. Tests serve those exact bytes over loopback,

@@ -43,7 +43,7 @@
     "lint:fallow": "output=$(fallow --fail-on-issues 2>&1) || { status=$?; printf '%s\\n' \"$output\"; exit \"$status\"; }",
     "lint:fix": "biome lint --write",
     "prepare": "lefthook install || true",
-    "test": "bun test --pass-with-no-tests",
+    "test": "bun test --parallel --timeout 30000 --timings .test-timings.json --update-timings --pass-with-no-tests",
     "test:check": "bun run test --only-failures",
     "test:coverage": "bun test --coverage --pass-with-no-tests",
     "test:watch": "bun test --watch --pass-with-no-tests",

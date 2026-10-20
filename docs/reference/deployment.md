@@ -12,8 +12,8 @@ remote changes were authorized. Local results are not final readiness proof.
 ## Acceptance traceability
 
 The [criterion-by-criterion map](validation.md#acceptance-traceability) reuses
-`tests/cli.test.ts`, including real SecretSpec dotenv checks. AC-17 covers both
-an omitted manifest scope and a present scope with a missing declaration.
+the CLI test files in `tests/`, including real SecretSpec dotenv checks. AC-17
+covers both an omitted manifest scope and a present scope with a missing declaration.
 There is no separate duplicate native proof suite.
 
 ## Tested interfaces
@@ -247,7 +247,7 @@ remain ticket 07.
 
 ## Sources
 
-- [Subprocess and native integration tests](../../tests/cli.test.ts)
+- [Subprocess and native integration tests](../../tests/)
 - [Forge deploy][deploy]
 - [Forge variables set][variables]
 - [Published Forge CLI 14.2.0 package][forge-source]

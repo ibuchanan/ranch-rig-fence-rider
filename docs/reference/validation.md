@@ -75,7 +75,7 @@ not establish server acceptance, encryption at rest, or runtime activation.
 
 ## Acceptance traceability
 
-All named checks below are in [the public suite](../../tests/cli.test.ts).
+All named checks below are in [the public suite](../../tests/).
 Names identify tests rather than unstable line numbers. Each AC has passing
 local evidence; references to Forge mean controlled subprocess observations
 unless explicitly labeled native SecretSpec. This is not live certification.
