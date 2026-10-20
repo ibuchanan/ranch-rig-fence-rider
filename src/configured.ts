@@ -1,8 +1,9 @@
 import { accessSync, constants } from "node:fs";
 import { resolve } from "node:path";
 import { CommandFailure, capture, signalExitCode } from "./process";
+import type { Workflow } from "./workflow";
 
-function deliveredSecretSpec(state: ConfigurationState) {
+function deliveredSecretSpec(state: Workflow) {
   state.stage =
     "SecretSpec prerequisite (run fence-rider setup; no global fallback)";
   const path = resolve(import.meta.dir, "../.tools/secretspec");
@@ -15,8 +16,6 @@ type Specification = {
   profiles?: Record<string, Record<string, unknown>>;
   scopes?: Record<string, { secrets: string[] }>;
 };
-
-type ConfigurationState = { stage: string; signal: AbortSignal };
 
 /** Select scope declarations present in the effective native profile schema. */
 export function members(
@@ -48,7 +47,7 @@ async function validateManifest(names: string[]) {
 export async function checkManifest(
   config: Specification,
   properties: Record<string, unknown>,
-  state: ConfigurationState,
+  state: Workflow,
   context = "",
 ) {
   state.stage = `manifest validation${context}`;
@@ -176,14 +175,14 @@ function validateProperties(schema: Record<string, unknown>) {
   return properties;
 }
 
-function prerequisite(tool: string, state: ConfigurationState) {
+function prerequisite(tool: string, state: Workflow) {
   state.stage = `${tool} prerequisite (install and authenticate separately on PATH)`;
   const path = Bun.which(tool);
   if (!path) throw new Error("Missing executable");
   return path;
 }
 
-async function readConfiguration(state: ConfigurationState) {
+async function readConfiguration(state: Workflow) {
   state.stage = "configuration";
   const file = resolve(process.env["SECRETSPEC_FILE"] ?? "secretspec.toml");
   const profile = process.env["SECRETSPEC_PROFILE"] ?? "default";
@@ -198,7 +197,7 @@ async function readConfiguration(state: ConfigurationState) {
 async function resolveProfile(
   tool: string,
   nativeArgs: string[],
-  state: ConfigurationState,
+  state: Workflow,
 ) {
   state.stage = "SecretSpec schema";
   const schema: unknown = JSON.parse(
@@ -234,7 +233,7 @@ function configuredEnvironment(values: Record<string, string>) {
 
 export function reportConfiguredFailure(
   error: unknown,
-  state: { stage: string; signal: AbortSignal },
+  state: Workflow,
   delegatedStage: string,
 ) {
   const detail = error instanceof CommandFailure ? `: ${error.message}` : "";
@@ -249,7 +248,7 @@ function delegatedFailureStatus(error: unknown, delegated: boolean) {
   return delegated && error instanceof CommandFailure ? error.exitCode : 1;
 }
 
-export async function configure(state: ConfigurationState) {
+export async function configure(state: Workflow) {
   const secretspec = import.meta.path.startsWith("/$bunfs/")
     ? prerequisite("secretspec", state)
     : deliveredSecretSpec(state);

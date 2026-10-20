@@ -1,9 +1,6 @@
-import { configure, reportConfiguredFailure } from "./configured";
-import {
-  checkInterruption,
-  passthrough,
-  workflowInterruption,
-} from "./process";
+import { configure } from "./configured";
+import { checkInterruption, passthrough } from "./process";
+import { runWorkflow } from "./workflow";
 
 function validateValue(value: string | undefined): string {
   if (!value || value.startsWith("-") || /[\s\p{Cc}]/u.test(value))
@@ -128,33 +125,24 @@ export async function install(
   args: string[],
   command: "install" | "uninstall" = "install",
 ): Promise<number> {
-  const interruption = workflowInterruption();
   const operation = command === "install" ? "installation" : "uninstallation";
-  const state = {
-    stage: `${operation} option validation`,
-    signal: interruption.signal,
-  };
-  try {
+  return runWorkflow(async (workflow) => {
+    workflow.stage = `${operation} option validation`;
     const { targets, forwarded, help } = parseTargets(args, command);
     if (help) {
       printHelp(command);
-      return 0;
+      return;
     }
-    const { forge, env, values, environment } = await configure(state);
-    state.stage = `${operation} target validation (environment, site and product required)`;
+    const { forge, env, values, environment } = await configure(workflow);
+    workflow.stage = `${operation} target validation (environment, site and product required)`;
     const effective = effectiveTargets(targets, values, environment);
-    state.stage = operation;
+    workflow.stage = operation;
     await passthrough(
       forge,
       [command, ...effective, ...forwarded],
-      state.signal,
+      workflow.signal,
       env,
     );
-    checkInterruption(state.signal);
-    return 0;
-  } catch (error) {
-    return reportConfiguredFailure(error, state, operation);
-  } finally {
-    interruption.dispose();
-  }
+    checkInterruption(workflow.signal);
+  });
 }

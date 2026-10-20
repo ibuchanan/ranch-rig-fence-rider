@@ -1,14 +1,6 @@
-import {
-  checkManifest,
-  configure,
-  members,
-  reportConfiguredFailure,
-} from "./configured";
-import {
-  checkInterruption,
-  passthrough,
-  workflowInterruption,
-} from "./process";
+import { checkManifest, configure, members } from "./configured";
+import { checkInterruption, passthrough } from "./process";
+import { runWorkflow } from "./workflow";
 
 function validateTarget(target: string) {
   if (
@@ -121,38 +113,29 @@ function effectiveTarget(
 }
 
 export async function tunnel(args: string[]): Promise<number> {
-  const interruption = workflowInterruption();
-  const state = {
-    stage: "tunnel option validation",
-    signal: interruption.signal,
-  };
-  try {
+  return runWorkflow(async (workflow) => {
+    workflow.stage = "tunnel option validation";
     const options = parseOptions(args);
     if (options.help) {
       console.log(
         "Usage: fence-rider tunnel [-e, --environment TARGET] [Forge options]\nTarget: explicit option, resolved FORGE_ENVIRONMENT (FORGE_ENV legacy alias), then development. Only development environments are supported; named environments must already be development environments. Staging/production are rejected.\nResolve the whole profile once; check optional manifest declarations. Runtime members alone map to FORGE_USER_VAR_<name>; empty strings are supported. Ambient prefixed values are removed; declarations using that reserved prefix are rejected.\nForge input/output streams live and unredacted; app logs may expose values. -h is debug host, not help; use --help.\nNo remote variable uploads/deletion, deployment or installation. SecretSpec and Forge must be installed on PATH and authenticated separately.",
       );
-      return 0;
+      return;
     }
-    const configured = await configure(state);
+    const configured = await configure(workflow);
     const { forge, env, config, properties, environment } = configured;
-    state.stage = "tunnel target validation (development environments only)";
+    workflow.stage = "tunnel target validation (development environments only)";
     const target = effectiveTarget(options.target, environment);
-    await checkManifest(config, properties, state);
-    state.stage = "tunnel runtime selection validation";
+    await checkManifest(config, properties, workflow);
+    workflow.stage = "tunnel runtime selection validation";
     injectRuntime(configured);
-    state.stage = "tunnel";
+    workflow.stage = "tunnel";
     await passthrough(
       forge,
       ["tunnel", "--environment", target, ...options.forwarded],
-      state.signal,
+      workflow.signal,
       env,
     );
-    checkInterruption(state.signal);
-    return 0;
-  } catch (error) {
-    return reportConfiguredFailure(error, state, "tunnel");
-  } finally {
-    interruption.dispose();
-  }
+    checkInterruption(workflow.signal);
+  });
 }
