@@ -4,8 +4,12 @@ import { lint } from "./lint";
 import { install } from "./install";
 
 const args = process.argv.slice(2);
-if (args.length === 2 && args[0] === "help" && args[1] === "install") {
-  process.exit(await install(["--help"]));
+if (
+  args.length === 2 &&
+  args[0] === "help" &&
+  (args[1] === "install" || args[1] === "uninstall")
+) {
+  process.exit(await install(["--help"], args[1]));
 }
 
 if (args.length === 1 && (args[0] === "--version" || args[0] === "-V")) {
@@ -22,7 +26,8 @@ const helpRequested =
 
 if (!helpRequested) {
   const command = args[0] === "help" ? args[1] : args[0];
-  if (args[0] === "install") process.exit(await install(args.slice(1)));
+  if (args[0] === "install" || args[0] === "uninstall")
+    process.exit(await install(args.slice(1), args[0]));
   if (command === "tunnel") {
     console.error(
       `${command} is unsupported by Fence Rider. Use the Forge CLI directly: forge ${command}`,
@@ -49,6 +54,7 @@ Supported workflows:
   deploy       Deployment with encrypted runtime variables
   lint         Configured lint with live, unredacted Forge output
   install      Configured installation or explicit --upgrade; no runtime writes
+  uninstall    Configured removal; changes remote installation state
 
 Deployment target: explicit option, resolved FORGE_ENVIRONMENT
 (FORGE_ENV legacy alias), then development.
@@ -61,9 +67,10 @@ Discovery:
 Configured workflow prerequisites: SecretSpec CLI and Forge CLI must be installed on
 PATH and authenticated separately. Fence Rider does not install tools or log in.
 
-Install targets: explicit options override resolved FORGE_SITE / FORGE_PRODUCT
+Install/uninstall targets: explicit options override resolved FORGE_SITE / FORGE_PRODUCT
 and environment independently. Site/product are required. Only environment
-falls back to development. Consent, upgrade, and non-interactive mode are explicit.
+falls back to development. Install consent/upgrade/non-interactive policy is explicit.
+Uninstall inherits no install policy; Forge 14.2.0 has no --non-interactive option.
 
 Tunnel remains unsupported; use the Forge CLI directly:
   forge tunnel

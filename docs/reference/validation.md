@@ -254,6 +254,60 @@ Uninstall, tunnel, dependency delivery, and final consumer acceptance remain
 separate tickets. Existing user specification edits are excluded from this
 implementation commit; ignored scratch records remain local.
 
+## Configured uninstall ticket 04 — 2026-10-19
+
+Implemented at the approved compiled public CLI seam. Red-before-green slices
+established configured delegation, uninstall-specific required-value grammar,
+configuration-free discovery, and numeric failure diagnostics. The existing
+installation module shares targets, configuration, execution, and interruption;
+no second resolver, dependency, command framework, or validation exemption
+was introduced.
+
+One full-profile resolution supplies all local values and exactly one effective
+site/product/environment. Explicit overrides, canonical/legacy aliases,
+controls-only profiles, missing required app/control values despite overrides,
+and stale optional cleanup are covered. Native checks use SecretSpec 0.21.1
+with synthetic dotenv values. Runtime scopes add no upload, deployment,
+installation, variable deletion, or follow-up. The optional manifest cross-check
+and deployment-only runtime validation do not apply.
+
+Public CLI checks cover target forms, invalid/duplicate/missing targets,
+installation-ID/app-override payloads, terminators, preserved caller arguments,
+no inherited install policy, live output before input, ordinary settings and
+authentication, numeric statuses 2/23/127/255, private helper/launch/child-signal
+failures, and bounded POSIX SIGINT/SIGTERM cleanup of ignoring descendants.
+Forge streams and echoed synthetic input intentionally remain without redaction.
+
+Interface evidence: installed Forge CLI 14.2.0 `uninstall --help`, published
+14.2.0 registration, command options and uninstall helper source, plus the
+previously inspected shared 9.8.0 product handling. Uninstall supports context
+and environment targets, batch, installation ID, and app override. It does not
+register installation's `--non-interactive`, upgrade, or consent switches.
+Required ID/override values consume switch-looking payloads. A matching native
+target can uninstall directly, including associated installation contexts;
+input inheritance does not imply a confirmation prompt. Bun 1.4.3 inspection
+emitted Forge's Node.js 22.x/24.x warning. This is interface evidence, not live
+runtime certification. See [the contract](reference.md#configured-uninstall).
+
+Validation: 320 tests / 2306 assertions, zero failures, up from the fresh
+262-test / 1954-assertion baseline. All native checks ran. The focused
+install/uninstall suite passes 120 tests / 718 assertions. `bun run check`,
+`bun run lint`, `bun run lint:docs`, `bun run build`, compiled uninstall
+help/alias/version, and `git diff --check` pass. Parser health findings were
+resolved without changing thresholds, suppression, or analysis categories.
+The read-only review found no correctness regressions. Inspection downloads
+and compiler intermediates are removed, not committed.
+
+The [short script and authorization boundary][uninstall-guide] explicitly warn
+that uninstall changes remote installation state. No live uninstall, app/site
+contact, registration, upload, deployment, or cleanup was authorized or run.
+Real terminal-specific prompts and Windows process-tree behavior remain
+unverified. Tunnel, dependency delivery, and final consumer acceptance remain
+separate tickets. Existing user specification edits are excluded from the
+implementation commit; scratch completion records remain local and ignored.
+
+[uninstall-guide]: ../how-to/how-to.md#uninstall-the-configured-app
+
 ## Configured deployment ticket 01 — 2026-10-19
 
 `FORGE_ENVIRONMENT` is canonical for deployment; `FORGE_ENV` remains a legacy

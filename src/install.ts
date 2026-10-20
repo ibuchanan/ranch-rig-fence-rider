@@ -65,18 +65,23 @@ function parseArgument(
   arg: string,
   pending: string[],
   options: InstallOptions,
+  command: "install" | "uninstall",
 ) {
-  if (/^--demo-site(?:=|$)|^-[dh]*d/.test(arg))
+  if (command === "install" && /^--demo-site(?:=|$)|^-[dh]*d/.test(arg))
     throw new Error("Demo-site targeting is unsupported");
   // Forge 14.2.0 required-value options consume even switch-looking payloads.
-  if (["--app-id-override", "--major-version", "--unitId"].includes(arg)) {
+  const required = {
+    install: ["--app-id-override", "--major-version", "--unitId"],
+    uninstall: ["--app-id-override", "--installation-id", "-i"],
+  }[command];
+  if (required.includes(arg)) {
     options.forwarded.push(arg, ...pending.splice(0, 1));
     return;
   }
   takeTarget(arg, pending, options);
 }
 
-function parseTargets(args: string[]) {
+function parseTargets(args: string[], command: "install" | "uninstall") {
   const options: InstallOptions = { targets: {}, forwarded: [], help: false };
   const pending = [...args];
   while (pending.length) {
@@ -89,7 +94,7 @@ function parseTargets(args: string[]) {
       options.help = true;
       break;
     }
-    parseArgument(arg, pending, options);
+    parseArgument(arg, pending, options, command);
   }
   return options;
 }
@@ -109,29 +114,40 @@ function effectiveTargets(
   );
 }
 
-/** Install using configured targets without deployment or runtime synchronization. */
-export async function install(args: string[]): Promise<number> {
+function printHelp(command: "install" | "uninstall") {
+  const policy =
+    command === "install"
+      ? "Use --upgrade [all|code], --confirm-scopes and --non-interactive only when intended. Demo-site targeting is unsupported."
+      : "Uninstall changes remote installation state; Forge owns remaining interaction. Forge 14.2.0 does not support --non-interactive. No upgrade, consent, approval or confirmation switches are injected.";
+  console.log(
+    `Usage: fence-rider ${command} [-e, --environment TARGET] [-s, --site URL] [-p, --product PRODUCT] [Forge options]\nTargets: explicit option, then resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT (FORGE_ENV legacy alias). Only environment falls back to development.\nSite and product are required. Products: Jira, Confluence, Compass, Bitbucket (workspace URL).\nThe whole profile must resolve; conflicting environment aliases fail even with overrides.\n${policy}\nNo runtime uploads, variable deletion or deployment.\nForge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.`,
+  );
+}
+
+/** Run one installation lifecycle command without deployment or runtime synchronization. */
+export async function install(
+  args: string[],
+  command: "install" | "uninstall" = "install",
+): Promise<number> {
   const interruption = workflowInterruption();
+  const operation = command === "install" ? "installation" : "uninstallation";
   const state = {
-    stage: "installation option validation",
+    stage: `${operation} option validation`,
     signal: interruption.signal,
   };
   try {
-    const { targets, forwarded, help } = parseTargets(args);
+    const { targets, forwarded, help } = parseTargets(args, command);
     if (help) {
-      console.log(
-        "Usage: fence-rider install [-e, --environment TARGET] [-s, --site URL] [-p, --product PRODUCT] [Forge options]\nTargets: explicit option, then resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT (FORGE_ENV legacy alias). Only environment falls back to development.\nSite and product are required; demo-site targeting is unsupported. Products: Jira, Confluence, Compass, Bitbucket (workspace URL).\nThe whole profile must resolve; conflicting environment aliases fail even with overrides.\nUse --upgrade [all|code], --confirm-scopes and --non-interactive only when intended. No runtime uploads or deployment.\nForge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.",
-      );
+      printHelp(command);
       return 0;
     }
     const { forge, env, values, environment } = await configure(state);
-    state.stage =
-      "installation target validation (environment, site and product required; demo-site unsupported)";
+    state.stage = `${operation} target validation (environment, site and product required)`;
     const effective = effectiveTargets(targets, values, environment);
-    state.stage = "installation";
+    state.stage = operation;
     await run(
       forge,
-      ["install", ...effective, ...forwarded],
+      [command, ...effective, ...forwarded],
       state.signal,
       env,
       true,
@@ -139,7 +155,7 @@ export async function install(args: string[]): Promise<number> {
     checkInterruption(state.signal);
     return 0;
   } catch (error) {
-    return reportConfiguredFailure(error, state, "installation");
+    return reportConfiguredFailure(error, state, operation);
   } finally {
     interruption.dispose();
   }

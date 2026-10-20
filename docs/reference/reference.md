@@ -406,15 +406,15 @@ suppress local delivery or Forge's substitution requirements.
 
 SecretSpec schema/export and encrypted-upload stdout remain private and stderr
 is discarded. Deployment retains its existing suppressed-output contract.
-Delegated user-facing lint and installation inherit stdin, stdout, and stderr:
+Delegated lint, installation, and uninstall inherit stdin, stdout, and stderr:
 output is live, without redaction, and on its original stream; input is available
 without wrapper prompts. Wrapper-owned diagnostics omit values and raw helper
 errors. **Forge output, exception details, application logs, echoed input, and
 terminal sessions may expose values**; Fence Rider provides no passthrough
 redaction or credential isolation. Existing ambient authentication is retained.
 
-This shared user-facing stdio mode serves lint and installation; it does not
-implement uninstall or tunnel, or certify terminal-specific prompt behavior.
+This shared user-facing stdio mode serves lint, installation, and uninstall;
+it does not implement tunnel or certify terminal-specific prompt behavior.
 Ordinary pipe checks establish input and pre-exit streaming.
 POSIX interruption forwards SIGINT/SIGTERM to the active process group, escalates
 after one second, and kills remaining group members, including when the direct
@@ -491,6 +491,60 @@ registration, or cleanup was authorized or executed. See the
 
 [install-guide]: ../how-to/how-to.md#install-or-upgrade-the-configured-app
 
+## Configured uninstall
+
+`fence-rider uninstall [Forge options]` resolves the full active profile once
+and delegates exactly one `forge uninstall` with all resolved local values,
+ordinary settings, and existing authentication. Declared absent optionals are
+removed from the inherited environment. Missing required app credentials or
+controls block execution even with explicit target overrides. Controls-only
+profiles work without runtime scope or dummy secrets. The optional manifest
+cross-check and deployment-only runtime checks do not apply.
+
+Environment/site/product use the [installation target contract](#configured-installation):
+explicit option, resolved control, then `development` for environment only.
+Both environment aliases must agree even with an override. Missing effective
+site/product fails without target-selection prompts. Separated short/long,
+long-equals, and attached-short target forms normalize to one effective option
+per field. Invalid, empty, missing, short-equals, and repeated targets fail
+before Forge. Jira, Confluence, Compass, and Bitbucket are the inspected products.
+
+Uninstall's grammar is distinct from installation: required `--installation-id`
+/ `-i` and `--app-id-override` values consume even switch-looking payloads.
+Attached/equals values, unrelated argument order/boundaries, and all payloads
+after `--` are preserved. Forge validates installation IDs and explicit
+`--batch` behavior; the wrapper still requires all three effective targets.
+Installation-only required-value grammar is not applied to uninstall.
+Unknown options remain Forge's validation responsibility, not added support.
+
+**Uninstall changes remote installation state.** The wrapper adds no runtime
+upload, remote-variable deletion, deployment, installation, retry, or follow-up
+command. No upgrade, approval, consent, confirmation, or non-interactive switch
+is injected. Forge 14.2.0 uninstall has no `--non-interactive` option. A matched
+target can uninstall directly; inherited input does not promise confirmation.
+Forge owns remaining prompts and native uninstall effects, including related
+installation contexts. This is not a read-only command.
+
+The [live stdio policy](#output-and-input-policy) applies without redaction.
+Numeric status is preserved; private helper/launch/signal failures cannot become
+success. Operator SIGINT/SIGTERM returns 130/143 with bounded POSIX process-group
+cleanup. `uninstall --help`, `uninstall -h`, and `help uninstall` require no
+configuration or tools. Required-value and terminator payloads are not help.
+
+Observed 2026-10-19: installed Forge CLI 14.2.0 `uninstall --help`, published
+14.2.0 `register-installation-commands.js`, `command.js`, and
+`uninstall-command-helpers.js`, plus shared 9.8.0 product handling. Uninstall
+registers context/environment, batch, installation ID, and app override options,
+not installation's non-interactive/upgrade/consent options. Bun 1.4.3 inspection
+emitted Forge's Node.js 22.x/24.x warning; this is interface evidence, not runtime
+certification. Native SecretSpec 0.21.1 synthetic dotenv checks and controlled
+Forge processes establish wrapper behavior, not live removal. No live uninstall
+was authorized or executed. Real terminal-specific prompts and Windows tree
+cleanup remain unverified. See the [procedure][uninstall-guide] and
+[validation record](validation.md).
+
+[uninstall-guide]: ../how-to/how-to.md#uninstall-the-configured-app
+
 ## Verification ownership
 
 Contract decisions are recorded in ticket 01. Its completion does not depend
@@ -522,8 +576,8 @@ checks rather than treating the initial contract as proof.
 | Forge input boundary | Positional argument boundaries and fail-closed restrictions tested locally; server acceptance and safer input mechanisms unverified |
 | Live Forge behavior | Blocked: no authorized disposable app/environment, writes, deployment, or cleanup |
 
-Uninstall and tunneling remain unsupported by Fence Rider pending their
-own contracts. Local availability does not imply a general command runner.
+Tunneling remains unsupported by Fence Rider pending its own implementation
+and evidence. Local availability does not imply a general command runner.
 
 ## Sources
 

@@ -145,6 +145,45 @@ verified grammar, products, and the separate live-verification blocker.
 
 [installation]: ../reference/reference.md#configured-installation
 
+## Uninstall the configured app
+
+1. Configure site/product defaults as in [installation above][installation],
+   resolve every required profile value, and put the built binary on `PATH`
+   as `fence-rider`. Packaging delivery is not implemented yet.
+2. Add this entry to your app's existing package scripts:
+
+   ```json
+   { "uninstall:forge": "fence-rider uninstall" }
+   ```
+
+3. Review the destination and obtain authorization to remove that installation.
+   **This command changes remote installation state**, not just local files.
+   Run it only against your authorized app/site/environment:
+
+   ```sh
+   SECRETSPEC_PROVIDER=dotenv:values.env bun run uninstall:forge
+   ```
+
+Override individual targets explicitly with `--site URL`, `--product PRODUCT`,
+and `--environment TARGET`. Defaults and alias checks match installation.
+Missing required app credentials still block uninstall despite explicit targets;
+use native optional declarations or a suitable profile for legitimate absence.
+
+Forge owns remaining interaction and may uninstall directly once targets match;
+do not rely on an extra confirmation prompt. Fence Rider injects no upgrade,
+consent, approval, confirmation, or non-interactive switches. Forge 14.2.0
+uninstall does **not** support `--non-interactive`; do not copy install's CI flags.
+Input/output is inherited live without redaction. Runtime scope membership adds
+no uploads, variable deletion, deployment, installation, or follow-up commands.
+The optional manifest declaration cross-check does not run for uninstall.
+
+Local controlled checks do not certify real removal or terminal-specific prompts.
+Live uninstall requires separate authorization naming the disposable app, site,
+environment, permitted removal, observations, and cleanup. No such live check
+has run. See the [uninstall reference][uninstall].
+
+[uninstall]: ../reference/reference.md#configured-uninstall
+
 ## Select a profile, file, or deployment target
 
 Use `SECRETSPEC_FILE` for a different single TOML file and
