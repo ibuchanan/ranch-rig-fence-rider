@@ -1,12 +1,10 @@
+import { checkManifest, configure, members } from "./configured";
 import {
   CommandFailure,
+  capture,
   checkInterruption,
-  checkManifest,
-  configure,
-  members,
-  run,
   workflowInterruption,
-} from "./configured";
+} from "./process";
 
 function validateTarget(target: string) {
   if (
@@ -127,7 +125,7 @@ async function uploadRuntime(
     state.stage = `encrypted upload for ${key} (target ${state.target})`;
     state.uploadAttempted = true;
     console.log(`Fence Rider: ${state.stage}.`);
-    await run(
+    await capture(
       tool,
       [
         "variables",
@@ -162,7 +160,7 @@ async function performDeployment(
   await uploadRuntime(forge, runtime, env, state);
   state.stage = `deployment (target ${state.target})`;
   console.log(`Fence Rider: ${state.stage}.`);
-  await run(
+  await capture(
     forge,
     ["deploy", "--environment", state.target, ...options.forwarded],
     state.signal,

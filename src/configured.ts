@@ -1,5 +1,6 @@
 import { accessSync, constants } from "node:fs";
 import { resolve } from "node:path";
+import { CommandFailure, capture } from "./process";
 
 function deliveredSecretSpec(state: ConfigurationState) {
   state.stage =
@@ -16,22 +17,6 @@ type Specification = {
 };
 
 type ConfigurationState = { stage: string; signal: AbortSignal };
-
-/** Install operator signal handlers for one configured workflow; dispose after cleanup. */
-export function workflowInterruption() {
-  const controller = new AbortController();
-  const onInterrupt = () => controller.abort("SIGINT");
-  const onTerminate = () => controller.abort("SIGTERM");
-  process.on("SIGINT", onInterrupt);
-  process.on("SIGTERM", onTerminate);
-  return {
-    signal: controller.signal,
-    dispose() {
-      process.removeListener("SIGINT", onInterrupt);
-      process.removeListener("SIGTERM", onTerminate);
-    },
-  };
-}
 
 /** Select scope declarations present in the effective native profile schema. */
 export function members(
@@ -119,107 +104,6 @@ function validateScopeSecrets(secrets: unknown[], declared: Set<string>) {
     )
   )
     throw new Error("Malformed scope");
-}
-
-export class CommandFailure extends Error {
-  constructor(
-    message: string,
-    readonly exitCode = 1,
-  ) {
-    super(message);
-  }
-}
-
-export function checkInterruption(signal: AbortSignal) {
-  if (signal.aborted)
-    throw new CommandFailure(
-      `interrupted by ${signal.reason}`,
-      signal.reason === "SIGINT" ? 130 : 143,
-    );
-}
-
-/** Keep helper streams private by default; user-facing commands inherit unredacted stdio. */
-export async function run(
-  tool: string,
-  args: string[],
-  signal: AbortSignal,
-  env = process.env,
-  userFacing = false,
-) {
-  checkInterruption(signal);
-  let child: Bun.Subprocess<
-    "ignore" | "inherit",
-    "pipe" | "inherit",
-    "ignore" | "inherit"
-  >;
-  let launchError = false;
-  try {
-    child = Bun.spawn([tool, ...args], {
-      env,
-      ...(userFacing
-        ? ({ stdin: "inherit", stdout: "inherit", stderr: "inherit" } as const)
-        : ({ stdin: "ignore", stdout: "pipe", stderr: "ignore" } as const)),
-      detached: process.platform !== "win32",
-      onExit(_child, _code, _signal, error) {
-        launchError = error !== undefined;
-      },
-    });
-  } catch {
-    throw new CommandFailure(
-      "unable to launch executable; check installation and its interpreter",
-    );
-  }
-  const active = child;
-  let escalation: ReturnType<typeof setTimeout> | undefined;
-  const terminate = (kind: NodeJS.Signals) => {
-    try {
-      if (process.platform === "win32") active.kill(kind);
-      else process.kill(-active.pid, kind);
-    } catch {
-      // The process may have exited before the signal was delivered.
-    }
-  };
-  const interrupt = () => {
-    terminate(signal.reason);
-    escalation ??= setTimeout(() => terminate("SIGKILL"), 1_000);
-  };
-  signal.addEventListener("abort", interrupt, { once: true });
-  try {
-    const [code, stdout] = await Promise.all([
-      active.exited,
-      new Response(active.stdout).text(),
-    ]);
-    checkInterruption(signal);
-    validateProcessExit(code, active.signalCode, launchError);
-    return stdout;
-  } finally {
-    // A helper can exit on interruption while its descendants keep running.
-    if (signal.aborted) terminate("SIGKILL");
-    signal.removeEventListener("abort", interrupt);
-    clearTimeout(escalation);
-    await active.exited;
-  }
-}
-
-function validateProcessExit(
-  code: number,
-  signal: Bun.Subprocess["signalCode"],
-  launchError: boolean,
-) {
-  if (launchError)
-    throw new CommandFailure("executable failed to start; check installation");
-  if (signal !== null) throw new CommandFailure(`terminated by ${signal}`);
-  validateProcessStatus(code);
-}
-
-function isProcessStatus(code: number) {
-  return Number.isInteger(code) && code >= 0 && code <= 255;
-}
-
-function validateProcessStatus(code: number) {
-  if (!isProcessStatus(code))
-    throw new CommandFailure("invalid subprocess status");
-  if (code !== 0) throw new CommandFailure(`exit status ${code}`, code);
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -318,11 +202,11 @@ async function resolveProfile(
 ) {
   state.stage = "SecretSpec schema";
   const schema: unknown = JSON.parse(
-    await run(tool, ["schema", ...nativeArgs], state.signal),
+    await capture(tool, ["schema", ...nativeArgs], state.signal),
   );
   state.stage = "SecretSpec resolution";
   const exported: unknown = JSON.parse(
-    await run(
+    await capture(
       tool,
       ["export", ...nativeArgs, "--scope", "", "--format", "json"],
       state.signal,
@@ -371,7 +255,7 @@ export async function configure(state: ConfigurationState) {
     : deliveredSecretSpec(state);
   if (!import.meta.path.startsWith("/$bunfs/")) {
     state.stage = "SecretSpec 0.21.1 required (rerun fence-rider setup)";
-    const version = await run(secretspec, ["--version"], state.signal);
+    const version = await capture(secretspec, ["--version"], state.signal);
     if (version.trim() !== "secretspec 0.21.1")
       throw new Error("Incompatible executable");
   }

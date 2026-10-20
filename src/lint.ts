@@ -1,11 +1,13 @@
 import {
-  reportConfiguredFailure,
-  checkInterruption,
   checkManifest,
   configure,
-  run,
-  workflowInterruption,
+  reportConfiguredFailure,
 } from "./configured";
+import {
+  checkInterruption,
+  passthrough,
+  workflowInterruption,
+} from "./process";
 
 function helpRequested(args: string[]) {
   const pending = [...args];
@@ -31,7 +33,7 @@ export async function lint(args: string[]): Promise<number> {
     const { forge, env, config, properties } = await configure(state);
     await checkManifest(config, properties, state);
     state.stage = "lint";
-    await run(forge, ["lint", ...args], state.signal, env, true);
+    await passthrough(forge, ["lint", ...args], state.signal, env);
     checkInterruption(state.signal);
     return 0;
   } catch (error) {

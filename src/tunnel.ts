@@ -1,12 +1,14 @@
 import {
-  checkInterruption,
   checkManifest,
   configure,
   members,
   reportConfiguredFailure,
-  run,
-  workflowInterruption,
 } from "./configured";
+import {
+  checkInterruption,
+  passthrough,
+  workflowInterruption,
+} from "./process";
 
 function validateTarget(target: string) {
   if (
@@ -140,12 +142,11 @@ export async function tunnel(args: string[]): Promise<number> {
     state.stage = "tunnel runtime selection validation";
     injectRuntime(configured);
     state.stage = "tunnel";
-    await run(
+    await passthrough(
       forge,
       ["tunnel", "--environment", target, ...options.forwarded],
       state.signal,
       env,
-      true,
     );
     checkInterruption(state.signal);
     return 0;

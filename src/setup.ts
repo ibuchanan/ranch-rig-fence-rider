@@ -1,11 +1,12 @@
 import { mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { reportConfiguredFailure } from "./configured";
 import {
+  capture,
   checkInterruption,
-  reportConfiguredFailure,
-  run,
+  passthrough,
   workflowInterruption,
-} from "./configured";
+} from "./process";
 
 const installerDigest =
   "f5962bdfe702f0ad0894f9c5ce9187b6a3228edb3b26526954e32f91dc10aec7";
@@ -57,11 +58,11 @@ async function installBinary(temporary: string, state: SetupState) {
     env["INSTALLER_DOWNLOAD_URL"] = process.env["INSTALLER_DOWNLOAD_URL"];
   state.stage =
     "setup official installer (check network, shell tools and archive integrity; rerun fence-rider setup)";
-  await run("sh", [installer], state.signal, env, true);
+  await passthrough("sh", [installer], state.signal, env);
   const binary = join(temporary, "secretspec");
   state.stage =
     "setup SecretSpec 0.21.1 version verification (rerun fence-rider setup)";
-  const version = await run(binary, ["--version"], state.signal, env);
+  const version = await capture(binary, ["--version"], state.signal, env);
   if (version.trim() !== "secretspec 0.21.1")
     throw new Error("Version mismatch");
   return binary;

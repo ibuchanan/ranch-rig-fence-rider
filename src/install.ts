@@ -1,10 +1,9 @@
+import { configure, reportConfiguredFailure } from "./configured";
 import {
-  reportConfiguredFailure,
   checkInterruption,
-  configure,
-  run,
+  passthrough,
   workflowInterruption,
-} from "./configured";
+} from "./process";
 
 function validateValue(value: string | undefined): string {
   if (!value || value.startsWith("-") || /[\s\p{Cc}]/u.test(value))
@@ -145,12 +144,11 @@ export async function install(
     state.stage = `${operation} target validation (environment, site and product required)`;
     const effective = effectiveTargets(targets, values, environment);
     state.stage = operation;
-    await run(
+    await passthrough(
       forge,
       [command, ...effective, ...forwarded],
       state.signal,
       env,
-      true,
     );
     checkInterruption(state.signal);
     return 0;
