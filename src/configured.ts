@@ -1,6 +1,6 @@
 import { accessSync, constants } from "node:fs";
 import { resolve } from "node:path";
-import { CommandFailure, capture, signalExitCode } from "./process";
+import { capture } from "./process";
 import type { Workflow } from "./workflow";
 
 function deliveredSecretSpec(state: Workflow) {
@@ -228,23 +228,6 @@ function configuredEnvironment(values: Record<string, string>) {
   targets.delete(undefined);
   if (targets.size > 1) throw new Error("Conflicting environment controls");
   return targets.values().next().value;
-}
-
-export function reportConfiguredFailure(
-  error: unknown,
-  state: Workflow,
-  delegatedStage: string,
-) {
-  const detail = error instanceof CommandFailure ? `: ${error.message}` : "";
-  console.error(
-    `Fence Rider: ${state.stage} failed${detail}. No further commands were run.`,
-  );
-  if (state.signal.aborted) return signalExitCode(state.signal.reason);
-  return delegatedFailureStatus(error, state.stage === delegatedStage);
-}
-
-function delegatedFailureStatus(error: unknown, delegated: boolean) {
-  return delegated && error instanceof CommandFailure ? error.exitCode : 1;
 }
 
 export async function configure(state: Workflow) {
