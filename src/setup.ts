@@ -7,6 +7,12 @@ import {
   DelegatedFailure,
   passthrough,
 } from "./process";
+import {
+  defaultInstallerUrl,
+  isCompiledBuild,
+  secretSpecVersion,
+  versionBanner,
+} from "./secretspec";
 import { runWorkflow, type Workflow } from "./workflow";
 
 const installerDigest =
@@ -19,8 +25,7 @@ function checkSetupPrerequisites() {
     )
   )
     throw new Error("Unsupported platform");
-  if (import.meta.path.startsWith("/$bunfs/"))
-    throw new Error("Use the installed Bun package");
+  if (isCompiledBuild()) throw new Error("Use the installed Bun package");
   if (!Bun.which("sha256sum")) throw new Error("Missing checksum tool");
 }
 
@@ -28,8 +33,7 @@ async function downloadInstaller(temporary: string, state: Workflow) {
   state.stage =
     "setup installer download (check network or pinned mirror; rerun fence-rider setup)";
   const response = await fetch(
-    process.env["SECRETSPEC_INSTALLER_URL"] ??
-      "https://github.com/cachix/secretspec/releases/download/v0.21.1/secretspec-installer.sh",
+    process.env["SECRETSPEC_INSTALLER_URL"] ?? defaultInstallerUrl,
     { signal: state.signal },
   );
   if (!response.ok) throw new Error("Download failed");
@@ -75,11 +79,9 @@ async function installBinary(temporary: string, state: Workflow) {
     "setup official installer (check network, shell tools and archive integrity; rerun fence-rider setup)";
   await runInstaller(installer, env, state.signal);
   const binary = join(temporary, "secretspec");
-  state.stage =
-    "setup SecretSpec 0.21.1 version verification (rerun fence-rider setup)";
+  state.stage = `setup SecretSpec ${secretSpecVersion} version verification (rerun fence-rider setup)`;
   const version = await capture(binary, ["--version"], state.signal, env);
-  if (version.trim() !== "secretspec 0.21.1")
-    throw new Error("Version mismatch");
+  if (version.trim() !== versionBanner) throw new Error("Version mismatch");
   return binary;
 }
 
@@ -100,7 +102,7 @@ export function setup() {
         "setup executable activation (check write permissions; rerun fence-rider setup)";
       await rename(binary, join(directory, "secretspec"));
       console.log(
-        "Fence Rider: SecretSpec 0.21.1 installed package-locally. Forge installation and authentication remain separate.",
+        `Fence Rider: SecretSpec ${secretSpecVersion} installed package-locally. Forge installation and authentication remain separate.`,
       );
     } finally {
       await rm(temporary, { recursive: true, force: true });

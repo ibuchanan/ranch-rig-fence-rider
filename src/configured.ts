@@ -1,12 +1,17 @@
 import { accessSync, constants } from "node:fs";
 import { resolve } from "node:path";
 import { capture } from "./process";
+import {
+  isCompiledBuild,
+  locateSecretSpec,
+  secretSpecVersion,
+  versionBanner,
+} from "./secretspec";
 import type { Workflow } from "./workflow";
 
-function deliveredSecretSpec(state: Workflow) {
+function deliveredSecretSpec(path: string, state: Workflow) {
   state.stage =
     "SecretSpec prerequisite (run fence-rider setup; no global fallback)";
-  const path = resolve(import.meta.dir, "../.tools/secretspec");
   accessSync(path, constants.X_OK);
   return path;
 }
@@ -231,13 +236,17 @@ function configuredEnvironment(values: Record<string, string>) {
 }
 
 export async function configure(state: Workflow) {
-  const secretspec = import.meta.path.startsWith("/$bunfs/")
-    ? prerequisite("secretspec", state)
-    : deliveredSecretSpec(state);
-  if (!import.meta.path.startsWith("/$bunfs/")) {
-    state.stage = "SecretSpec 0.21.1 required (rerun fence-rider setup)";
+  const located = locateSecretSpec({
+    compiled: isCompiledBuild(),
+    sourceDir: import.meta.dir,
+  });
+  const secretspec = located.path
+    ? deliveredSecretSpec(located.path, state)
+    : prerequisite("secretspec", state);
+  if (located.verifyVersion) {
+    state.stage = `SecretSpec ${secretSpecVersion} required (rerun fence-rider setup)`;
     const version = await capture(secretspec, ["--version"], state.signal);
-    if (version.trim() !== "secretspec 0.21.1")
+    if (version.trim() !== versionBanner)
       throw new Error("Incompatible executable");
   }
   const forge = prerequisite("forge", state);
