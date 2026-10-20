@@ -26,12 +26,17 @@ function checkSetupPrerequisites() {
   )
     throw new Error("Unsupported platform");
   if (isCompiledBuild()) throw new Error("Use the installed Bun package");
+  // Kept: the digest of the installer is verified in-process, but the upstream
+  // installer verifies the release archive with sha256sum and silently skips
+  // that check when the tool is absent (see docs/reference/installation.md).
   if (!Bun.which("sha256sum")) throw new Error("Missing checksum tool");
 }
 
 async function downloadInstaller(temporary: string, state: Workflow) {
   state.stage =
     "setup installer download (check network or pinned mirror; rerun fence-rider setup)";
+  // Kept: documented mirror hook (docs/reference/installation.md). The pinned
+  // digest below is still enforced, so an override cannot change what runs.
   const response = await fetch(
     process.env["SECRETSPEC_INSTALLER_URL"] ?? defaultInstallerUrl,
     { signal: state.signal },
@@ -73,6 +78,8 @@ async function installBinary(temporary: string, state: Workflow) {
     TMPDIR: temporary,
     SECRETSPEC_UNMANAGED_INSTALL: temporary,
   };
+  // Kept: documented archive-mirror hook; the installer enforces the pinned
+  // archive checksums regardless of the base URL.
   if (process.env["INSTALLER_DOWNLOAD_URL"])
     env["INSTALLER_DOWNLOAD_URL"] = process.env["INSTALLER_DOWNLOAD_URL"];
   state.stage =
@@ -100,7 +107,7 @@ export function setup() {
     state.stage =
       "setup package directory (check write permissions; rerun fence-rider setup)";
     await mkdir(directory, { recursive: true });
-    const temporary = await mkdtemp(join(directory, "tmp_rovo_setup-"));
+    const temporary = await mkdtemp(join(directory, "tmp_setup-"));
     try {
       const binary = await installBinary(temporary, state);
       checkInterruption(state.signal);
