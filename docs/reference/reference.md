@@ -15,6 +15,9 @@ differs from private deployment output.
 The repository-owned `secretspec.toml` specifies and validates every variable.
 There is no separate Fence Rider variable inventory or provider schema.
 
+Usage text for each command lives only in the [command help](command-help.md),
+which embeds the CLI output.
+
 The conceptual distinction between these destinations is covered in
 [Why Forge has three kinds of environment variables][explanation].
 
@@ -450,9 +453,8 @@ child exits first. Windows process-tree cleanup remains uncertified.
 
 Numeric Forge lint statuses are preserved. Resolution, validation, launch,
 signal termination, and interruption are non-success; operator interruption
-returns 130/143. Help (`lint --help`, `lint -h`, `help lint`) does not resolve
-configuration or run tools. Help-looking option values and terminator payloads
-are not discovery requests.
+returns 130/143. Help-looking option values and terminator payloads are not
+discovery requests.
 
 Observed 2026-10-19: installed Forge CLI 14.2.0 `lint --help` lists `--verbose`,
 `--fix`, `--approve <rule...>`, `-e, --environment [environment]`, and help.
@@ -500,11 +502,9 @@ after `--` are preserved. The wrapper does not implement a universal parser
 for future Forge options.
 
 Forge input/output uses the [live output policy](#output-and-input-policy).
-Numeric failures propagate; private helpers stay suppressed. Help aliases
-`install --help`, `install -h`, and `help install` need no configuration or
-external tools. Help-looking required values and terminator payloads are not
-help requests. POSIX interruption uses the existing bounded process-group
-cleanup; Windows and real terminal-specific prompt behavior remain unverified.
+Numeric failures propagate; private helpers stay suppressed. Help-looking
+required values and terminator payloads are not help requests. POSIX
+interruption uses the existing bounded process-group XX
 
 Observed 2026-10-19: installed Forge CLI 14.2.0 `install --help`, published
 14.2.0 installation registration/context parsing source, and `@forge/cli-shared`
@@ -556,8 +556,7 @@ installation contexts. This is not a read-only command.
 The [live stdio policy](#output-and-input-policy) applies without redaction.
 Numeric status is preserved; private helper/launch/signal failures cannot become
 success. Operator SIGINT/SIGTERM returns 130/143 with bounded POSIX process-group
-cleanup. `uninstall --help`, `uninstall -h`, and `help uninstall` require no
-configuration or tools. Required-value and terminator payloads are not help.
+cleanup. Required-value and terminator payloads are not help.
 
 Observed 2026-10-19: installed Forge CLI 14.2.0 `uninstall --help`, published
 14.2.0 `register-installation-commands.js`, `command.js`, and
@@ -597,26 +596,24 @@ using that prefix are rejected, even if not runtime members: this avoids both
 an implicit runtime bypass and silently losing declared local values. Ordinary
 credentials/settings remain inherited; this is not credential isolation.
 
-Target order is explicit `--environment` / `-e`, resolved
-`FORGE_ENVIRONMENT` / legacy `FORGE_ENV`, then `development`. Alias conflicts
-fail even with an override. Empty, invalid, and duplicate explicit targets
-fail before tools run. Reserved `staging` and `production` are rejected before
-Forge starts. Named targets must be existing development environments; syntax
-validation does not prove their existence, ownership, or authorization.
-Site/product flags are never injected. Names use the wrapper's established
-alphanumeric-first, then alphanumeric/underscore/hyphen target syntax.
+Target selection and the development-only rule are in the
+[command help](command-help.md#tunnel). Empty, invalid, and duplicate explicit
+targets fail before tools run, and reserved `staging` and `production` are
+rejected before Forge starts. Syntax validation does not prove that a named
+target exists or is authorized. Site/product flags are never injected. Names
+use the wrapper's established alphanumeric-first, then
+alphanumeric/underscore/hyphen target syntax.
 
 Separated, long-equals, attached-short, and grouped `-d`/`-n` environment
 options normalize to one effective target. Debug arguments retain order and
 boundaries. Forge 14.2.0 has required variadic `--debugFunctionHandlers` / `-f`,
 optional `--debugHost` / `-h` and `--debugStartingPort` / `-p`, plus debug and
-no-verify flags. **`-h` is debug host, not help.** Required payloads consume a
+no-verify flags. Required payloads consume a
 switch-looking first value; optional values do not consume a following switch.
 Attached/equals values and everything after `--` are preserved. The inspected
 feature-gated `--url` / `-u` and `--local-port` required values are preserved;
 this does not enable or certify that upstream feature. Unknown switches remain
 Forge's responsibility; no universal future-option parser is promised.
-`tunnel --help` and `help tunnel` need no configuration or external tools.
 
 The [live stdio policy](#output-and-input-policy) applies without redaction,
 including tunnel/app logs. Numeric Forge status propagates. Private helper,

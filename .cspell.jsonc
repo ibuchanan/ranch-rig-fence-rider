@@ -5,11 +5,13 @@
     "Bitwarden",
     "bunx",
     "diataxis",
+    "feproduction",
     "pocock",
     "preimplementation",
     "requiredness",
     "secretspec",
     "unlaunchable",
+    "unredacted",
     "webtriggers"
   ],
   "ignorePaths": ["node_modules/**", "vendor/**"]

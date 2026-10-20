@@ -266,13 +266,9 @@ Final parser edge checks reject short-equals and attached demo-site bypasses.
 No tests call private helpers. No dependency, parser framework, threshold
 change, suppression, or later workflow implementation was introduced.
 
-One full-profile resolution supplies all local values and exactly one target
-per field. Explicit options override resolved controls independently; only
-environment falls back to development. Canonical and legacy environment names
-must agree even with overrides. Controls-only native profiles work. Missing
-required site, product, runtime, or unscoped values still block installation
-with all explicit targets supplied. Native checks use SecretSpec 0.21.1 and
-synthetic dotenv values, not provider credentials or a live Forge app.
+The target and argument contract is in [the reference](reference.md#configured-installation).
+Native checks use SecretSpec 0.21.1 and synthetic dotenv values, not provider
+credentials or a live Forge app.
 
 Public checks establish unchanged explicit upgrade/consent/non-interactive
 policy, target-like required option payloads, optional/variadic arguments,
@@ -318,13 +314,8 @@ installation module shares targets, configuration, execution, and interruption;
 no second resolver, dependency, command framework, or validation exemption
 was introduced.
 
-One full-profile resolution supplies all local values and exactly one effective
-site/product/environment. Explicit overrides, canonical/legacy aliases,
-controls-only profiles, missing required app/control values despite overrides,
-and stale optional cleanup are covered. Native checks use SecretSpec 0.21.1
-with synthetic dotenv values. Runtime scopes add no upload, deployment,
-installation, variable deletion, or follow-up. The optional manifest cross-check
-and deployment-only runtime validation do not apply.
+The target contract is in [the reference](reference.md#configured-uninstall).
+Native checks use SecretSpec 0.21.1 with synthetic dotenv values.
 
 Public CLI checks cover target forms, invalid/duplicate/missing targets,
 installation-ID/app-override payloads, terminators, preserved caller arguments,
@@ -374,14 +365,14 @@ manifest checks, live stdio, failure statuses, and bounded process cleanup.
 No resolver, dependency, provider SDK, declaration inventory, exemption, or
 new private test API was added; health thresholds remain unchanged.
 
-One native SecretSpec 0.21.1 synthetic dotenv export supplies ordinary local
-values and explicit runtime mapping. Twelve native cases cover controls-only
-profiles, canonical/legacy/conflicting aliases, required values despite
-explicit targets, optional/default fallback, absent/empty runtime values,
-file/profile/provider selection, in-file inheritance, manifest checking, and
-stale prefix removal. Controlled Forge children observe the environment passed
-by the compiled wrapper, not a connected function runtime. They prove no
-variable upload/deletion, deployment, installation, or extra Forge operation.
+Native checks use one SecretSpec 0.21.1 synthetic dotenv export; the mapping
+contract is in [the reference](reference.md#configured-tunnel). Twelve native
+cases cover controls-only profiles, aliases, required values despite explicit
+targets, fallback, absent/empty runtime values, file/profile/provider selection,
+in-file inheritance, manifest checking, and stale prefix removal. Controlled
+Forge children observe the environment passed by the compiled wrapper, not a
+connected function runtime. They prove no variable upload/deletion, deployment,
+installation, or extra Forge operation.
 
 Interface evidence: installed Forge CLI 14.2.0 `tunnel --help`, exact published
 14.2.0 registration/controller/environment sources, shared 9.8.0 environment
