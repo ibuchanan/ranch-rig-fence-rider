@@ -37,6 +37,14 @@ function validateRuntime(runtime: string[]) {
   }
 }
 
+export const tunnelUsage = [
+  "Usage: fence-rider tunnel [-e, --environment TARGET] [Forge options]",
+  "Target: explicit option, resolved FORGE_ENVIRONMENT (FORGE_ENV legacy alias), then development. Only development environments are supported; named environments must already be development environments. Staging/production are rejected.",
+  "Resolve the whole profile once; check optional manifest declarations. Runtime members alone map to FORGE_USER_VAR_<name>; empty strings are supported. Ambient prefixed values are removed; declarations using that reserved prefix are rejected.",
+  "Forge input/output streams live and unredacted; app logs may expose values. -h is debug host, not help; use --help.",
+  "No remote variable uploads/deletion, deployment or installation. SecretSpec and Forge must be installed on PATH and authenticated separately.",
+].join("\n");
+
 // Forge 14.2.0: -h is debug host, so only --help requests wrapper help.
 const tunnelSpec: CommandSpec = {
   owned: { environment: "e" },
@@ -67,9 +75,7 @@ export async function tunnel(args: string[]): Promise<number> {
     workflow.stage = "tunnel option validation";
     const options = parseOptions(args);
     if (options.help) {
-      console.log(
-        "Usage: fence-rider tunnel [-e, --environment TARGET] [Forge options]\nTarget: explicit option, resolved FORGE_ENVIRONMENT (FORGE_ENV legacy alias), then development. Only development environments are supported; named environments must already be development environments. Staging/production are rejected.\nResolve the whole profile once; check optional manifest declarations. Runtime members alone map to FORGE_USER_VAR_<name>; empty strings are supported. Ambient prefixed values are removed; declarations using that reserved prefix are rejected.\nForge input/output streams live and unredacted; app logs may expose values. -h is debug host, not help; use --help.\nNo remote variable uploads/deletion, deployment or installation. SecretSpec and Forge must be installed on PATH and authenticated separately.",
-      );
+      console.log(tunnelUsage);
       return;
     }
     const configured = await configure(workflow);

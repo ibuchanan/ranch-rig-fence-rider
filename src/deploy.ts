@@ -29,6 +29,13 @@ function validateUploadValue(value: string) {
     throw new Error("Unsupported Forge positional value");
 }
 
+export const deployUsage = [
+  "Usage: fence-rider deploy [-e, --environment TARGET] [Forge options]",
+  "Target: explicit option, resolved FORGE_ENVIRONMENT (FORGE_ENV legacy alias), then development.",
+  "Conflicting resolved names fail even with an explicit target.",
+  "SecretSpec and Forge must be installed on PATH and authenticated separately.",
+].join("\n");
+
 const deploySpec: CommandSpec = {
   owned: { environment: "e" },
   required: ["--tag", "-t", "--approve"],
@@ -117,9 +124,7 @@ export async function deploy(args: string[] = []): Promise<number> {
     workflow.stage = "environment option validation";
     const options = parseDeployOptions(args);
     if (options.help) {
-      console.log(
-        "Usage: fence-rider deploy [-e, --environment TARGET] [Forge options]\nTarget: explicit option, resolved FORGE_ENVIRONMENT (FORGE_ENV legacy alias), then development.\nConflicting resolved names fail even with an explicit target.\nSecretSpec and Forge must be installed on PATH and authenticated separately.",
-      );
+      console.log(deployUsage);
       return;
     }
     await performDeployment(options, workflow);

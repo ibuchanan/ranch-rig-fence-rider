@@ -85,14 +85,23 @@ function effectiveTargets(
   );
 }
 
-function printHelp(command: "install" | "uninstall") {
-  const policy =
-    command === "install"
-      ? "Use --upgrade [all|code], --confirm-scopes and --non-interactive only when intended. Demo-site targeting is unsupported."
-      : "Uninstall changes remote installation state; Forge owns remaining interaction. Forge 14.2.0 does not support --non-interactive. No upgrade, consent, approval or confirmation switches are injected.";
-  console.log(
-    `Usage: fence-rider ${command} [-e, --environment TARGET] [-s, --site URL] [-p, --product PRODUCT] [Forge options]\nTargets: explicit option, then resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT (FORGE_ENV legacy alias). Only environment falls back to development.\nSite and product are required. Products: Jira, Confluence, Compass, Bitbucket (workspace URL).\nThe whole profile must resolve; conflicting environment aliases fail even with overrides.\n${policy}\nNo runtime uploads, variable deletion or deployment.\nForge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.`,
-  );
+const installPolicy = {
+  install:
+    "Use --upgrade [all|code], --confirm-scopes and --non-interactive only when intended. Demo-site targeting is unsupported.",
+  uninstall:
+    "Uninstall changes remote installation state; Forge owns remaining interaction. Forge 14.2.0 does not support --non-interactive. No upgrade, consent, approval or confirmation switches are injected.",
+};
+
+export function installUsage(command: "install" | "uninstall") {
+  return [
+    `Usage: fence-rider ${command} [-e, --environment TARGET] [-s, --site URL] [-p, --product PRODUCT] [Forge options]`,
+    "Targets: explicit option, then resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT (FORGE_ENV legacy alias). Only environment falls back to development.",
+    "Site and product are required. Products: Jira, Confluence, Compass, Bitbucket (workspace URL).",
+    "The whole profile must resolve; conflicting environment aliases fail even with overrides.",
+    installPolicy[command],
+    "No runtime uploads, variable deletion or deployment.",
+    "Forge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.",
+  ].join("\n");
 }
 
 /** Run one installation lifecycle command without deployment or runtime synchronization. */
@@ -105,7 +114,7 @@ export async function install(
     workflow.stage = `${operation} option validation`;
     const { targets, forwarded, help } = parseTargets(args, command);
     if (help) {
-      printHelp(command);
+      console.log(installUsage(command));
       return;
     }
     const { forge, env, values, environment } = await configure(workflow);

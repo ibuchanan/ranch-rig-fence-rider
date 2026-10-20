@@ -3,6 +3,14 @@ import { type CommandSpec, parseForgeArgs } from "./forge-args";
 import { checkInterruption, passthrough } from "./process";
 import { runWorkflow } from "./workflow";
 
+export const lintUsage = [
+  "Usage: fence-rider lint [Forge options]",
+  "Resolve the whole active profile, check optional manifest metadata, then lint.",
+  "Forge stdin is inherited; stdout/stderr stream live and unredacted. Upstream output may expose values.",
+  "No target flags are injected and no runtime variables are uploaded.",
+  "SecretSpec and Forge must be installed on PATH and authenticated separately.",
+].join("\n");
+
 const lintSpec: CommandSpec = {
   owned: {},
   required: ["--approve"],
@@ -15,9 +23,7 @@ const lintSpec: CommandSpec = {
 export async function lint(args: string[]): Promise<number> {
   const { forwarded, help } = parseForgeArgs(lintSpec, args);
   if (help) {
-    console.log(
-      "Usage: fence-rider lint [Forge options]\nResolve the whole active profile, check optional manifest metadata, then lint.\nForge stdin is inherited; stdout/stderr stream live and unredacted. Upstream output may expose values.\nNo target flags are injected and no runtime variables are uploaded.\nSecretSpec and Forge must be installed on PATH and authenticated separately.",
-    );
+    console.log(lintUsage);
     return 0;
   }
   return runWorkflow(async (state) => {

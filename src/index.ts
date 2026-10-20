@@ -1,63 +1,13 @@
 #!/usr/bin/env bun
 import { version } from "../package.json";
-import { deploy } from "./deploy";
-import { install } from "./install";
-import { lint } from "./lint";
-import { setup } from "./setup";
-import { tunnel } from "./tunnel";
+import { findCommand, unknownInvocation, workflowListing } from "./commands";
 
-if (process.argv.length === 3 && process.argv[2] === "setup")
-  process.exit(await setup());
-
-const args = process.argv.slice(2);
-if (args.length === 2 && args[0] === "help" && args[1] === "tunnel")
-  process.exit(await tunnel(["--help"]));
-if (
-  args.length === 2 &&
-  args[0] === "help" &&
-  (args[1] === "install" || args[1] === "uninstall")
-) {
-  process.exit(await install(["--help"], args[1]));
-}
-
-if (args.length === 1 && (args[0] === "--version" || args[0] === "-V")) {
-  console.log(`fence-rider ${version}`);
-  process.exit(0);
-}
-
-const helpRequested =
-  args.length === 0 ||
-  (args.length === 1 && ["help", "--help", "-h"].includes(args[0] ?? "")) ||
-  (args.length === 2 &&
-    ((args[0] === "help" && ["deploy", "lint"].includes(args[1] ?? "")) ||
-      (args[0] === "deploy" && ["--help", "-h"].includes(args[1] ?? ""))));
-
-if (!helpRequested) {
-  if (args[0] === "install" || args[0] === "uninstall")
-    process.exit(await install(args.slice(1), args[0]));
-  if (args[0] === "tunnel") process.exit(await tunnel(args.slice(1)));
-  if (args[0] === "lint") {
-    process.exit(await lint(args.slice(1)));
-  }
-  if (args[0] === "deploy") {
-    process.exit(await deploy(args.slice(1)));
-  }
-  console.error(
-    "Unknown command or unsupported arguments. Run fence-rider --help for usage, or use the Forge CLI directly.",
-  );
-  process.exit(1);
-}
-
-console.log(`Fence Rider — SecretSpec-powered Forge development utility
+const topLevelHelp = `Fence Rider — SecretSpec-powered Forge development utility
 
 Usage: fence-rider <command> [options]
 
 Supported workflows:
-  deploy       Deployment with encrypted runtime variables
-  lint         Configured lint with live, unredacted Forge output
-  install      Configured installation or explicit --upgrade; no runtime writes
-  uninstall    Configured removal; changes remote installation state
-  tunnel       Configured local runtime delivery; development environments only
+${workflowListing}
 
 Deployment target: explicit option, resolved FORGE_ENVIRONMENT
 (FORGE_ENV legacy alias), then development.
@@ -81,4 +31,51 @@ Uninstall inherits no install policy; Forge 14.2.0 has no --non-interactive opti
 Tunnel uses explicit runtime members via FORGE_USER_VAR_<name>; no remote uploads.
 Staging/production are unsupported; named targets must be development environments.
 Use fence-rider tunnel --help for tunnel options (-h is debug host, not help).
-`);
+`;
+
+function showHelp() {
+  console.log(topLevelHelp);
+  return 0;
+}
+
+function showVersion() {
+  console.log(`fence-rider ${version}`);
+  return 0;
+}
+
+/** `help <command>`: exactly one known command name. */
+function showUsage(names: string[]) {
+  const command = names.length === 1 ? findCommand(names[0]) : undefined;
+  if (!command) return unknownInvocation();
+  console.log(command.usage);
+  return 0;
+}
+
+type Handler = (args: string[]) => number | Promise<number>;
+
+/** Discovery flags accept no further arguments. */
+const bare =
+  (show: () => number): Handler =>
+  (args) =>
+    args.length ? unknownInvocation() : show();
+
+const discovery: Record<string, Handler> = {
+  help: (args) => (args.length ? showUsage(args) : showHelp()),
+  "--help": bare(showHelp),
+  "-h": bare(showHelp),
+  "--version": bare(showVersion),
+  "-V": bare(showVersion),
+};
+
+function resolve(name: string): Handler | undefined {
+  return Object.hasOwn(discovery, name)
+    ? discovery[name]
+    : findCommand(name)?.run;
+}
+
+async function dispatch([first = "help", ...rest]: string[]) {
+  const handler = resolve(first);
+  return handler ? handler(rest) : unknownInvocation();
+}
+
+process.exit(await dispatch(process.argv.slice(2)));

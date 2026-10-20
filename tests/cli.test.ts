@@ -689,6 +689,31 @@ test("no command prints help without external tools or valid configuration", asy
   expect(result.stderr).toBe("");
 });
 
+test.each(["deploy", "lint", "install", "uninstall", "tunnel"])(
+  "help and --help print the same usage for %s",
+  async (command) => {
+    const viaHelp = await invoke(["help", command], true);
+    const viaFlag = await invoke([command, "--help"], true);
+    expect(viaHelp.exitCode).toBe(0);
+    expect(viaHelp.stderr).toBe("");
+    expect(viaHelp.stdout).toStartWith(`Usage: fence-rider ${command} `);
+    expect(viaFlag).toEqual(viaHelp);
+  },
+);
+
+test("help setup describes the setup command", async () => {
+  const result = await invoke(["help", "setup"], true);
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toStartWith("Usage: fence-rider setup");
+  expect(result.stderr).toBe("");
+});
+
+test("top-level help lists every supported workflow", async () => {
+  const result = await invoke(["--help"]);
+  for (const command of ["deploy", "lint", "install", "uninstall", "tunnel"])
+    expect(result.stdout).toMatch(new RegExp(`^  ${command} {2,}\\S`, "m"));
+});
+
 test.each(["--version", "-V"])(
   "%s prints the package version without tool calls",
   async (flag) => {
@@ -4281,17 +4306,7 @@ test.skipIf(!realSecretSpec).each([
 );
 
 for (const toolsAvailable of [false, true]) {
-  test.each(
-    [
-      [],
-      ["help"],
-      ["--help"],
-      ["-h"],
-      ["deploy", "--help"],
-      ["deploy", "-h"],
-      ["help", "deploy"],
-    ].map((args) => ({ args })),
-  )(
+  test.each([[], ["help"], ["--help"], ["-h"]].map((args) => ({ args })))(
     `help %j describes the initial workflow without configuration or tool calls (tools available: ${toolsAvailable})`,
     async ({ args }) => {
       const result = await invoke(args, toolsAvailable);

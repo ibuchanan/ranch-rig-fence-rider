@@ -85,6 +85,12 @@ async function installBinary(temporary: string, state: Workflow) {
   return binary;
 }
 
+export const setupUsage = [
+  "Usage: fence-rider setup",
+  `Explicitly install pinned SecretSpec CLI ${secretSpecVersion} package-locally. Requires Bun 1.4.3+, macOS/Linux arm64/x64, shell tools and sha256sum.`,
+  "No downloads during ordinary workflows. Package commands never use global SecretSpec.",
+].join("\n");
+
 export function setup() {
   return runWorkflow(async (state) => {
     state.stage =
