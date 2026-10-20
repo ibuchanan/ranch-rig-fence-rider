@@ -65,3 +65,35 @@ test("handlers are removed after a failure", async () => {
   });
   expect(process.listenerCount("SIGINT")).toBe(before);
 });
+
+test("a failure names the target held on the context", async () => {
+  const status = await runWorkflow(async (workflow) => {
+    workflow.target = "staging";
+    workflow.stage = "manifest validation";
+    throw new Error("boom");
+  });
+  expect(status).toBe(1);
+  expect(errors).toHaveBeenCalledWith(
+    "Fence Rider: manifest validation (target staging) failed. No further commands were run.",
+  );
+});
+
+test("a failure after an upload attempt warns that remote variables may have changed", async () => {
+  await runWorkflow(async (workflow) => {
+    workflow.target = "staging";
+    workflow.uploadAttempted = true;
+    workflow.stage = "deployment";
+    throw new DelegatedFailure("exit status 3", 3);
+  });
+  expect(errors).toHaveBeenCalledWith(
+    "Fence Rider: deployment (target staging) failed: exit status 3. No further commands were run. Remote variables may already have changed; no rollback was attempted.",
+  );
+});
+
+test("a failure without an upload attempt carries no rollback warning", async () => {
+  await runWorkflow(async (workflow) => {
+    workflow.target = "staging";
+    throw new Error("x");
+  });
+  expect(String(errors.mock.calls[0]?.[0])).not.toContain("Remote variables");
+});

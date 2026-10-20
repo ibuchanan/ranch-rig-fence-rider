@@ -1,10 +1,11 @@
 import { checkManifest, configure, members } from "./configured";
 import {
   CommandFailure,
+  DelegatedFailure,
   capture,
   checkInterruption,
-  workflowInterruption,
 } from "./process";
+import { describeStage, runWorkflow, type Workflow } from "./workflow";
 
 function validateTarget(target: string) {
   if (
@@ -106,120 +107,82 @@ function parseDeployOptions(args: string[]) {
   return options;
 }
 
-type Deployment = {
-  stage: string;
-  target: string | undefined;
-  uploadAttempted: boolean;
-  signal: AbortSignal;
-};
-
 async function uploadRuntime(
   tool: string,
   names: string[],
   env: NodeJS.ProcessEnv,
-  state: Deployment,
+  target: string,
+  workflow: Workflow,
 ) {
   for (const key of names) {
     const value = env[key];
     if (value === undefined) continue;
-    state.stage = `encrypted upload for ${key} (target ${state.target})`;
-    state.uploadAttempted = true;
-    console.log(`Fence Rider: ${state.stage}.`);
+    workflow.stage = `encrypted upload for ${key}`;
+    workflow.uploadAttempted = true;
+    console.log(`Fence Rider: ${describeStage(workflow)}.`);
     await capture(
       tool,
-      [
-        "variables",
-        "set",
-        "--encrypt",
-        "--environment",
-        state.target as string,
-        key,
-        value,
-      ],
-      state.signal,
+      ["variables", "set", "--encrypt", "--environment", target, key, value],
+      workflow.signal,
       env,
     );
   }
 }
 
+async function delegate(run: () => Promise<unknown>) {
+  try {
+    await run();
+  } catch (error) {
+    if (error instanceof CommandFailure)
+      throw new DelegatedFailure(error.message, error.exitCode);
+    throw error;
+  }
+}
+
 async function performDeployment(
   options: ReturnType<typeof parseDeployOptions>,
-  state: Deployment,
+  workflow: Workflow,
 ) {
-  state.target = options.explicitTarget;
+  if (options.explicitTarget !== undefined)
+    workflow.target = options.explicitTarget;
   const { forge, config, properties, values, environment, env } =
-    await configure(state);
-  state.stage = "environment target validation";
-  state.target = validateTarget(
+    await configure(workflow);
+  workflow.stage = "environment target validation";
+  const target = validateTarget(
     options.explicitTarget ?? environment ?? "development",
   );
-  await checkManifest(config, properties, state, ` (target ${state.target})`);
-  state.stage = `runtime selection validation (target ${state.target}; local controls, empty and leading-dash upload values unsupported)`;
+  workflow.target = target;
+  await checkManifest(config, properties, workflow);
+  workflow.stage =
+    "runtime selection validation (local controls, empty and leading-dash upload values unsupported)";
   const runtime = members(config, "runtime", properties);
   validateRuntime(runtime, values);
-  await uploadRuntime(forge, runtime, env, state);
-  state.stage = `deployment (target ${state.target})`;
-  console.log(`Fence Rider: ${state.stage}.`);
-  await capture(
-    forge,
-    ["deploy", "--environment", state.target, ...options.forwarded],
-    state.signal,
-    env,
+  await uploadRuntime(forge, runtime, env, target, workflow);
+  workflow.stage = "deployment";
+  console.log(`Fence Rider: ${describeStage(workflow)}.`);
+  await delegate(() =>
+    capture(
+      forge,
+      ["deploy", "--environment", target, ...options.forwarded],
+      workflow.signal,
+      env,
+    ),
   );
-  checkInterruption(state.signal);
+  checkInterruption(workflow.signal);
   console.log("Deployment completed.");
-}
-
-function failureStage(state: Deployment) {
-  if (state.target && !state.stage.includes("(target "))
-    return `${state.stage} (target ${state.target})`;
-  return state.stage;
-}
-
-function reportFailure(error: unknown, state: Deployment) {
-  const detail = error instanceof CommandFailure ? `: ${error.message}` : "";
-  const warning = state.uploadAttempted
-    ? " Remote variables may already have changed; no rollback was attempted."
-    : "";
-  console.error(
-    `Fence Rider: ${failureStage(state)} failed${detail}. No further commands were run.${warning}`,
-  );
-}
-
-function failureStatus(error: unknown, state: Deployment) {
-  if (state.signal.aborted) return state.signal.reason === "SIGINT" ? 130 : 143;
-  return deploymentFailureStatus(error, state.stage);
-}
-
-function deploymentFailureStatus(error: unknown, stage: string) {
-  return error instanceof CommandFailure && stage.startsWith("deployment (")
-    ? error.exitCode
-    : 1;
 }
 
 /** Synchronize selected encrypted variables, then deploy with secret-safe diagnostics. */
 export async function deploy(args: string[] = []): Promise<number> {
-  const interruption = workflowInterruption();
-  const state: Deployment = {
-    stage: "environment option validation",
-    target: undefined,
-    uploadAttempted: false,
-    signal: interruption.signal,
-  };
-  try {
+  return runWorkflow(async (workflow) => {
+    workflow.stage = "environment option validation";
     const options = parseDeployOptions(args);
     if (options.help) {
       console.log(
         "Usage: fence-rider deploy [-e, --environment TARGET] [Forge options]\nTarget: explicit option, resolved FORGE_ENVIRONMENT (FORGE_ENV legacy alias), then development.\nConflicting resolved names fail even with an explicit target.\nSecretSpec and Forge must be installed on PATH and authenticated separately.",
       );
-      return 0;
+      return;
     }
-    await performDeployment(options, state);
-    return 0;
-  } catch (error) {
-    reportFailure(error, state);
-    return failureStatus(error, state);
-  } finally {
-    interruption.dispose();
-  }
+    await performDeployment(options, workflow);
+  });
 }

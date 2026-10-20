@@ -48,15 +48,14 @@ export async function checkManifest(
   config: Specification,
   properties: Record<string, unknown>,
   state: Workflow,
-  context = "",
 ) {
-  state.stage = `manifest validation${context}`;
+  state.stage = "manifest validation";
   if (!config.scopes?.["manifest"]) return;
   const missing = await validateManifest(
     members(config, "manifest", properties),
   );
   if (!missing) return;
-  state.stage = `manifest declaration for ${missing}${context}`;
+  state.stage = `manifest declaration for ${missing}`;
   throw new Error("Missing manifest declaration");
 }
 
