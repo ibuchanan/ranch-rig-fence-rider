@@ -371,6 +371,23 @@ The exploration's `secretspec load` is not an observed command in 0.21.1.
 Ordinary `secretspec check` may prompt or set missing values. A separate check
 followed by export is not evidence of a single coherent resolution.
 
+### Forge argument parsing
+
+`deploy`, `install`, `uninstall`, `tunnel` and `lint` parse Forge arguments with
+one parser (`src/forge-args.ts`). Each command supplies a table naming the
+options the wrapper owns, the Forge options that take a payload (always or only
+when the next argument is not a switch), the help flags, and the boolean short
+flags that may be grouped. Everything after `--` is forwarded untouched, and
+help detection and duplicate-option checks exist once.
+
+**Grouped short flags are supported, where the command's table lists them.**
+`deploy` groups `-f`; `tunnel` groups `-d` and `-n`; `install`, `uninstall` and
+`lint` accept none. A wrapper-owned option inside a group (`-feproduction`) is
+lifted out and validated, with the remaining flags forwarded in order, so a
+group cannot hide a conflicting target. Rejecting groups instead would forward
+that option to Forge unchecked. A short option followed by `=` (`-e=dev`) is
+rejected.
+
 ## Forge boundaries and failures
 
 Forge reads manifest substitutions from its process environment; referenced

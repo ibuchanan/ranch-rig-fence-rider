@@ -1,5 +1,6 @@
 import { checkManifest, configure, members } from "./configured";
 import { checkInterruption, passthrough } from "./process";
+import { type CommandSpec, parseForgeArgs } from "./forge-args";
 import { isEnvironmentName, isLocalControl } from "./policy";
 import { runWorkflow } from "./workflow";
 
@@ -7,30 +8,6 @@ function validateTarget(target: string) {
   if (["staging", "production"].includes(target) || !isEnvironmentName(target))
     throw new Error("Unsupported tunnel environment");
   return target;
-}
-
-function consumesValue(arg: string, pending: string[]) {
-  if (
-    ["--url", "--local-port", "--debugFunctionHandlers", "-u", "-f"].includes(
-      arg,
-    )
-  )
-    return true;
-  return (
-    ["--debugHost", "--debugStartingPort", "-h", "-p"].includes(arg) &&
-    pending[0]?.startsWith("-") === false
-  );
-}
-
-function forwardOption(arg: string, pending: string[], forwarded: string[]) {
-  forwarded.push(arg);
-  const name = arg.replace(/^-[dn]*([fhpu])$/, "-$1");
-  if (consumesValue(name, pending)) forwarded.push(...pending.splice(0, 1));
-}
-
-function optionTarget(arg: string, pending: string[]) {
-  if (["-e", "--environment"].includes(arg)) return pending.shift() ?? "";
-  return /^(?:--environment=|-e)(.*)$/s.exec(arg)?.[1];
 }
 
 function injectRuntime({
@@ -60,40 +37,22 @@ function validateRuntime(runtime: string[]) {
   }
 }
 
-type TunnelOptions = { forwarded: string[]; target?: string; help: boolean };
-
-function parseArgument(arg: string, pending: string[], options: TunnelOptions) {
-  const grouped = /^-([dn]+)e(.*)$/s.exec(arg);
-  if (grouped) {
-    options.forwarded.push(`-${grouped[1]}`);
-    arg = `-e${grouped[2]}`;
-  }
-  const candidate = optionTarget(arg, pending);
-  if (candidate === undefined) {
-    forwardOption(arg, pending, options.forwarded);
-    return;
-  }
-  if (options.target !== undefined) throw new Error("Duplicate environment");
-  options.target = validateTarget(candidate);
-}
+// Forge 14.2.0: -h is debug host, so only --help requests wrapper help.
+const tunnelSpec: CommandSpec = {
+  owned: { environment: "e" },
+  required: ["--url", "--local-port", "--debugFunctionHandlers", "-u", "-f"],
+  optional: ["--debugHost", "--debugStartingPort", "-h", "-p"],
+  help: ["--help"],
+  grouped: "dn",
+};
 
 function parseOptions(args: string[]) {
-  const options: TunnelOptions = { forwarded: [], help: false };
-  const pending = [...args];
-  while (pending.length) {
-    const arg = pending.shift() as string;
-    switch (arg) {
-      case "--":
-        options.forwarded.push(arg, ...pending);
-        return options;
-      case "--help":
-        options.help = true;
-        return options;
-      default:
-        parseArgument(arg, pending, options);
-    }
-  }
-  return options;
+  const { owned, forwarded, help } = parseForgeArgs(
+    tunnelSpec,
+    args,
+    (_name, value) => validateTarget(value),
+  );
+  return { target: owned["environment"], forwarded, help };
 }
 
 function effectiveTarget(

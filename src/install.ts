@@ -1,4 +1,5 @@
 import { configure } from "./configured";
+import { type CommandSpec, parseForgeArgs } from "./forge-args";
 import { isEnvironmentName } from "./policy";
 import { checkInterruption, passthrough } from "./process";
 import { runWorkflow } from "./workflow";
@@ -41,74 +42,32 @@ function validateTarget(
   return value;
 }
 
-type InstallOptions = {
-  targets: Record<string, string>;
-  forwarded: string[];
-  help: boolean;
+const installSpecs: Record<"install" | "uninstall", CommandSpec> = {
+  // Forge 14.2.0 required-value options consume even switch-looking payloads.
+  install: {
+    owned: { environment: "e", site: "s", product: "p" },
+    required: ["--app-id-override", "--major-version", "--unitId"],
+    optional: [],
+    help: ["--help", "-h"],
+    grouped: "",
+    rejected: /^--demo-site(?:=|$)|^-[dh]*d/,
+  },
+  uninstall: {
+    owned: { environment: "e", site: "s", product: "p" },
+    required: ["--app-id-override", "--installation-id", "-i"],
+    optional: [],
+    help: ["--help", "-h"],
+    grouped: "",
+  },
 };
 
-function targetArgument(arg: string) {
-  const short = /^-([esp])(.*)$/s.exec(arg);
-  if (short) {
-    if (short[2]?.startsWith("="))
-      throw new Error("Unsupported short equals target");
-    const names: Record<string, string> = {
-      e: "environment",
-      s: "site",
-      p: "product",
-    };
-    arg = `--${names[short[1] as string]}${short[2] ? `=${short[2]}` : ""}`;
-  }
-  return /^--(environment|site|product)(?:=(.*))?$/s.exec(arg);
-}
-
-function takeTarget(arg: string, pending: string[], options: InstallOptions) {
-  const match = targetArgument(arg);
-  if (!match) {
-    options.forwarded.push(arg);
-    return;
-  }
-  const name = match[1] as TargetName;
-  if (Object.hasOwn(options.targets, name)) throw new Error("Duplicate target");
-  options.targets[name] = validateTarget(name, match[2] ?? pending.shift());
-}
-
-function parseArgument(
-  arg: string,
-  pending: string[],
-  options: InstallOptions,
-  command: "install" | "uninstall",
-) {
-  if (command === "install" && /^--demo-site(?:=|$)|^-[dh]*d/.test(arg))
-    throw new Error("Demo-site targeting is unsupported");
-  // Forge 14.2.0 required-value options consume even switch-looking payloads.
-  const required = {
-    install: ["--app-id-override", "--major-version", "--unitId"],
-    uninstall: ["--app-id-override", "--installation-id", "-i"],
-  }[command];
-  if (required.includes(arg)) {
-    options.forwarded.push(arg, ...pending.splice(0, 1));
-    return;
-  }
-  takeTarget(arg, pending, options);
-}
-
 function parseTargets(args: string[], command: "install" | "uninstall") {
-  const options: InstallOptions = { targets: {}, forwarded: [], help: false };
-  const pending = [...args];
-  while (pending.length) {
-    const arg = pending.shift() as string;
-    if (arg === "--") {
-      options.forwarded.push(arg, ...pending);
-      break;
-    }
-    if (["--help", "-h"].includes(arg)) {
-      options.help = true;
-      break;
-    }
-    parseArgument(arg, pending, options, command);
-  }
-  return options;
+  const { owned, forwarded, help } = parseForgeArgs(
+    installSpecs[command],
+    args,
+    (name, value) => validateTarget(name as TargetName, value),
+  );
+  return { targets: owned, forwarded, help };
 }
 
 function effectiveTargets(

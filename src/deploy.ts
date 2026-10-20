@@ -5,6 +5,7 @@ import {
   capture,
   checkInterruption,
 } from "./process";
+import { type CommandSpec, parseForgeArgs } from "./forge-args";
 import { isEnvironmentName, isLocalControl } from "./policy";
 import { describeStage, runWorkflow, type Workflow } from "./workflow";
 
@@ -28,72 +29,21 @@ function validateUploadValue(value: string) {
     throw new Error("Unsupported Forge positional value");
 }
 
-function normalizeGroupedTarget(arg: string, forwarded: string[]) {
-  if (!/^-f+e/.test(arg)) return arg;
-  const environmentIndex = arg.indexOf("e");
-  forwarded.push(arg.slice(0, environmentIndex));
-  return `-${arg.slice(environmentIndex)}`;
-}
-
-function takeTarget(arg: string, pending: string[]) {
-  if (["--environment", "-e"].includes(arg)) {
-    const target = pending.shift();
-    if (target === undefined) throw new Error("Missing environment");
-    return target;
-  }
-  return /^(?:--environment=|-e)(.*)$/s.exec(arg)?.[1];
-}
-
-function forwardValueOption(
-  arg: string,
-  pending: string[],
-  forwarded: string[],
-) {
-  if (!(arg === "--tag" || /^-f*t$/.test(arg) || arg === "--approve"))
-    return false;
-  forwarded.push(arg, ...pending.splice(0, 1));
-  return true;
-}
-
-function parseDeployArgument(
-  arg: string,
-  pending: string[],
-  options: { explicitTarget?: string; forwarded: string[] },
-) {
-  if (forwardValueOption(arg, pending, options.forwarded)) return;
-  const candidate = takeTarget(arg, pending);
-  if (candidate === undefined) {
-    options.forwarded.push(arg);
-    return;
-  }
-  if (options.explicitTarget !== undefined)
-    throw new Error("Duplicate environment");
-  options.explicitTarget = validateTarget(candidate);
-}
+const deploySpec: CommandSpec = {
+  owned: { environment: "e" },
+  required: ["--tag", "-t", "--approve"],
+  optional: [],
+  help: ["--help", "-h"],
+  grouped: "f",
+};
 
 function parseDeployOptions(args: string[]) {
-  const options: {
-    explicitTarget?: string;
-    forwarded: string[];
-    help: boolean;
-  } = { forwarded: [], help: false };
-  const pending = [...args];
-  while (pending.length) {
-    const arg = normalizeGroupedTarget(
-      pending.shift() as string,
-      options.forwarded,
-    );
-    if (arg === "--") {
-      options.forwarded.push(arg, ...pending);
-      break;
-    }
-    if (/^(?:--help|-f*h)$/.test(arg)) {
-      options.help = true;
-      break;
-    }
-    parseDeployArgument(arg, pending, options);
-  }
-  return options;
+  const { owned, forwarded, help } = parseForgeArgs(
+    deploySpec,
+    args,
+    (_name, value) => validateTarget(value),
+  );
+  return { explicitTarget: owned["environment"], forwarded, help };
 }
 
 async function uploadRuntime(
