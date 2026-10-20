@@ -6,6 +6,26 @@
   "license": "Apache-2.0",
   "author": "ibuchanan",
   "type": "module",
+  "bin": {
+    "fence-rider": "src/index.ts"
+  },
+  "engines": {
+    "bun": ">=1.4.3"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "cpu": [
+    "arm64",
+    "x64"
+  ],
+  "files": [
+    "src",
+    "docs",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "bun build --compile ./src/index.ts --outfile ./dist/cli",
     "changelog": "git cliff --config cliff.toml --unreleased -o CHANGELOG.md",

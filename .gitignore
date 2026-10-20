@@ -1,3 +1,6 @@
+# Explicit package-local SecretSpec setup artifacts
+.tools/
+
 # Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode,linux,macos,windows,node,turbo
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,linux,macos,windows,node,turbo
 

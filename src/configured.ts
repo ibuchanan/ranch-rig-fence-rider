@@ -1,4 +1,13 @@
+import { accessSync, constants } from "node:fs";
 import { resolve } from "node:path";
+
+function deliveredSecretSpec(state: ConfigurationState) {
+  state.stage =
+    "SecretSpec prerequisite (run fence-rider setup; no global fallback)";
+  const path = resolve(import.meta.dir, "../.tools/secretspec");
+  accessSync(path, constants.X_OK);
+  return path;
+}
 
 type Specification = {
   project?: { extends?: unknown };
@@ -357,7 +366,15 @@ function delegatedFailureStatus(error: unknown, delegated: boolean) {
 }
 
 export async function configure(state: ConfigurationState) {
-  const secretspec = prerequisite("secretspec", state);
+  const secretspec = import.meta.path.startsWith("/$bunfs/")
+    ? prerequisite("secretspec", state)
+    : deliveredSecretSpec(state);
+  if (!import.meta.path.startsWith("/$bunfs/")) {
+    state.stage = "SecretSpec 0.21.1 required (rerun fence-rider setup)";
+    const version = await run(secretspec, ["--version"], state.signal);
+    if (version.trim() !== "secretspec 0.21.1")
+      throw new Error("Incompatible executable");
+  }
   const forge = prerequisite("forge", state);
   const { config, nativeArgs } = await readConfiguration(state);
   const { properties, values } = await resolveProfile(

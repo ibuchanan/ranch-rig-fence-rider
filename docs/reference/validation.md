@@ -4,6 +4,29 @@ Recorded 2026-10-19 for ticket 07. Public seams: the compiled CLI subprocess
 and observable validation-command output/status, confirmed by the user.
 No private-function tests or second native proof suite were introduced.
 
+## Dependency delivery ticket 06 — 2026-10-20
+
+Added the installed Bun executable, package allowlist/platform metadata, and
+explicit verified SecretSpec setup. Red–green public tests cover absent bin
+entrypoint, missing setup despite ambient tools, installer checksum rejection,
+incompatible delivered version, and setup interruption cleanup. Real upstream
+installer/native dotenv resolution passed in an isolated installed consumer with
+no global SecretSpec selection. Existing subprocess fixtures are reused.
+
+Provisioning evidence is macOS arm64, Bun 1.4.3, SecretSpec 0.21.1. Fresh release
+assets were obtained through authenticated GitHub API and verified, then served
+over loopback to the official installer. Anonymous direct GitHub setup returned
+HTTP 422; this is a network-path blocker, not fresh direct-endpoint success.
+Other platform execution remains unverified. No new npm dependency or lockfile,
+registry publication, live Forge operation, provider login, or app registration
+was needed. See [delivery limits](installation.md).
+
+Validation: 402 tests / 2821 assertions, zero failures with native assets enabled;
+without assets the native installed test explicitly skips. Build, types, lint
+(including Fallow), Markdown/spelling, and whitespace checks pass. A broader
+`biome check` additionally reports pre-existing import ordering in `src/install.ts`
+and `src/lint.ts`; the repository's lint/format gates pass unchanged.
+
 ## Evidence levels
 
 | Component | Exact baseline | Evidence and limits |

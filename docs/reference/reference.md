@@ -30,6 +30,15 @@ Forge executables establish wrapper behavior, not upstream compatibility.
 No live Forge variables or deployments have been changed. The user chose
 to record live verification as blocked rather than authorize a destination.
 
+## Installed tool delivery
+
+The private local package exposes `fence-rider` under Bun 1.4.3+. Explicit
+`fence-rider setup` delivers pinned SecretSpec 0.21.1 inside the package; ordinary
+commands never download or fall back to global SecretSpec. The compiled
+standalone development binary instead uses tools on PATH. Forge and provider
+authentication remain separate. See [installation evidence](installation.md)
+for platforms, integrity, mirrors, install-script policy, and unverified paths.
+
 ## Declaration ownership
 
 | Concern | Authority |

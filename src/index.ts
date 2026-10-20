@@ -1,8 +1,13 @@
+#!/usr/bin/env bun
 import { version } from "../package.json";
 import { deploy } from "./deploy";
-import { lint } from "./lint";
 import { install } from "./install";
+import { lint } from "./lint";
+import { setup } from "./setup";
 import { tunnel } from "./tunnel";
+
+if (process.argv.length === 3 && process.argv[2] === "setup")
+  process.exit(await setup());
 
 const args = process.argv.slice(2);
 if (args.length === 2 && args[0] === "help" && args[1] === "tunnel")
@@ -62,8 +67,11 @@ Discovery:
   help, --help, -h       Show this help
   --version, -V          Show the version
 
-Configured workflow prerequisites: SecretSpec CLI and Forge CLI must be installed on
-PATH and authenticated separately. Fence Rider does not install tools or log in.
+Package setup: fence-rider setup explicitly installs pinned SecretSpec CLI 0.21.1
+package-locally. Requires Bun 1.4.3+, macOS/Linux arm64/x64, shell tools and sha256sum.
+No downloads during ordinary workflows. Package commands never use global SecretSpec.
+Standalone compiled development builds use SecretSpec on PATH instead.
+Forge CLI must be installed on PATH and authenticated separately; no automatic login.
 
 Install/uninstall targets: explicit options override resolved FORGE_SITE / FORGE_PRODUCT
 and environment independently. Site/product are required. Only environment

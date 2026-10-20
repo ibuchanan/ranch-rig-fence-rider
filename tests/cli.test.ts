@@ -70,6 +70,301 @@ async function invoke(args: readonly string[], toolsAvailable = false) {
   return { exitCode, stdout, stderr };
 }
 
+async function packedConsumer() {
+  const archive = join(workspace, "fence-rider.tgz");
+  const packed = Bun.spawnSync(
+    [process.execPath, "pm", "pack", "--ignore-scripts", "--filename", archive],
+    { cwd: root, stdout: "pipe", stderr: "pipe" },
+  );
+  expect(packed.exitCode, packed.stderr.toString()).toBe(0);
+  const project = prepareProject({ command: "lint" });
+  writeFileSync(
+    join(project, "package.json"),
+    JSON.stringify({
+      private: true,
+      scripts: { "forge:lint": "fence-rider lint" },
+    }),
+  );
+  const installed = Bun.spawnSync(
+    [process.execPath, "add", "--dev", archive, "--ignore-scripts"],
+    {
+      cwd: project,
+      env: { ...process.env, HOME: project },
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
+  expect(installed.exitCode, installed.stderr.toString()).toBe(0);
+  return project;
+}
+
+test("installed package exposes discovery without setup, tools, or configuration", async () => {
+  const project = await packedConsumer();
+  const bin = join(project, "node_modules", ".bin", "fence-rider");
+  expect(existsSync(bin)).toBe(true);
+  const { version } = await Bun.file(join(root, "package.json")).json();
+  for (const args of [[], ["--help"], ["--version"], ["unsupported"]]) {
+    const child = Bun.spawn([bin, ...args], {
+      cwd: project,
+      env: {
+        PATH: process.execPath.slice(0, process.execPath.lastIndexOf("/")),
+        HOME: project,
+      },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [status, stdout, stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ]);
+    expect(status).toBe(args[0] === "unsupported" ? 1 : 0);
+    expect(stdout + stderr).toContain(
+      args[0] === "--version"
+        ? `fence-rider ${version}`
+        : args[0] === "unsupported"
+          ? "Unknown command"
+          : "Usage: fence-rider",
+    );
+  }
+});
+
+test("installed configured invocation rejects missing setup despite an ambient SecretSpec", async () => {
+  const project = await packedConsumer();
+  const child = Bun.spawn([process.execPath, "run", "forge:lint"], {
+    cwd: project,
+    env: {
+      ...deploymentEnv(project, {}),
+      PATH: `${join(project, "bin")}:${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}`,
+    },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [status, stdout, stderr] = await Promise.all([
+    child.exited,
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+  ]);
+  expect(status).toBe(1);
+  expect(stdout + stderr).toContain("fence-rider setup");
+  expect(existsSync(join(project, "tool-calls"))).toBe(false);
+});
+
+test("installed setup rejects unverified installer bytes without executing them", async () => {
+  const project = await packedConsumer();
+  const server = Bun.serve({
+    port: 0,
+    fetch: () => new Response("echo UNVERIFIED_INSTALLER_EXECUTED"),
+  });
+  try {
+    const child = Bun.spawn(
+      [join(project, "node_modules/.bin/fence-rider"), "setup"],
+      {
+        cwd: project,
+        env: {
+          PATH: `${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}:/sbin:/usr/bin:/bin`,
+          HOME: project,
+          SECRETSPEC_INSTALLER_URL: server.url.href,
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
+    const [status, stdout, stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ]);
+    expect(status).toBe(1);
+    expect(stdout + stderr).toContain("installer checksum mismatch");
+    expect(stdout + stderr).not.toContain("UNVERIFIED_INSTALLER_EXECUTED");
+    expect(
+      existsSync(
+        join(project, "node_modules/ranch-rig-fence-rider/.tools/secretspec"),
+      ),
+    ).toBe(false);
+  } finally {
+    server.stop(true);
+  }
+});
+
+const secretSpecAssets = process.env["SECRETSPEC_TEST_ASSETS"];
+
+async function setupConsumer(project: string) {
+  const server = Bun.serve({
+    port: 0,
+    fetch(request) {
+      const name = new URL(request.url).pathname.slice(1);
+      if (!/^secretspec-(installer\.sh|[a-z0-9_-]+\.tar\.xz)$/.test(name))
+        return new Response(null, { status: 404 });
+      return new Response(Bun.file(join(secretSpecAssets ?? "", name)));
+    },
+  });
+  try {
+    const child = Bun.spawn(
+      [join(project, "node_modules/.bin/fence-rider"), "setup"],
+      {
+        cwd: project,
+        env: {
+          PATH: `${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}:/sbin:/usr/bin:/bin`,
+          HOME: project,
+          SECRETSPEC_INSTALLER_URL: `${server.url}secretspec-installer.sh`,
+          INSTALLER_DOWNLOAD_URL: server.url.href.replace(/\/$/, ""),
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
+    const [status, stdout, stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ]);
+    expect({ status, diagnostic: status ? stdout + stderr : "" }).toEqual({
+      status: 0,
+      diagnostic: "",
+    });
+  } finally {
+    server.stop(true);
+  }
+}
+
+test.skipIf(!secretSpecAssets)(
+  "installed setup delivers native SecretSpec and configured lint without a global binary",
+  async () => {
+    const project = await packedConsumer();
+    await setupConsumer(project);
+    writeFileSync(
+      join(project, "secretspec.toml"),
+      `[project]\nname = "consumer"\nrevision = "1.0"\n[profiles.default]\nFORGE_ENVIRONMENT = { description = "Target", default = "development" }\nFORGE_SITE = { description = "Site", default = "synthetic.atlassian.net" }\nFORGE_PRODUCT = { description = "Product", default = "jira" }\n`,
+    );
+    writeFileSync(join(project, "values.env"), "");
+    const child = Bun.spawn([process.execPath, "run", "forge:lint"], {
+      cwd: project,
+      env: {
+        ...deploymentEnv(project, {
+          schema: {
+            properties: {
+              FORGE_ENVIRONMENT: {},
+              FORGE_SITE: {},
+              FORGE_PRODUCT: {},
+            },
+          },
+        }),
+        PATH: `${join(project, "bin")}:${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}`,
+        SECRETSPEC_PROVIDER: "dotenv:values.env",
+      },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [status, stdout, stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ]);
+    expect({ status, stdout, stderr }).toEqual({
+      status: 0,
+      stdout: "synthetic lint result\n",
+      stderr: "$ fence-rider lint\nsynthetic lint warning\n",
+    });
+    const calls = (await Bun.file(join(project, "tool-calls")).text())
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    expect(calls).toEqual([
+      {
+        tool: "forge",
+        args: ["lint"],
+        values: {
+          FORGE_ENVIRONMENT: "development",
+          FORGE_SITE: "synthetic.atlassian.net",
+          FORGE_PRODUCT: "jira",
+        },
+      },
+    ]);
+    expect(
+      readdirSync(join(project, "node_modules/ranch-rig-fence-rider/.tools")),
+    ).toEqual(["secretspec"]);
+    expect(existsSync(join(project, ".cargo"))).toBe(false);
+  },
+);
+
+test("installed workflow rejects an incompatible delivered binary before Forge runs", async () => {
+  const project = await packedConsumer();
+  const directory = join(project, "node_modules/ranch-rig-fence-rider/.tools");
+  mkdirSync(directory);
+  writeFileSync(
+    join(directory, "secretspec"),
+    '#!/bin/sh\necho "secretspec 0.1.0"\n',
+    { mode: 0o755 },
+  );
+  const child = Bun.spawn([process.execPath, "run", "forge:lint"], {
+    cwd: project,
+    env: {
+      ...deploymentEnv(project, {}),
+      PATH: `${join(project, "bin")}:${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}`,
+    },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [status, stdout, stderr] = await Promise.all([
+    child.exited,
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+  ]);
+  expect(status).toBe(1);
+  expect(stdout + stderr).toContain("SecretSpec 0.21.1 required");
+  expect(stdout + stderr).not.toContain("0.1.0");
+  expect(existsSync(join(project, "tool-calls"))).toBe(false);
+});
+
+test.skipIf(process.platform === "win32")(
+  "installed setup interruption removes private staging and returns the signal status",
+  async () => {
+    const project = await packedConsumer();
+    let requested = false;
+    // Hold the response open so interruption occurs while setup owns its staging directory.
+    const stalled = Bun.serve({
+      port: 0,
+      fetch: async () => {
+        requested = true;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        return new Response("pending");
+      },
+    });
+    const child = Bun.spawn(
+      [join(project, "node_modules/.bin/fence-rider"), "setup"],
+      {
+        cwd: project,
+        env: {
+          PATH: `${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}:/sbin:/usr/bin:/bin`,
+          HOME: project,
+          SECRETSPEC_INSTALLER_URL: stalled.url.href,
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
+    try {
+      await waitUntil(() => requested, "setup download request");
+      child.kill("SIGTERM");
+      const [status] = await Promise.all([
+        child.exited,
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+      ]);
+      expect(status).toBe(143);
+      expect(
+        readdirSync(join(project, "node_modules/ranch-rig-fence-rider/.tools")),
+      ).toEqual([]);
+    } finally {
+      child.kill("SIGKILL");
+      await child.exited;
+      stalled.stop(true);
+    }
+  },
+);
+
 test("no command prints help without external tools or valid configuration", async () => {
   const result = await invoke([]);
   expect(result.exitCode).toBe(0);

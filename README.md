@@ -36,9 +36,12 @@ bun run build
 ```
 
 Help and version need no configuration, vault, network, or Forge login.
-Configured workflows require separately installed and authenticated SecretSpec
-and Forge CLIs on `PATH`, a valid registered Forge app, and a
-single SecretSpec file. Fence Rider never installs tools or logs you in.
+The compiled development binary requires separately installed SecretSpec and
+Forge CLIs on `PATH`. For dependency-based usage, follow the
+[consumer installation guide](docs/how-to/installation.md): the package requires
+Bun and explicit `fence-rider setup` to deliver pinned SecretSpec package-locally.
+Forge installation/authentication, provider access, and app registration remain
+separate. No ordinary workflow downloads tools or logs you in.
 
 From that app's directory, using the absolute path to the built binary:
 
