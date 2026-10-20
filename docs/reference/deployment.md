@@ -138,7 +138,9 @@ particular, `variables set` has no documented `--non-interactive` option.
 Help is wrapper-owned and is not delegated. SecretSpec file/profile selection
 remains environment-only; no additional wrapper flags are introduced.
 `FORGE_SITE` and `FORGE_PRODUCT` stay local and do not generate deployment
-flags or runtime uploads. Installation and tunneling remain unsupported.
+flags or runtime uploads. Configured installation, uninstall and development
+tunneling are now supported at their documented local boundaries; see the
+[workflow contracts](reference.md#configured-installation).
 
 Controlled CLI subprocess tests verify these boundaries and target precedence;
 no live app, variable write, or deployment is involved.

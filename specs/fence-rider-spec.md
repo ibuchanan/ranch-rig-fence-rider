@@ -1,5 +1,10 @@
 # Fence Rider specification
 
+The [configured Forge workflows specification](configured-forge-workflows-spec.md)
+captures the broader wrapper product contract and the next implementation set.
+This document and its AC-01 through AC-18 remain the deployment baseline;
+completed evidence does not certify the newly planned workflows.
+
 Status: Single-file deployment implemented and locally verified. Live Forge
 verification is blocked pending explicit authorization; see the
 [workflow evidence](../docs/reference/validation.md). Compatibility checks

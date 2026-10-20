@@ -40,8 +40,8 @@ Local values do not automatically become Forge runtime variables. Uploading
 all of them would confuse deployment controls with app configuration and
 could expose credentials that only a local tool needs. Conversely, declaring
 a local value does not mean Fence Rider supports every development command
-that might use it. Its initial workflow is deployment, not a general-purpose
-command runner.
+that might use it. Deployment, lint, install/upgrade, uninstall, and development
+tunnel are supported configured workflows, not a general-purpose command runner.
 
 ## Manifest variables shape the deployed configuration
 
@@ -164,6 +164,22 @@ Local tooling, manifest parsing, and application execution need different
 values at different times. Shared declarations and explicit scopes make
 those boundaries understandable instead of hiding them behind a single
 label, "environment variables."
+
+## Tool delivery is not runtime delivery
+
+Installing the wrapper as development tooling supplies a command entrypoint,
+not app configuration. Its separate, explicit setup supplies pinned SecretSpec
+package-locally without application values, provider authentication, or Forge
+login. Keeping that network step outside ordinary workflows makes blocked
+setup visible rather than silently downloading during a deployment.
+
+The installed scripts expose policy while configuration supplies targets.
+Approvals, scope consent, upgrades, and non-interactive execution remain visible
+choices instead of consequences of declaring a variable. Install/uninstall/lint
+reuse validated local values without acquiring deployment's writes. Tunnel uses
+Forge's local prefixed environment instead of changing the remote variable store.
+One resolution can serve these destinations without pretending they share a
+lifecycle. See [consumer workflow evidence](../reference/consumer-workflows.md).
 
 ## Related material
 

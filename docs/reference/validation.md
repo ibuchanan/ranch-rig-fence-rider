@@ -4,6 +4,38 @@ Recorded 2026-10-19 for ticket 07. Public seams: the compiled CLI subprocess
 and observable validation-command output/status, confirmed by the user.
 No private-function tests or second native proof suite were introduced.
 
+## Configured consumer acceptance ticket 07 — 2026-10-20
+
+Ticket 07 integrates the installed package from configured-workflows ticket 06,
+not the older deployment-only ticket set. Three incremental native installed
+checks execute the checked-in `docs/examples` configuration/scripts: deploy with
+explicit approval, a distinct approval-token variant, install, upgrade, uninstall,
+lint and tunnel; controls-only configuration verifies fallback/overrides, legacy
+selection, alias conflict and whole-profile requiredness without dummy secrets.
+All run real SecretSpec through the local packed artifact with controlled Forge.
+The [CW-01–CW-22 map](consumer-workflows.md) records exact evidence boundaries.
+
+The second approval token is an explicit replacement placeholder; only forwarding
+is verified. `MAJOR_VERSION_RULE` is the upstream documented rule. Actual server
+acceptance of a different rule requires a reported rule and authorized app check.
+No authorization for a named disposable app/site/environment or exact operations
+was supplied, so manifest substitution, encrypted storage/activation, real
+installation/upgrade, connected tunnel receipt, uninstall and cleanup remain
+**blocked**. Prior deployment live blockers are preserved. Direct anonymous
+GitHub setup and unexercised platforms retain ticket 06's limitations.
+
+Validation resumed with explicit user permission after the temporary shell
+blocker. Fresh full suite: **405 pass / 2866 assertions / zero failures**, with
+native assets enabled. All three installed consumer tests pass (45 assertions).
+Build, types, repository lint/format/Fallow and Markdown/spelling checks pass.
+Earlier gate failures from two new test type errors and spelling were corrected
+without suppressions or threshold changes. Local Markdown paths, references and
+heading anchors pass across README, development guidance and docs (12 files);
+external URL availability is not certified. The final native-enabled forced
+`bun run check` passes (test and lint; size/pack hooks are no-ops because those
+scripts are absent). Real local tarball installation is exercised by the tests.
+Live claims above remain blocked.
+
 ## Dependency delivery ticket 06 — 2026-10-20
 
 Added the installed Bun executable, package allowlist/platform metadata, and

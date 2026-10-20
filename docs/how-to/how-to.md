@@ -1,9 +1,10 @@
 # Deploy with your own SecretSpec provider
 
 Use this guide to deploy an existing Forge app without access to a
-maintainer's vault. Start with the [built Fence Rider CLI](../../README.md),
-SecretSpec 0.21.1 and Forge CLI installed separately on `PATH`, and existing
-Forge authentication. Use an app and environment you are authorized to change.
+maintainer's vault. Follow the [package installation guide](installation.md)
+first, or use the [standalone development build](../../README.md) with SecretSpec
+0.21.1 on PATH. Forge CLI and existing authentication remain separate. Use an
+app and environment you are authorized to change.
 Live Forge compatibility is not yet certified; see the
 [version and evidence record](../reference/deployment.md).
 
@@ -87,8 +88,8 @@ and add this entry to the app's existing `scripts` object:
 
 Run `bun run lint:forge`, or append explicit Forge options such as `--verbose`.
 No target-variable expansion, Bash helper, or second variable inventory is
-needed. Package/dependency executable delivery is not implemented yet; the
-binary and separately installed SecretSpec/Forge CLIs must already be available.
+needed. The [installed package](installation.md) supplies the executable and,
+after explicit setup, SecretSpec; Forge remains separately available.
 
 Resolve every required profile declaration, including runtime credentials,
 before lint. Use native optional declarations or a suitable profile for
@@ -148,8 +149,8 @@ verified grammar, products, and the separate live-verification blocker.
 ## Uninstall the configured app
 
 1. Configure site/product defaults as in [installation above][installation],
-   resolve every required profile value, and put the built binary on `PATH`
-   as `fence-rider`. Packaging delivery is not implemented yet.
+   resolve every required profile value, and use the installed `fence-rider`
+   executable (or put the standalone development binary on PATH).
 2. Add this entry to your app's existing package scripts:
 
    ```json
@@ -188,8 +189,9 @@ has run. See the [uninstall reference][uninstall].
 
 Use an already registered, deployed, and installed disposable Forge development
 app, with authorization to redirect its invocations. Install and authenticate
-SecretSpec and Forge separately on `PATH`. The wrapper does not deploy or
-install prerequisites. Named targets must already be development environments.
+Forge separately on PATH and complete [package setup](installation.md) for
+SecretSpec. The wrapper does not deploy or install the app's prerequisites.
+Named targets must already be development environments.
 
 1. Declare all required values in `secretspec.toml`. Add only intended function
    runtime names to `[scopes.runtime].secrets`; keep targeting controls out.
@@ -208,8 +210,8 @@ install prerequisites. Named targets must already be development environments.
    }
    ```
 
-   Put the built binary on `PATH` as `fence-rider`. Package delivery is not yet
-   implemented. Run `bun run tunnel --environment development`, or select an
+   Use the installed `fence-rider` executable. Run
+   `bun run tunnel --environment development`, or select an
    authorized existing named development environment. Use `fence-rider tunnel
    --help` for discovery; `-h` is Forge's debug-host option, not help.
 4. After connection, invoke the installed app through the authorized development
@@ -241,7 +243,9 @@ Cross-file specification inheritance is deferred. Provider paths in this
 guide assume the app's working directory.
 
 An explicit `-e TARGET` or `--environment TARGET` wins over the resolved
-`FORGE_ENV`, then `development` is the fallback. Attached `-eTARGET` and
+canonical `FORGE_ENVIRONMENT` (or legacy `FORGE_ENV`), then `development`.
+Conflicting resolved aliases fail even with an explicit override.
+Attached `-eTARGET` and
 `--environment=TARGET` are accepted; repeated or missing targets are errors.
 A profile named `release` does not select a Forge environment by its name.
 Other Forge options are forwarded to deployment only. `FORGE_SITE` and

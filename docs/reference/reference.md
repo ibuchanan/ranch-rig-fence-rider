@@ -1,8 +1,10 @@
 # Variable compatibility contract
 
-Status: Single-file deployment implemented and locally verified on
-2026-10-19. Authorized live Forge verification is blocked. The
-[deployment evidence](deployment.md) separates native SecretSpec checks,
+Status: single-file configured deploy, lint, install/upgrade, uninstall and
+development tunnel are implemented and locally verified as of 2026-10-20.
+The installed Bun package requires explicit native tool setup. Authorized live
+Forge verification is blocked. The [consumer evidence map](consumer-workflows.md)
+and [deployment evidence](deployment.md) separate native SecretSpec delivery,
 controlled Forge behavior, and unverified upstream acceptance.
 
 This reference defines variable declarations, local availability, manifest
@@ -184,8 +186,8 @@ Selecting a profile does not automatically select a same-named environment.
 | --- | --- | --- |
 | `FORGE_ENVIRONMENT` | Canonical configured Forge environment | Used after an explicit CLI environment option and before the `development` fallback |
 | `FORGE_ENV` | Legacy environment alias | Accepted alone or with a matching resolved `FORGE_ENVIRONMENT` |
-| `FORGE_SITE` | Site default for future supported commands | Validated when declared; not injected as an unsupported deployment option |
-| `FORGE_PRODUCT` | Product default for future supported commands | Validated when declared; not injected as an unsupported deployment option |
+| `FORGE_SITE` | Site default for install/uninstall | Validated when declared; not injected as an unsupported deployment option |
+| `FORGE_PRODUCT` | Product default for install/uninstall | Validated when declared; not injected as an unsupported deployment option |
 
 These controls need no named scope. Selecting any of them for runtime upload
 fails before the first write, including both environment names. Defaults are

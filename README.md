@@ -55,6 +55,15 @@ contributors supply their own values without access to a maintainer's vault.
 Only `runtime` scope members upload; other values stay local. Optional
 `manifest` membership adds a declaration check, not an injection allowlist.
 
+## Installed consumer workflows
+
+Use the [development-dependency setup](docs/how-to/installation.md), then adopt
+[short configured scripts](docs/how-to/consumer-workflows.md) for deploy,
+lint, install/upgrade, uninstall, and development tunnel. No helper or duplicated
+key inventory is needed. Controls-only apps need no runtime scope or dummy secret.
+The [CW-01–CW-22 evidence map](docs/reference/consumer-workflows.md) distinguishes
+native tool delivery, controlled Forge behavior, and blocked live checks.
+
 ## Documentation
 
 - [Deploy from development or CI](docs/how-to/how-to.md)

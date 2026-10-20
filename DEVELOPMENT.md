@@ -40,7 +40,12 @@ without them they skip, not pass. Provide `secretspec-installer.sh` and the host
 native archive from SecretSpec 0.21.1. Tests serve those exact bytes over loopback,
 verify checksums, and remove consumer fixtures. They never publish or contact
 Forge.
-See [delivery evidence and limits](docs/reference/installation.md).
+See [delivery evidence and limits](docs/reference/installation.md). Installed
+consumer acceptance reads the checked-in `docs/examples` scripts/declarations
+rather than maintaining a second script specification; all seven workflows and
+a controls-only variant run with native SecretSpec and controlled Forge.
+The [CW evidence map](docs/reference/consumer-workflows.md) separates controlled,
+native, interface and blocked live results.
 
 ## Validation commands
 
