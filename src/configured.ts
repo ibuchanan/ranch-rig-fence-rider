@@ -17,8 +17,6 @@ function deliveredSecretSpec(path: string, state: Workflow) {
 }
 
 type Specification = {
-  project?: { extends?: unknown };
-  profiles?: Record<string, Record<string, unknown>>;
   scopes?: Record<string, { secrets: string[] }>;
 };
 
@@ -33,19 +31,33 @@ export function members(
   );
 }
 
-async function validateManifest(names: string[]) {
-  const manifest = Bun.YAML.parse(await Bun.file("manifest.yml").text()) as {
-    environment?: { variables?: (string | { key: string })[] };
-  };
-  const declarations = manifest?.environment?.variables ?? [];
-  if (!Array.isArray(declarations))
-    throw new Error("Invalid manifest variables");
-  const keys = new Set(
-    declarations.map((entry) =>
-      typeof entry === "string" ? entry : entry?.key,
-    ),
+function isObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function manifestVariables(manifest: unknown): unknown {
+  if (!isObject(manifest)) return [];
+  const environment = manifest["environment"];
+  if (!isObject(environment)) return [];
+  return environment["variables"] ?? [];
+}
+
+function manifestKey(entry: unknown) {
+  if (typeof entry === "string") return entry;
+  return isObject(entry) ? entry["key"] : undefined;
+}
+
+/**
+ * Names declared in manifest.yml, read from the working directory (the Forge
+ * app root), which need not be the directory holding the SecretSpec file.
+ */
+async function parseManifestKeys() {
+  const declarations = manifestVariables(
+    Bun.YAML.parse(await Bun.file("manifest.yml").text()),
   );
-  return names.find((key) => !keys.has(key));
+  if (!Array.isArray(declarations))
+    throw new Error("Manifest environment.variables is not a list");
+  return new Set(declarations.map(manifestKey));
 }
 
 /** Cross-check optional manifest scope metadata, without limiting local delivery. */
@@ -56,69 +68,78 @@ export async function checkManifest(
 ) {
   state.stage = "manifest validation";
   if (!config.scopes?.["manifest"]) return;
-  const missing = await validateManifest(
-    members(config, "manifest", properties),
+  const keys = await parseManifestKeys();
+  const missing = members(config, "manifest", properties).find(
+    (key) => !keys.has(key),
   );
   if (!missing) return;
   state.stage = `manifest declaration for ${missing}`;
-  throw new Error("Missing manifest declaration");
+  throw new Error("Manifest declaration is missing");
 }
 
-function validateInheritance({ project = {} }: Specification) {
-  const parents = project.extends;
+function projectExtends(raw: unknown) {
+  const project = isObject(raw) ? raw["project"] : undefined;
+  return isObject(project) ? project["extends"] : undefined;
+}
+
+function parseInheritance(raw: unknown) {
+  const parents = projectExtends(raw);
   if (parents === undefined) return;
-  if (!Array.isArray(parents) || parents.length !== 0) {
-    throw new Error("Unsupported inheritance");
-  }
+  if (!Array.isArray(parents) || parents.length !== 0)
+    throw new Error("Unsupported project.extends inheritance");
 }
 
-function declaredNames(config: Specification) {
+function declaredNames(profiles: unknown) {
+  if (profiles === undefined) return new Set<string>();
+  if (!isObject(profiles)) throw new Error("Malformed profiles");
   return new Set(
-    Object.values(config.profiles ?? {}).flatMap((fields) =>
-      Object.keys(fields).filter((key) => key !== "defaults"),
-    ),
+    Object.values(profiles)
+      .filter(isObject)
+      .flatMap((fields) => Object.keys(fields))
+      .filter((key) => key !== "defaults"),
   );
 }
 
-function validateScopes(config: Specification) {
-  const scopes = config.scopes;
-  if (scopes === undefined) return;
+function scopeSecrets(scope: unknown) {
+  const shaped = isObject(scope) && Object.keys(scope).join() === "secrets";
+  const secrets = shaped ? scope["secrets"] : undefined;
+  if (!Array.isArray(secrets)) throw new Error("Malformed scope: secrets list");
+  return secrets;
+}
+
+function isDistinct(items: unknown[]) {
+  return items.length > 0 && new Set(items).size === items.length;
+}
+
+function isDeclaredName(key: unknown, declared: Set<string>): key is string {
+  return typeof key === "string" && key.trim() !== "" && declared.has(key);
+}
+
+function parseScope(scope: unknown, declared: Set<string>) {
+  const secrets = scopeSecrets(scope);
+  if (!isDistinct(secrets))
+    throw new Error("Malformed scope: empty or duplicate secrets");
+  const names = secrets.filter((key) => isDeclaredName(key, declared));
+  if (names.length !== secrets.length)
+    throw new Error("Malformed scope: undeclared secret");
+  return { secrets: names };
+}
+
+/** Parse scope metadata into the supported subset, rejecting everything else. */
+function parseScopes(raw: unknown): Specification {
+  const root = isObject(raw) ? raw : {};
+  const scopes = root["scopes"];
+  if (scopes === undefined) return {};
   if (!isObject(scopes)) throw new Error("Malformed scopes");
-  const declared = declaredNames(config);
-  Object.values(scopes).forEach((scope) => {
-    validateScope(scope, declared);
-  });
-}
-
-function validateScope(scope: unknown, declared: Set<string>) {
-  if (!isObject(scope) || Object.keys(scope).some((key) => key !== "secrets"))
-    throw new Error("Malformed scope");
-  const secrets = scope["secrets"];
-  if (!Array.isArray(secrets)) throw new Error("Malformed scope");
-  validateScopeSecrets(secrets, declared);
-}
-
-function validateScopeSecrets(secrets: unknown[], declared: Set<string>) {
-  if (secrets.length === 0 || new Set(secrets).size !== secrets.length)
-    throw new Error("Malformed scope");
-  if (
-    secrets.some(
-      (key) => typeof key !== "string" || !key.trim() || !declared.has(key),
-    )
-  )
-    throw new Error("Malformed scope");
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function validateDeclaration(key: string, declaration: unknown) {
-  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key))
-    throw new Error("Invalid variable name");
-  if (!isObject(declaration)) throw new Error("Unsupported native declaration");
-  if (!isStringType(declaration["type"]))
-    throw new Error("Unsupported native declaration");
+  const declared = declaredNames(root["profiles"]);
+  return {
+    scopes: Object.fromEntries(
+      Object.entries(scopes).map(([name, scope]) => [
+        name,
+        parseScope(scope, declared),
+      ]),
+    ),
+  };
 }
 
 function isStringType(type: unknown) {
@@ -130,53 +151,64 @@ function isStringType(type: unknown) {
   );
 }
 
-function validateRequired(
-  required: unknown,
-  properties: Record<string, unknown>,
-  values: Record<string, unknown>,
-) {
-  if (!Array.isArray(required) || new Set(required).size !== required.length)
-    throw new Error("Malformed required declarations");
-  required.forEach((key) => {
-    if (
-      typeof key !== "string" ||
-      !Object.hasOwn(properties, key) ||
-      !Object.hasOwn(values, key)
-    )
-      throw new Error("Missing required value");
-  });
+function parseDeclaration(key: string, declaration: unknown) {
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key))
+    throw new Error("Invalid variable name");
+  if (!isObject(declaration) || !isStringType(declaration["type"]))
+    throw new Error("Unsupported schema declaration");
 }
 
-function validateResolvedValue(
+function parseProperties(schema: Record<string, unknown>) {
+  const properties = schema["properties"];
+  if (!isObject(properties)) throw new Error("Malformed schema properties");
+  if (schema["type"] !== "object") throw new Error("Malformed schema type");
+  for (const [key, declaration] of Object.entries(properties))
+    parseDeclaration(key, declaration);
+  return properties;
+}
+
+function requiredNames(schema: Record<string, unknown>) {
+  const required = schema["required"] === undefined ? [] : schema["required"];
+  if (!Array.isArray(required) || new Set(required).size !== required.length)
+    throw new Error("Malformed required declarations");
+  return required;
+}
+
+function parseRequired(
+  schema: Record<string, unknown>,
+  properties: Record<string, unknown>,
+  exported: Record<string, unknown>,
+) {
+  const present = (key: unknown) =>
+    typeof key === "string" &&
+    Object.hasOwn(properties, key) &&
+    Object.hasOwn(exported, key);
+  if (!requiredNames(schema).every(present))
+    throw new Error("Missing required value");
+}
+
+function parseValue(
   key: string,
   value: unknown,
   properties: Record<string, unknown>,
 ) {
-  if (!Object.hasOwn(properties, key)) throw new Error("Unsupported value");
-  if (typeof value !== "string") throw new Error("Unsupported value");
-  if (value.includes("\u0000")) throw new Error("Unsupported value");
+  if (!Object.hasOwn(properties, key))
+    throw new Error("Resolved value is not in the schema");
+  if (typeof value !== "string" || value.includes("\u0000"))
+    throw new Error("Resolved value is not a NUL-free string");
+  return value;
 }
 
-function validateValues(schema: unknown, values: unknown) {
-  if (!isObject(schema) || !isObject(values))
-    throw new Error("Malformed native output");
-  const properties = validateProperties(schema);
-  const required = schema["required"] === undefined ? [] : schema["required"];
-  validateRequired(required, properties, values);
-  Object.entries(values).forEach(([key, value]) => {
-    validateResolvedValue(key, value, properties);
-  });
-  return { properties, values: values as Record<string, string> };
-}
-
-function validateProperties(schema: Record<string, unknown>) {
-  const properties = schema["properties"];
-  if (!isObject(properties)) throw new Error("Malformed native output");
-  if (schema["type"] !== "object") throw new Error("Malformed schema type");
-  Object.entries(properties).forEach(([key, declaration]) => {
-    validateDeclaration(key, declaration);
-  });
-  return properties;
+/** Parse the schema and export output together into typed properties and values. */
+function parseResolved(schema: unknown, exported: unknown) {
+  if (!isObject(schema)) throw new Error("Malformed schema output");
+  if (!isObject(exported)) throw new Error("Malformed export output");
+  const properties = parseProperties(schema);
+  parseRequired(schema, properties, exported);
+  const values: Record<string, string> = {};
+  for (const [key, value] of Object.entries(exported))
+    values[key] = parseValue(key, value, properties);
+  return { properties, values };
 }
 
 function prerequisite(tool: string, state: Workflow) {
@@ -190,11 +222,11 @@ async function readConfiguration(state: Workflow) {
   state.stage = "configuration";
   const file = resolve(process.env["SECRETSPEC_FILE"] ?? "secretspec.toml");
   const profile = process.env["SECRETSPEC_PROFILE"] ?? "default";
-  const config = Bun.TOML.parse(await Bun.file(file).text()) as Specification;
+  const raw: unknown = Bun.TOML.parse(await Bun.file(file).text());
   state.stage = "project.extends validation (only a single file is supported)";
-  validateInheritance(config);
+  parseInheritance(raw);
   state.stage = "scope metadata validation";
-  validateScopes(config);
+  const config = parseScopes(raw);
   return { config, nativeArgs: ["--file", file, "--profile", profile] };
 }
 
@@ -216,7 +248,7 @@ async function resolveProfile(
     ),
   );
   state.stage = "resolved value validation";
-  return validateValues(schema, exported);
+  return parseResolved(schema, exported);
 }
 
 function forgeEnvironment(
@@ -228,11 +260,16 @@ function forgeEnvironment(
   return Object.assign(env, values);
 }
 
+function differ(a: string | undefined, b: string | undefined) {
+  return a !== undefined && b !== undefined && a !== b;
+}
+
 function configuredEnvironment(values: Record<string, string>) {
-  const targets = new Set([values["FORGE_ENVIRONMENT"], values["FORGE_ENV"]]);
-  targets.delete(undefined);
-  if (targets.size > 1) throw new Error("Conflicting environment controls");
-  return targets.values().next().value;
+  const current = values["FORGE_ENVIRONMENT"];
+  const legacy = values["FORGE_ENV"];
+  if (differ(current, legacy))
+    throw new Error("Conflicting environment controls");
+  return current ?? legacy;
 }
 
 export async function configure(state: Workflow) {
