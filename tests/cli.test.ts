@@ -107,20 +107,158 @@ test.each([
   }
 });
 
-test.each(["tunnel"])(
-  "%s directs developers to Forge without tool calls",
-  async (command) => {
+test.each(["FORGE_ENVIRONMENT", "FORGE_ENV", "FORGE_SITE", "FORGE_PRODUCT"])(
+  "configured tunnel rejects runtime selection of %s",
+  async (control) => {
+    const result = await deploy({
+      command: "tunnel",
+      spec: deploymentSpec
+        .replace(
+          "[profiles.default]",
+          `[profiles.default]\n${control === "FORGE_ENV" ? "" : `${control} = { description = "Protected control" }`}`,
+        )
+        .replace('["SHARED", "OPTIONAL"]', `["SHARED", "${control}"]`),
+      schema: {
+        ...deploymentSchema,
+        properties: {
+          ...deploymentSchema.properties,
+          [control]: { type: "string" },
+        },
+      },
+      values: {
+        ...deploymentValues,
+        FORGE_ENV: "development",
+        [control]: "development",
+      },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stderr).toContain("tunnel runtime selection validation");
+  },
+);
+
+test("configured tunnel normalizes explicit named development override and preserves debug payloads", async () => {
+  const args = [
+    "-d",
+    "-f",
+    "index.run",
+    "other.run",
+    "-h",
+    "127.0.0.1",
+    "-p",
+    "9230",
+    "--verbose",
+    "--",
+    "--environment",
+    "production",
+  ];
+  const result = await deploy({
+    command: "tunnel",
+    args: ["-ealice-dev", ...args],
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.interactions.at(-1)?.args).toEqual([
+    "tunnel",
+    "--environment",
+    "alice-dev",
+    ...args,
+  ]);
+});
+
+test("configured tunnel rejects reserved prefix declarations rather than losing local values or bypassing selection", async () => {
+  const result = await deploy({
+    command: "tunnel",
+    args: ["-edevelopment"],
+    spec: deploymentSpec.replace(
+      "[profiles.default]",
+      '[profiles.default]\nFORGE_USER_VAR_LOCAL_ONLY = { description = "Collision" }',
+    ),
+    schema: {
+      ...deploymentSchema,
+      properties: {
+        ...deploymentSchema.properties,
+        FORGE_USER_VAR_LOCAL_ONLY: { type: "string" },
+      },
+    },
+    values: {
+      ...deploymentValues,
+      FORGE_USER_VAR_LOCAL_ONLY: "synthetic collision",
+    },
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+    [],
+  );
+  expect(result.stderr).toContain("tunnel runtime selection validation");
+  expect(result.stderr).not.toContain("synthetic collision");
+});
+
+test.each([
+  { args: ["tunnel", "--help"] },
+  { args: ["help", "tunnel"] },
+  { args: ["tunnel", "-d", "-h", "127.0.0.1", "--help"] },
+])(
+  "configured tunnel discovery %j never resolves configuration",
+  async ({ args }) => {
     for (const toolsAvailable of [false, true]) {
-      for (const args of [[command], [command, "--help"], ["help", command]]) {
-        const result = await invoke(args, toolsAvailable);
-        expect(result.exitCode).not.toBe(0);
-        expect(result.stdout).toBe("");
-        expect(result.stderr).toContain(`${command} is unsupported`);
-        expect(result.stderr).toContain(`forge ${command}`);
-      }
+      const result = await invoke(args, toolsAvailable);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Usage: fence-rider tunnel");
+      expect(result.stdout).toContain("FORGE_USER_VAR_");
+      expect(result.stdout).toContain("unredacted");
+      expect(result.stdout).toContain("-h is debug host");
+      expect(result.stderr).toBe("");
     }
   },
 );
+
+test("configured tunnel rejects staging before Forge starts", async () => {
+  const result = await deploy({ command: "tunnel" });
+  expect(result.exitCode).toBe(1);
+  expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+    [],
+  );
+  expect(result.stderr).toContain("tunnel target validation");
+  expect(result.stderr).not.toContain("staging");
+});
+
+test("configured tunnel maps only explicit runtime members from one resolution without writes", async () => {
+  const result = await deploy({
+    command: "tunnel",
+    values: { ...deploymentValues, FORGE_ENV: "development" },
+    env: {
+      OPTIONAL: "stale",
+      FORGE_USER_VAR_SHARED: "stale shared",
+      FORGE_USER_VAR_OPTIONAL: "stale optional",
+      FORGE_USER_VAR_LOCAL_ONLY: "unauthorized local",
+      FORGE_USER_VAR_UNDECLARED: "unauthorized ambient",
+    },
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual([
+    {
+      tool: "forge",
+      args: ["tunnel", "--environment", "development"],
+      values: { ...deploymentValues, FORGE_ENV: "development" },
+      runtime: { SHARED: sharedValue },
+    },
+  ]);
+  expect(result.interactions.map(({ args }) => args[0])).toEqual([
+    "schema",
+    "export",
+    "tunnel",
+  ]);
+  expect(result.stdout).toContain("synthetic tunnel result");
+  expect(result.stderr).toBe("synthetic tunnel warning\n");
+  expect(readdirSync(result.project).sort()).toEqual([
+    "bin",
+    "manifest.yml",
+    "secretspec.toml",
+    "tool-calls",
+  ]);
+});
 
 test.each([
   { args: ["deploy", "--environment", "production", "--help"] },
@@ -231,10 +369,11 @@ type ToolCall = {
   tool: string;
   args: string[];
   values: Record<string, string>;
+  runtime?: Record<string, string>;
 };
 
 type DeployOptions = {
-  command?: "deploy" | "lint" | "install" | "uninstall";
+  command?: "deploy" | "lint" | "install" | "uninstall" | "tunnel";
   spec?: string;
   values?: unknown;
   schema?: unknown;
@@ -272,6 +411,7 @@ const fixture = JSON.parse(process.env.FIXTURE);
 const names = Object.keys(fixture.schema?.properties ?? {});
 appendFileSync(process.env.TOOL_CALL_LOG, JSON.stringify({
   tool, args,
+  ...(args[0] === "tunnel" ? { runtime: Object.fromEntries(Object.entries(process.env).filter(([name]) => name.startsWith("FORGE_USER_VAR_")).map(([name, value]) => [name.slice(15), value])) } : {}),
   values: Object.fromEntries(names.filter(name => process.env[name] !== undefined).map(name => [name, process.env[name]]))
 }) + "\\n");
 if (tool === "secretspec" && process.env.REAL_SECRETSPEC) {
@@ -280,7 +420,7 @@ if (tool === "secretspec" && process.env.REAL_SECRETSPEC) {
   process.stderr.write(result.stderr);
   process.exit(result.exitCode);
 }
-if (["lint", "install", "uninstall"].includes(args[0])) {
+if (["lint", "install", "uninstall", "tunnel"].includes(args[0])) {
   console.log("synthetic " + args[0] + " result");
   console.error("synthetic " + args[0] + " warning");
   if (process.env.LINT_READ_INPUT) Bun.stdin.text().then(input => {
@@ -290,7 +430,7 @@ if (["lint", "install", "uninstall"].includes(args[0])) {
   });
 } else console.error("synthetic helper noise: " + ${JSON.stringify(sharedValue)});
 if (fixture.failStage === args[0] && (!fixture.failKey || fixture.failKey === args[5])) {
-  if (!["lint", "install", "uninstall"].includes(args[0])) console.log(${JSON.stringify(sharedValue)});
+  if (!["lint", "install", "uninstall", "tunnel"].includes(args[0])) console.log(${JSON.stringify(sharedValue)});
   if (fixture.failureMode === "throw") throw new Error("synthetic error details: " + ${JSON.stringify(sharedValue)});
   if (fixture.failureMode === "signal") process.kill(process.pid, "SIGTERM");
   else process.exit(fixture.exitCode ?? 23);
@@ -299,7 +439,7 @@ if (fixture.blockStage === args[0]) {
   if (fixture.spawnDescendant) Bun.spawn([process.execPath, "-e", 'process.on("SIGINT", () => {}); process.on("SIGTERM", () => {}); require("node:fs").writeFileSync("descendant-ready", String(process.pid)); setInterval(() => {}, 1000);'], { stdin: "ignore", stdout: "ignore", stderr: "ignore" });
   for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {
     writeFileSync("received-signal", signal);
-    console.error(["lint", "install", "uninstall"].includes(args[0]) ? "synthetic " + args[0] + " interrupted" : "synthetic signal error: " + ${JSON.stringify(sharedValue)});
+    console.error(["lint", "install", "uninstall", "tunnel"].includes(args[0]) ? "synthetic " + args[0] + " interrupted" : "synthetic signal error: " + ${JSON.stringify(sharedValue)});
     if (!fixture.ignoreSignal) process.exit(0);
   });
   setInterval(() => {}, 1000);
@@ -1514,11 +1654,11 @@ test("configured lint without manifest scope needs no manifest and preserves tar
   expect(result.interactions.at(-1)?.values).toEqual(deploymentValues);
 });
 
-test.each(["lint", "install", "uninstall"] as const)(
+test.each(["lint", "install", "uninstall", "tunnel"] as const)(
   "configured %s streams before exit and inherits input, ordinary settings, and authentication without redaction",
   async (command) => {
     const options: DeployOptions = {
-      ...(command !== "lint"
+      ...(command === "install" || command === "uninstall"
         ? {
             spec: installationSpec,
             schema: installationSchema,
@@ -1531,8 +1671,9 @@ test.each(["lint", "install", "uninstall"] as const)(
         FORGE_API_TOKEN: "synthetic-auth",
       },
     };
+    if (command === "tunnel") options.args = ["-edevelopment"];
     const project = prepareProject(options);
-    const child = Bun.spawn([executable, command], {
+    const child = Bun.spawn([executable, command, ...(options.args ?? [])], {
       cwd: project,
       env: deploymentEnv(project, options),
       stdin: "pipe",
@@ -2290,7 +2431,461 @@ test("configured installation ignores deployment-only scope checks and needs no 
   ).toEqual(["install"]);
 });
 
+test.each([
+  { args: ["--environment", "development"] },
+  { args: ["-e", "development"] },
+  { args: ["--environment=alice-dev"] },
+  { args: ["-edevelopment"] },
+  { args: ["-dnealice-dev", "-findex.run"] },
+  { args: ["--debugFunctionHandlers", "--environment", "-edevelopment"] },
+  { args: ["-f", "--help", "-edevelopment"] },
+  { args: ["--debugHost", "--environment", "development"] },
+  { args: ["--debugStartingPort=--environment", "-edevelopment"] },
+  { args: ["-u", "--help", "-edevelopment"] },
+  { args: ["-dnu", "--environment", "-edevelopment"] },
+  {
+    args: ["--url", "--environment", "--local-port", "--help", "-edevelopment"],
+  },
+  { args: ["-edevelopment", "--", "--help", "-eproduction"] },
+])(
+  "configured tunnel preserves verified argument grammar %j",
+  async ({ args }) => {
+    const result = await deploy({ command: "tunnel", args });
+    expect(result.exitCode).toBe(0);
+    expect(
+      result.interactions.filter(({ tool }) => tool === "forge"),
+    ).toHaveLength(1);
+    expect(
+      result.interactions.at(-1)?.args.filter((arg) => arg === "tunnel"),
+    ).toHaveLength(1);
+    if (args.some((arg) => arg === "--"))
+      expect(result.interactions.at(-1)?.args.slice(-3)).toEqual([
+        "--",
+        "--help",
+        "-eproduction",
+      ]);
+  },
+);
+
+test.each([
+  { args: ["--environment"] },
+  { args: ["-e"] },
+  { args: ["--environment="] },
+  { args: ["-e=development"] },
+  { args: ["-e", ""] },
+  { args: ["-e", "--verbose"] },
+  { args: ["-e", "staging"] },
+  { args: ["--environment=production"] },
+  { args: ["--environment", sharedValue] },
+  { args: ["-edevelopment", "--environment", "development"] },
+  { args: ["-dnealice-dev", "-edevelopment"] },
+])(
+  "configured tunnel rejects invalid or duplicate targets %j before tools",
+  async ({ args }) => {
+    const result = await deploy({ command: "tunnel", args });
+    expect(result.exitCode).toBe(1);
+    expect(result.interactions).toEqual([]);
+    expect(result.stderr).toContain("tunnel option validation");
+  },
+);
+
+test.each(["production", "", "bad.target"])(
+  "configured tunnel rejects unsupported configured target %j",
+  async (target) => {
+    const result = await deploy({
+      command: "tunnel",
+      values: { ...deploymentValues, FORGE_ENV: target },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stderr).toContain("tunnel target validation");
+  },
+);
+
+test.each(["", "--option-like", "0", "false"])(
+  "configured tunnel preserves destination-supported runtime string %j",
+  async (value) => {
+    const result = await deploy({
+      command: "tunnel",
+      args: ["-edevelopment"],
+      values: { ...deploymentValues, OPTIONAL: value },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.interactions.at(-1)?.runtime).toEqual({
+      SHARED: sharedValue,
+      OPTIONAL: value,
+    });
+  },
+);
+
+test.each([
+  deploymentSpec.split("[scopes.runtime]")[0] ?? "",
+  `${deploymentSpec.replace('["SHARED", "OPTIONAL"]', '["OTHER"]')}\n[profiles.other]\nOTHER = { description = "Other profile" }\n`,
+])(
+  "configured tunnel without effective runtime members creates no injection or synchronization",
+  async (spec) => {
+    const result = await deploy({
+      command: "tunnel",
+      args: ["-edevelopment"],
+      spec,
+      manifest: null,
+      env: { FORGE_USER_VAR_UNDECLARED: "stale" },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.interactions.map(({ args }) => args[0])).toEqual([
+      "schema",
+      "export",
+      "tunnel",
+    ]);
+    expect(result.interactions.at(-1)?.runtime).toEqual({});
+  },
+);
+
+test("configured tunnel checks manifest declarations before starting and reuses shared local/runtime values", async () => {
+  const spec = `${deploymentSpec}\n[scopes.manifest]\nsecrets = ["SHARED", "OPTIONAL"]\n`;
+  const mismatch = await deploy({
+    command: "tunnel",
+    args: ["-edevelopment"],
+    spec,
+    manifest: "environment:\n  variables: [SHARED]\n",
+  });
+  expect(mismatch.exitCode).toBe(1);
+  expect(mismatch.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+    [],
+  );
+  expect(mismatch.stderr).toContain("manifest declaration for OPTIONAL");
+  const match = await deploy({
+    command: "tunnel",
+    args: ["-edevelopment"],
+    spec,
+    manifest:
+      "environment:\n  variables:\n    - SHARED\n    - key: OPTIONAL\n      default: fallback\n",
+  });
+  expect(match.exitCode).toBe(0);
+  expect(match.interactions.at(-1)?.runtime).toEqual({ SHARED: sharedValue });
+  expect(match.interactions.at(-1)?.values["SHARED"]).toBe(sharedValue);
+});
+
+test.each(["SHARED", "LOCAL_ONLY", "FORGE_ENV"])(
+  "configured tunnel requires whole-profile %s despite target override",
+  async (missing) => {
+    const values: Record<string, string> = { ...deploymentValues };
+    delete values[missing];
+    const result = await deploy({
+      command: "tunnel",
+      args: ["-edevelopment"],
+      values,
+      env: { SECRETSPEC_SCOPE: "runtime" },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stderr).toContain("resolved value validation");
+  },
+);
+
+test.each([2, 23, 127, 255])(
+  "configured tunnel preserves numeric status %i without follow-up",
+  async (exitCode) => {
+    const result = await deploy({
+      command: "tunnel",
+      args: ["-edevelopment"],
+      failStage: "tunnel",
+      exitCode,
+    });
+    expect(result.exitCode).toBe(exitCode);
+    expect(result.stderr).toContain(`tunnel failed: exit status ${exitCode}`);
+    expect(result.stdout).toContain("synthetic tunnel result");
+    expect(result.interactions.map(({ args }) => args[0])).toEqual([
+      "schema",
+      "export",
+      "tunnel",
+    ]);
+  },
+);
+
+test.each([
+  { failStage: "schema" },
+  { failStage: "export" },
+  { missingTool: "forge" },
+  { missingTool: "secretspec" },
+  { launchTool: "forge" },
+  { launchTool: "secretspec" },
+  { failStage: "tunnel", failureMode: "signal" as const },
+])(
+  "configured tunnel fails safely with private helper output %j",
+  async (options) => {
+    const result = await deploy({
+      ...options,
+      command: "tunnel",
+      args: ["-edevelopment"],
+    });
+    expect(result.exitCode).toBe(1);
+    expect(
+      result.interactions
+        .filter(({ tool }) => tool === "forge")
+        .map(({ args }) => args[0]),
+    ).toEqual(options.failStage === "tunnel" ? ["tunnel"] : []);
+    expect(result.stderr).not.toContain("synthetic helper noise");
+    expect(result.stderr).not.toContain(
+      "Remote variables may already have changed",
+    );
+  },
+);
+
+test.skipIf(process.platform === "win32").each([
+  { blockStage: "schema", signal: "SIGINT", ignoreSignal: false },
+  { blockStage: "export", signal: "SIGTERM", ignoreSignal: true },
+  { blockStage: "tunnel", signal: "SIGINT", ignoreSignal: false },
+  { blockStage: "tunnel", signal: "SIGINT", ignoreSignal: true },
+  { blockStage: "tunnel", signal: "SIGTERM", ignoreSignal: true },
+] as const)(
+  "configured tunnel interruption $signal at $blockStage cleans descendants (ignores: $ignoreSignal)",
+  async ({ blockStage, signal, ignoreSignal }) => {
+    const result = await deploy({
+      command: "tunnel",
+      args: ["-edevelopment"],
+      blockStage,
+      ignoreSignal,
+      spawnDescendant: true,
+      onSpawn: async (child, project) => {
+        await waitUntil(
+          () =>
+            existsSync(join(project, "ready")) &&
+            existsSync(join(project, "descendant-ready")),
+          "tunnel group readiness",
+        );
+        const pid = Number(await Bun.file(join(project, "ready")).text());
+        const descendant = Number(
+          await Bun.file(join(project, "descendant-ready")).text(),
+        );
+        child.kill(signal);
+        await waitUntil(
+          () => child.exitCode !== null,
+          "interrupted tunnel wrapper exit",
+        );
+        await waitUntil(
+          () => !processRunning(pid) && !processRunning(descendant),
+          "tunnel group cleanup",
+        );
+        expect(await Bun.file(join(project, "received-signal")).text()).toBe(
+          signal,
+        );
+      },
+    });
+    expect(result.exitCode).toBe(signal === "SIGINT" ? 130 : 143);
+    expect(result.stderr).toContain(`interrupted by ${signal}`);
+    expect(result.interactions.at(-1)?.args[0]).toBe(blockStage);
+  },
+  12_000,
+);
+
 const realSecretSpec = Bun.which("secretspec");
+
+test.skipIf(!realSecretSpec).each([
+  {
+    name: "canonical",
+    declarations:
+      'FORGE_ENVIRONMENT = { description = "Target", default = "development" }',
+    args: [],
+    pass: true,
+    target: "development",
+  },
+  {
+    name: "legacy named development",
+    declarations:
+      'FORGE_ENV = { description = "Target", default = "alice-dev" }',
+    args: [],
+    pass: true,
+    target: "alice-dev",
+  },
+  {
+    name: "matching aliases",
+    declarations:
+      'FORGE_ENVIRONMENT = { description = "Target", default = "development" }\nFORGE_ENV = { description = "Legacy", default = "development" }',
+    args: [],
+    pass: true,
+    target: "development",
+  },
+  {
+    name: "explicit override",
+    declarations:
+      'FORGE_ENVIRONMENT = { description = "Target", default = "staging" }',
+    args: ["--environment=alice-dev"],
+    pass: true,
+    target: "alice-dev",
+  },
+  {
+    name: "optional fallback",
+    declarations:
+      'FORGE_ENVIRONMENT = { description = "Target", required = false }',
+    args: [],
+    pass: true,
+    target: "development",
+  },
+  {
+    name: "unsupported staging",
+    declarations:
+      'FORGE_ENVIRONMENT = { description = "Target", default = "staging" }',
+    args: [],
+    pass: false,
+    target: "unused",
+  },
+  {
+    name: "conflict despite override",
+    declarations:
+      'FORGE_ENVIRONMENT = { description = "Target", default = "staging" }\nFORGE_ENV = { description = "Legacy", default = "production" }',
+    args: ["-edevelopment"],
+    pass: false,
+    target: "unused",
+  },
+  {
+    name: "required despite override",
+    declarations:
+      'FORGE_ENVIRONMENT = { description = "Target", required = true }',
+    args: ["-edevelopment"],
+    pass: false,
+    target: "unused",
+  },
+])(
+  "native configured tunnel controls-only profile: $name",
+  async ({ declarations, args, pass, target }) => {
+    const result = await deploy({
+      command: "tunnel",
+      args,
+      realSecretSpec: realSecretSpec ?? "",
+      spec: `[project]\nname = "synthetic-tunnel-controls"\nrevision = "1.0"\n[profiles.default]\n${declarations}\nFORGE_SITE = { description = "Site", default = "synthetic.atlassian.net" }\nFORGE_PRODUCT = { description = "Product", default = "jira" }\n`,
+      schema: {
+        properties: {
+          FORGE_ENVIRONMENT: {},
+          FORGE_ENV: {},
+          FORGE_SITE: {},
+          FORGE_PRODUCT: {},
+        },
+      },
+      manifest: null,
+      dotenv: "",
+      env: {
+        SECRETSPEC_PROVIDER: "dotenv:values.env",
+        FORGE_ENVIRONMENT: "stale",
+        FORGE_USER_VAR_UNDECLARED: "stale",
+      },
+    });
+    expect(result.exitCode).toBe(pass ? 0 : 1);
+    const forge = result.interactions.filter(({ tool }) => tool === "forge");
+    expect(forge.map(({ args }) => args)).toEqual(
+      pass ? [["tunnel", "--environment", target]] : [],
+    );
+    if (pass) expect(forge[0]?.runtime).toEqual({});
+  },
+);
+
+test.skipIf(!realSecretSpec)(
+  "native configured tunnel shares one inherited profile resolution with local manifest and runtime destinations",
+  async () => {
+    const spec = `${canonicalSpec.replace("[scopes.runtime]", '[profiles.localdev]\nFORGE_ENVIRONMENT = { description = "Target", default = "development" }\nLOCAL_ONLY = { description = "Local override", default = "synthetic-local-dev" }\n\n[scopes.runtime]')}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`;
+    const result = await deploy({
+      command: "tunnel",
+      realSecretSpec: realSecretSpec ?? "",
+      spec,
+      files: { "selected.toml": spec },
+      schema: canonicalSchema,
+      manifest: "environment:\n  variables: [SHARED]\n",
+      dotenv: "SHARED=synthetic-native-shared\nOPTIONAL=\n",
+      env: {
+        SECRETSPEC_FILE: "selected.toml",
+        SECRETSPEC_PROFILE: "localdev",
+        SECRETSPEC_PROVIDER: "dotenv:values.env",
+        SECRETSPEC_SCOPE: "manifest",
+        FORGE_USER_VAR_OPTIONAL: "stale",
+        FORGE_USER_VAR_LOCAL_ONLY: "unauthorized",
+      },
+    });
+    expect(result.exitCode).toBe(0);
+    const forge = result.interactions.filter(({ tool }) => tool === "forge");
+    expect(forge).toEqual([
+      {
+        tool: "forge",
+        args: ["tunnel", "--environment", "development"],
+        values: {
+          FORGE_ENVIRONMENT: "development",
+          SHARED: "synthetic-native-shared",
+          LOCAL_ONLY: "synthetic-local-dev",
+          OPTIONAL: "",
+        },
+        runtime: { SHARED: "synthetic-native-shared", OPTIONAL: "" },
+      },
+    ]);
+    const native = result.interactions.filter(
+      ({ tool }) => tool === "secretspec",
+    );
+    expect(native.map(({ args }) => args[0])).toEqual(["schema", "export"]);
+    for (const { args } of native)
+      expect(args.slice(1, 5)).toEqual([
+        "--file",
+        join(result.project, "selected.toml"),
+        "--profile",
+        "localdev",
+      ]);
+  },
+);
+
+test.skipIf(!realSecretSpec).each(["SHARED", "LOCAL_ONLY"])(
+  "native configured tunnel blocks missing whole-profile %s despite explicit target",
+  async (missing) => {
+    const result = await deploy({
+      command: "tunnel",
+      args: ["-edevelopment"],
+      realSecretSpec: realSecretSpec ?? "",
+      spec: canonicalSpec,
+      schema: canonicalSchema,
+      dotenv:
+        missing === "SHARED"
+          ? "LOCAL_ONLY=synthetic-local\n"
+          : "SHARED=synthetic-shared\n",
+      env: {
+        SECRETSPEC_PROVIDER: "dotenv:values.env",
+        SECRETSPEC_SCOPE: "runtime",
+      },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+  },
+);
+
+test.skipIf(!realSecretSpec)(
+  "native configured tunnel omits absent optional runtime values and stale injection",
+  async () => {
+    const result = await deploy({
+      command: "tunnel",
+      args: ["-edevelopment"],
+      realSecretSpec: realSecretSpec ?? "",
+      spec: canonicalSpec,
+      schema: canonicalSchema,
+      dotenv:
+        "SHARED=synthetic-native-shared\nLOCAL_ONLY=synthetic-native-local\n",
+      env: {
+        SECRETSPEC_PROVIDER: "dotenv:values.env",
+        OPTIONAL: "stale",
+        FORGE_USER_VAR_OPTIONAL: "stale",
+      },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.interactions.at(-1)?.values).toEqual({
+      FORGE_ENVIRONMENT: "staging",
+      SHARED: "synthetic-native-shared",
+      LOCAL_ONLY: "synthetic-native-local",
+    });
+    expect(result.interactions.at(-1)?.runtime).toEqual({
+      SHARED: "synthetic-native-shared",
+    });
+  },
+);
 
 test.skipIf(!realSecretSpec).each(
   [

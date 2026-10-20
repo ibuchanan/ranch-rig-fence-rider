@@ -308,6 +308,69 @@ implementation commit; scratch completion records remain local and ignored.
 
 [uninstall-guide]: ../how-to/how-to.md#uninstall-the-configured-app
 
+## Configured tunnel ticket 05 — 2026-10-20
+
+Implemented `fence-rider tunnel` at the approved compiled public CLI seam.
+Red-before-green slices cover explicit runtime prefix mapping/stale cleanup,
+unsupported target rejection, target/debug grammar, protected controls,
+reserved-prefix declaration collisions, configuration-free help, and required
+URL payload handling. `src/tunnel.ts` reuses shared configuration, optional
+manifest checks, live stdio, failure statuses, and bounded process cleanup.
+No resolver, dependency, provider SDK, declaration inventory, exemption, or
+new private test API was added; health thresholds remain unchanged.
+
+One native SecretSpec 0.21.1 synthetic dotenv export supplies ordinary local
+values and explicit runtime mapping. Twelve native cases cover controls-only
+profiles, canonical/legacy/conflicting aliases, required values despite
+explicit targets, optional/default fallback, absent/empty runtime values,
+file/profile/provider selection, in-file inheritance, manifest checking, and
+stale prefix removal. Controlled Forge children observe the environment passed
+by the compiled wrapper, not a connected function runtime. They prove no
+variable upload/deletion, deployment, installation, or extra Forge operation.
+
+Interface evidence: installed Forge CLI 14.2.0 `tunnel --help`, exact published
+14.2.0 registration/controller/environment sources, shared 9.8.0 environment
+mapping, tunnel 7.3.0 local invocation server and sandbox, and runtime 7.0.1
+`getUserVars`. The runtime helper strips `FORGE_USER_VAR_`, retaining empty
+strings. Official documentation supports named development environments,
+not staging/production tunnels. The wrapper rejects reserved staging/production
+before Forge and does not pretend syntax validation proves that a named target
+exists or is authorized. Forge's `-h` is debug host, not help. Required,
+optional, attached, grouped, switch-looking, and post-terminator payloads retain
+the inspected argument contract. Bun 1.4.3 interface inspection emitted Forge's
+Node.js 22.x/24.x support warning; it does not certify a Forge runtime under Bun.
+
+Validation: `bun run check` passes lint, test, size, and pack gates. A separate
+full run passes **396 tests / 2782 assertions**, zero failures, up from the fresh
+320-test / 2306-assertion baseline. All native checks ran. Focused tunnel/help
+regressions pass 142 tests / 1029 assertions. Numeric tunnel statuses, private
+helper/launch/child-signal failures, inherited input, pre-exit output, optional
+manifest failure ordering, and bounded SIGINT/SIGTERM cleanup of ignoring
+process descendants are covered. No real-terminal or Windows tree claim is
+made. One earlier full gate hit an anomalous existing lint-test timeout after
+a long execution pause; the complete gate and separate full suite both passed
+on repeat without weakening timeouts or checks. `bun run lint`,
+`bun run lint:docs`, `bun run build`, compiled tunnel help/alias/version,
+and `git diff --check` pass after removing temporary inspection downloads.
+
+The [procedure][tunnel-guide] supplies prerequisites and a short app script;
+the [contract](reference.md#configured-tunnel) specifies destination-specific
+empty-string support, reserved-prefix collision handling, and live Forge/app
+logs without redaction. Inspection archives are removed, not committed.
+Scratch ticket completion is local and ignored; durable evidence is recorded
+here. Existing user specification edits remain excluded from the implementation
+commit.
+
+**Connected runtime receipt: blocked pending separate authorization.** No live
+tunnel, app/site invocation, registration, remote-variable mutation, deployment,
+installation, or live cleanup was authorized or run. An authorized disposable
+development app and approved boolean-only observation of explicit runtime
+members (and absence of an unselected member) are still needed. Ordinary child
+environment observation is not reported as connected runtime delivery.
+Dependency provisioning and packed consumer acceptance remain tickets 06/07.
+
+[tunnel-guide]: ../how-to/how-to.md#tunnel-with-configured-local-runtime-values
+
 ## Configured deployment ticket 01 — 2026-10-19
 
 `FORGE_ENVIRONMENT` is canonical for deployment; `FORGE_ENV` remains a legacy

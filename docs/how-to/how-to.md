@@ -184,6 +184,48 @@ has run. See the [uninstall reference][uninstall].
 
 [uninstall]: ../reference/reference.md#configured-uninstall
 
+## Tunnel with configured local runtime values
+
+Use an already registered, deployed, and installed disposable Forge development
+app, with authorization to redirect its invocations. Install and authenticate
+SecretSpec and Forge separately on `PATH`. The wrapper does not deploy or
+install prerequisites. Named targets must already be development environments.
+
+1. Declare all required values in `secretspec.toml`. Add only intended function
+   runtime names to `[scopes.runtime].secrets`; keep targeting controls out.
+   Do not declare names beginning with `FORGE_USER_VAR_`. Controls-only apps
+   need no runtime scope. Match optional manifest-scope declarations.
+2. Supply values through your authenticated provider. For synthetic dotenv
+   use, keep the values file ignored and set `SECRETSPEC_PROVIDER=dotenv:values.env`.
+   Explicit targets do not bypass required values or conflicting aliases.
+3. Add a short script alongside the other app scripts:
+
+   ```json
+   {
+     "scripts": {
+       "tunnel": "fence-rider tunnel"
+     }
+   }
+   ```
+
+   Put the built binary on `PATH` as `fence-rider`. Package delivery is not yet
+   implemented. Run `bun run tunnel --environment development`, or select an
+   authorized existing named development environment. Use `fence-rider tunnel
+   --help` for discovery; `-h` is Forge's debug-host option, not help.
+4. After connection, invoke the installed app through the authorized development
+   site. Avoid logging values: Forge/tunnel/app output is live
+   **without redaction**.
+   Stop the tunnel with Ctrl-C.
+
+The wrapper maps explicit runtime members to Forge's local mechanism; it does
+not upload/delete remote variables, deploy, or install. Empty runtime strings
+are allowed; absent optionals and stale ambient prefixed values are omitted.
+See the [exact mapping and restrictions][tunnel-contract]. This is a procedure,
+not live success evidence: connected runtime receipt remains blocked pending
+separate authorization in the [validation record](../reference/validation.md).
+
+[tunnel-contract]: ../reference/reference.md#configured-tunnel
+
 ## Select a profile, file, or deployment target
 
 Use `SECRETSPEC_FILE` for a different single TOML file and
@@ -244,10 +286,10 @@ redacted diagnostics do not remove that risk. Empty and leading-dash runtime
 values are rejected before any upload. Local empty strings and string values
 `"0"` and `"false"` are preserved; absent optionals are not coerced or deleted.
 
-Run `forge tunnel` directly when needed; Fence Rider still rejects tunneling.
-Tunneling needs a verified development-target and local secret-injection
-contract, not a reuse of remote runtime uploads. Configured installation above
-is not runtime variable activation.
+Use [configured tunneling](#tunnel-with-configured-local-runtime-values) only
+for authorized development environments. Its local runtime mapping is not a
+reuse of remote uploads. Staging/production tunneling is rejected. Configured
+installation above is not runtime variable activation.
 
 ## Arrange a live smoke test
 

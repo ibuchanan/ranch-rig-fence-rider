@@ -406,15 +406,15 @@ suppress local delivery or Forge's substitution requirements.
 
 SecretSpec schema/export and encrypted-upload stdout remain private and stderr
 is discarded. Deployment retains its existing suppressed-output contract.
-Delegated lint, installation, and uninstall inherit stdin, stdout, and stderr:
+Delegated lint, installation, uninstall, and tunnel inherit stdin, stdout, and stderr:
 output is live, without redaction, and on its original stream; input is available
 without wrapper prompts. Wrapper-owned diagnostics omit values and raw helper
 errors. **Forge output, exception details, application logs, echoed input, and
 terminal sessions may expose values**; Fence Rider provides no passthrough
 redaction or credential isolation. Existing ambient authentication is retained.
 
-This shared user-facing stdio mode serves lint, installation, and uninstall;
-it does not implement tunnel or certify terminal-specific prompt behavior.
+This shared user-facing stdio mode serves lint, installation, uninstall, and
+tunnel; it does not certify terminal-specific prompt behavior.
 Ordinary pipe checks establish input and pre-exit streaming.
 POSIX interruption forwards SIGINT/SIGTERM to the active process group, escalates
 after one second, and kills remaining group members, including when the direct
@@ -545,6 +545,76 @@ cleanup remain unverified. See the [procedure][uninstall-guide] and
 
 [uninstall-guide]: ../how-to/how-to.md#uninstall-the-configured-app
 
+## Configured tunnel
+
+`fence-rider tunnel [Forge options]` resolves the whole active profile once,
+checks optional `manifest` declarations, and delegates one `forge tunnel`.
+Required local, manifest, runtime, and control declarations still apply with
+explicit target overrides. Ordinary resolved values, process settings, and
+existing authentication remain available to Forge locally. No extra scope or
+second variable inventory is required.
+
+Only effective explicit `runtime` members are copied to
+`FORGE_USER_VAR_<name>` in the tunnel child environment. Forge strips that
+prefix for local function runtime variables; ordinary local inheritance is
+not evidence of runtime delivery. Shared members use the same resolved value
+locally and in that mapping. Absent optionals are omitted. Empty strings,
+leading-dash strings, multiline values, `"0"`, and `"false"` are supported by
+this environment mechanism, unlike deployment's positional upload contract.
+The four targeting controls cannot be runtime members.
+
+Ambient `FORGE_USER_VAR_` entries are removed before mapped members are added,
+including stale optional and unrelated entries. Active-profile declarations
+using that prefix are rejected, even if not runtime members: this avoids both
+an implicit runtime bypass and silently losing declared local values. Ordinary
+credentials/settings remain inherited; this is not credential isolation.
+
+Target order is explicit `--environment` / `-e`, resolved
+`FORGE_ENVIRONMENT` / legacy `FORGE_ENV`, then `development`. Alias conflicts
+fail even with an override. Empty, invalid, and duplicate explicit targets
+fail before tools run. Reserved `staging` and `production` are rejected before
+Forge starts. Named targets must be existing development environments; syntax
+validation does not prove their existence, ownership, or authorization.
+Site/product flags are never injected. Names use the wrapper's established
+alphanumeric-first, then alphanumeric/underscore/hyphen target syntax.
+
+Separated, long-equals, attached-short, and grouped `-d`/`-n` environment
+options normalize to one effective target. Debug arguments retain order and
+boundaries. Forge 14.2.0 has required variadic `--debugFunctionHandlers` / `-f`,
+optional `--debugHost` / `-h` and `--debugStartingPort` / `-p`, plus debug and
+no-verify flags. **`-h` is debug host, not help.** Required payloads consume a
+switch-looking first value; optional values do not consume a following switch.
+Attached/equals values and everything after `--` are preserved. The inspected
+feature-gated `--url` / `-u` and `--local-port` required values are preserved;
+this does not enable or certify that upstream feature. Unknown switches remain
+Forge's responsibility; no universal future-option parser is promised.
+`tunnel --help` and `help tunnel` need no configuration or external tools.
+
+The [live stdio policy](#output-and-input-policy) applies without redaction,
+including tunnel/app logs. Numeric Forge status propagates. Private helper,
+launch, validation, and signal failures cannot become success. Operator
+SIGINT/SIGTERM returns 130/143 with bounded POSIX group/descendant cleanup,
+including ignoring helpers. Windows tree cleanup and terminal-specific
+behavior remain unverified. No upload, variable deletion, deploy, installation,
+retry, follow-up, or permanent secret file is added by wrapper orchestration.
+A connected tunnel itself contacts Forge and redirects development invocations;
+this is not a read-only or offline workflow.
+
+Observed 2026-10-20: installed Forge CLI 14.2.0 `tunnel --help` and published
+14.2.0 tunnel registration/environment/controller sources; `@forge/runtime`
+7.0.1 `getUserVars` strips `FORGE_USER_VAR_` and preserves empty strings.
+`@forge/tunnel` 7.3.0 builds each local invocation using that helper and the
+local dev server's user variables. Official [tunneling][tunneling] and
+[environment guidance][environments] describe local variables and named
+development environments. Inspection under Bun 1.4.3 emitted Forge's Node.js
+22.x/24.x support warning; this is interface evidence, not runtime certification.
+Native SecretSpec 0.21.1 synthetic dotenv tests and controlled Forge subprocesses
+prove wrapper mapping, not connected runtime receipt. No live tunnel was
+authorized or run. See the [procedure][tunnel-guide] and [validation record](validation.md).
+
+[tunneling]: https://developer.atlassian.com/platform/forge/tunneling/
+[tunnel-guide]: ../how-to/how-to.md#tunnel-with-configured-local-runtime-values
+
 ## Verification ownership
 
 Contract decisions are recorded in ticket 01. Its completion does not depend
@@ -576,8 +646,10 @@ checks rather than treating the initial contract as proof.
 | Forge input boundary | Positional argument boundaries and fail-closed restrictions tested locally; server acceptance and safer input mechanisms unverified |
 | Live Forge behavior | Blocked: no authorized disposable app/environment, writes, deployment, or cleanup |
 
-Tunneling remains unsupported by Fence Rider pending its own implementation
-and evidence. Local availability does not imply a general command runner.
+Configured tunneling uses the explicit [local runtime mapping](#configured-tunnel),
+not remote upload or ordinary environment inheritance alone. Connected runtime
+receipt remains blocked pending authorization. Local availability does not
+imply a general command runner.
 
 ## Sources
 
