@@ -36,11 +36,11 @@ test("Fallow check hides successful reports but preserves failure details and st
   const { scripts } = await Bun.file(join(root, "package.json")).json();
   for (const status of [0, 1, 2]) {
     const result = await fixture(
-      { "lint:fallow": scripts["lint:fallow"] },
+      { "lint:check:fallow": scripts["lint:check:fallow"] },
       {
         fallow: `#!/bin/sh\nprintf 'SYNTHETIC_FALLOW_REPORT\\n'\nprintf 'SYNTHETIC_FALLOW_DIAGNOSTIC\\n' >&2\nexit ${status}\n`,
       },
-      scripts["lint:fallow"],
+      scripts["lint:check:fallow"],
     );
     expect(result.exitCode).toBe(status);
     if (status === 0) {
@@ -54,11 +54,6 @@ test("Fallow check hides successful reports but preserves failure details and st
 
 test("check hides passing tests while keeping failures, totals, and failure status", async () => {
   const { scripts } = await Bun.file(join(root, "package.json")).json();
-  const hooks = Bun.YAML.parse(
-    await Bun.file(join(root, "lefthook.yml")).text(),
-  ) as {
-    "pre-push": { commands: { test: { run: string } } };
-  };
   for (const fails of [false, true]) {
     const result = await fixture(
       { test: scripts.test, "test:check": scripts["test:check"] },
@@ -67,7 +62,7 @@ test("check hides passing tests while keeping failures, totals, and failure stat
           test("synthetic passing case", () => expect(true).toBe(true));
           ${fails ? 'test("synthetic failing case", () => expect(false).toBe(true));' : ""}`,
       },
-      hooks["pre-push"].commands.test.run,
+      "bun run test:check",
     );
     expect(result.exitCode).toBe(fails ? 1 : 0);
     expect(result.output).not.toContain("(pass) synthetic passing case");
