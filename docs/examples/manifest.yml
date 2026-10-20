@@ -1,0 +1,6 @@
+# Test fragment only: merge environment variables into a registered app manifest.
+app: {}
+environment:
+  variables:
+    - MANIFEST_INPUT
+    - SHARED

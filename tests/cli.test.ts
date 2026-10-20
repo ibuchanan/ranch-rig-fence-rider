@@ -365,6 +365,323 @@ test.skipIf(process.platform === "win32")(
   },
 );
 
+test.skipIf(!secretSpecAssets)(
+  "documented installed consumer deploy script resolves shared values and preserves approval policy",
+  async () => {
+    const example = await Bun.file(
+      join(root, "docs/examples/package.json"),
+    ).json();
+    const project = await packedConsumer();
+    await setupConsumer(project);
+    writeFileSync(join(project, "package.json"), JSON.stringify(example));
+    for (const name of ["secretspec.toml", "manifest.yml", "values.env"])
+      writeFileSync(
+        join(project, name),
+        await Bun.file(join(root, "docs/examples", name)).text(),
+      );
+    const options = {
+      schema: {
+        properties: {
+          FORGE_ENVIRONMENT: {},
+          FORGE_SITE: {},
+          FORGE_PRODUCT: {},
+          LOCAL_ONLY: {},
+          MANIFEST_INPUT: {},
+          RUNTIME_ONLY: {},
+          SHARED: {},
+          OPTIONAL: {},
+        },
+      },
+    };
+    const child = Bun.spawn([process.execPath, "run", "deploy"], {
+      cwd: project,
+      env: {
+        ...deploymentEnv(project, options),
+        PATH: `${join(project, "bin")}:${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}`,
+        SECRETSPEC_PROVIDER: "dotenv:values.env",
+        OPTIONAL: "stale",
+      },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [status, stdout, stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ]);
+    expect(status, stdout + stderr).toBe(0);
+    const calls: ToolCall[] = (
+      await Bun.file(join(project, "tool-calls")).text()
+    )
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    expect(calls.map(({ args }) => args)).toEqual([
+      [
+        "variables",
+        "set",
+        "--encrypt",
+        "--environment",
+        "development",
+        "RUNTIME_ONLY",
+        "synthetic-runtime",
+      ],
+      [
+        "variables",
+        "set",
+        "--encrypt",
+        "--environment",
+        "development",
+        "SHARED",
+        "https://example.com",
+      ],
+      [
+        "deploy",
+        "--environment",
+        "development",
+        "--non-interactive",
+        "--approve",
+        "MAJOR_VERSION_RULE",
+      ],
+    ]);
+    expect(calls[0]?.values).toEqual({
+      FORGE_ENVIRONMENT: "development",
+      FORGE_SITE: "synthetic.atlassian.net",
+      FORGE_PRODUCT: "jira",
+      LOCAL_ONLY: "synthetic-local",
+      MANIFEST_INPUT: "https://example.org",
+      RUNTIME_ONLY: "synthetic-runtime",
+      SHARED: "https://example.com",
+    });
+    for (const call of calls)
+      expect(call.values).toEqual(calls[0]?.values ?? {});
+    expect(stdout + stderr).not.toContain("synthetic-runtime");
+  },
+);
+
+test.skipIf(!secretSpecAssets)(
+  "documented installed consumer scripts preserve workflow-specific policy without unwanted writes",
+  async () => {
+    const example = await Bun.file(
+      join(root, "docs/examples/package.json"),
+    ).json();
+    const project = await packedConsumer();
+    await setupConsumer(project);
+    writeFileSync(join(project, "package.json"), JSON.stringify(example));
+    for (const name of ["secretspec.toml", "manifest.yml", "values.env"])
+      writeFileSync(
+        join(project, name),
+        await Bun.file(join(root, "docs/examples", name)).text(),
+      );
+    const cases = [
+      {
+        script: "deploy:reviewed",
+        expected: [
+          "deploy",
+          "--environment",
+          "development",
+          "--non-interactive",
+          "--approve",
+          "REVIEWED_RULE_FROM_FORGE",
+        ],
+        uploads: true,
+      },
+      {
+        script: "install:forge",
+        expected: [
+          "install",
+          "--environment",
+          "development",
+          "--site",
+          "synthetic.atlassian.net",
+          "--product",
+          "jira",
+          "--confirm-scopes",
+          "--non-interactive",
+        ],
+      },
+      {
+        script: "upgrade:forge",
+        expected: [
+          "install",
+          "--environment",
+          "development",
+          "--site",
+          "synthetic.atlassian.net",
+          "--product",
+          "jira",
+          "--upgrade",
+          "--confirm-scopes",
+          "--non-interactive",
+        ],
+      },
+      {
+        script: "uninstall:forge",
+        expected: [
+          "uninstall",
+          "--environment",
+          "development",
+          "--site",
+          "synthetic.atlassian.net",
+          "--product",
+          "jira",
+        ],
+      },
+      { script: "lint:forge", expected: ["lint"] },
+      {
+        script: "tunnel",
+        expected: ["tunnel", "--environment", "development"],
+      },
+    ];
+    for (const { script, expected, uploads } of cases) {
+      const callsFile = join(project, "tool-calls");
+      rmSync(callsFile, { force: true });
+      const child = Bun.spawn([process.execPath, "run", script], {
+        cwd: project,
+        env: {
+          ...deploymentEnv(project, {}),
+          PATH: `${join(project, "bin")}:${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}`,
+          SECRETSPEC_PROVIDER: "dotenv:values.env",
+        },
+        stdin: "pipe",
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      child.stdin.write("caller-owned input\n");
+      child.stdin.end();
+      const [status, stdout, stderr] = await Promise.all([
+        child.exited,
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+      ]);
+      expect(status, stdout + stderr).toBe(0);
+      const calls: ToolCall[] = (await Bun.file(callsFile).text())
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+      expect(calls.at(-1)?.args).toEqual(expected);
+      expect(calls.length).toBe(uploads ? 3 : 1);
+      if (script === "tunnel")
+        expect(calls[0]?.runtime).toEqual({
+          RUNTIME_ONLY: "synthetic-runtime",
+          SHARED: "https://example.com",
+        });
+    }
+  },
+);
+
+test.skipIf(!secretSpecAssets)(
+  "installed controls-only consumer uses defaults, overrides and legacy controls without dummy credentials",
+  async () => {
+    const project = await packedConsumer();
+    await setupConsumer(project);
+    const example = await Bun.file(
+      join(root, "docs/examples/package.json"),
+    ).json();
+    writeFileSync(join(project, "package.json"), JSON.stringify(example));
+    writeFileSync(join(project, "values.env"), "");
+    const base =
+      '[project]\nname = "controls-only"\nrevision = "1.0"\n[profiles.default]\nFORGE_SITE = { description = "Site", default = "synthetic.atlassian.net" }\nFORGE_PRODUCT = { description = "Product", default = "jira" }\n';
+    for (const scenario of [
+      {
+        script: "deploy",
+        declarations: "",
+        args: [],
+        expected: [
+          "deploy",
+          "--environment",
+          "development",
+          "--non-interactive",
+          "--approve",
+          "MAJOR_VERSION_RULE",
+        ],
+      },
+      {
+        script: "install:forge",
+        declarations:
+          'FORGE_ENV = { description = "Legacy", default = "staging" }\n',
+        args: [
+          "--site",
+          "override.atlassian.net",
+          "--product",
+          "confluence",
+          "--environment",
+          "production",
+          "--verbose",
+        ],
+        expected: [
+          "install",
+          "--environment",
+          "production",
+          "--site",
+          "override.atlassian.net",
+          "--product",
+          "confluence",
+          "--confirm-scopes",
+          "--non-interactive",
+          "--verbose",
+        ],
+      },
+      {
+        script: "tunnel",
+        declarations:
+          'FORGE_ENV = { description = "Legacy", default = "alice-dev" }\n',
+        args: [],
+        expected: ["tunnel", "--environment", "alice-dev"],
+      },
+      {
+        script: "lint:forge",
+        declarations:
+          'FORGE_ENV = { description = "Legacy", default = "staging" }\nFORGE_ENVIRONMENT = { description = "Canonical", default = "production" }\n',
+        args: [],
+        expected: null,
+      },
+      {
+        script: "uninstall:forge",
+        declarations:
+          'MISSING = { description = "Full-profile requirement", required = true }\n',
+        args: ["--environment", "development"],
+        expected: null,
+      },
+    ]) {
+      writeFileSync(
+        join(project, "secretspec.toml"),
+        base + scenario.declarations,
+      );
+      const log = join(project, "tool-calls");
+      rmSync(log, { force: true });
+      const child = Bun.spawn(
+        [process.execPath, "run", scenario.script, ...scenario.args],
+        {
+          cwd: project,
+          env: {
+            ...deploymentEnv(project, {}),
+            PATH: `${join(project, "bin")}:${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}`,
+            SECRETSPEC_PROVIDER: "dotenv:values.env",
+          },
+          stdout: "pipe",
+          stderr: "pipe",
+        },
+      );
+      const [status, stdout, stderr] = await Promise.all([
+        child.exited,
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+      ]);
+      expect(status, stdout + stderr).toBe(scenario.expected ? 0 : 1);
+      const calls: ToolCall[] = existsSync(log)
+        ? (await Bun.file(log).text())
+            .trim()
+            .split("\n")
+            .map((line) => JSON.parse(line))
+        : [];
+      expect(calls.map(({ args }) => args)).toEqual(
+        scenario.expected ? [scenario.expected] : [],
+      );
+    }
+  },
+);
+
 test("no command prints help without external tools or valid configuration", async () => {
   const result = await invoke([]);
   expect(result.exitCode).toBe(0);

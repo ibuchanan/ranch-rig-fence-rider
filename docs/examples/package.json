@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "scripts": {
+    "deploy": "fence-rider deploy --non-interactive --approve MAJOR_VERSION_RULE",
+    "deploy:reviewed": "fence-rider deploy --non-interactive --approve REVIEWED_RULE_FROM_FORGE",
+    "install:forge": "fence-rider install --confirm-scopes --non-interactive",
+    "upgrade:forge": "fence-rider install --upgrade --confirm-scopes --non-interactive",
+    "uninstall:forge": "fence-rider uninstall",
+    "lint:forge": "fence-rider lint",
+    "tunnel": "fence-rider tunnel"
+  }
+}
