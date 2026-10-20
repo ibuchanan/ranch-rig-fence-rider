@@ -5,30 +5,19 @@ import {
   capture,
   checkInterruption,
 } from "./process";
+import { isEnvironmentName, isLocalControl } from "./policy";
 import { describeStage, runWorkflow, type Workflow } from "./workflow";
 
 function validateTarget(target: string) {
-  if (
-    typeof target !== "string" ||
-    !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(target)
-  ) {
+  if (typeof target !== "string" || !isEnvironmentName(target))
     throw new Error("Invalid Forge target");
-  }
   return target;
 }
 
 function validateRuntime(names: string[], values: Record<string, string>) {
   for (const key of names) {
-    if (
-      [
-        "FORGE_ENVIRONMENT",
-        "FORGE_ENV",
-        "FORGE_SITE",
-        "FORGE_PRODUCT",
-      ].includes(key)
-    ) {
+    if (isLocalControl(key))
       throw new Error("Local control cannot be uploaded");
-    }
     const value = values[key];
     if (value !== undefined) validateUploadValue(value);
   }

@@ -1,4 +1,5 @@
 import { configure } from "./configured";
+import { isEnvironmentName } from "./policy";
 import { checkInterruption, passthrough } from "./process";
 import { runWorkflow } from "./workflow";
 
@@ -14,14 +15,29 @@ function validateSite(value: string) {
     throw new Error("Invalid site URL");
 }
 
-function validateTarget(name: string, candidate: string | undefined): string {
+function validateEnvironment(value: string) {
+  if (!isEnvironmentName(value)) throw new Error("Invalid target");
+}
+
+function validateProduct(value: string) {
+  if (!/^(jira|confluence|compass|bitbucket)$/i.test(value))
+    throw new Error("Invalid target");
+}
+
+const targetValidators = {
+  environment: validateEnvironment,
+  site: validateSite,
+  product: validateProduct,
+};
+
+type TargetName = keyof typeof targetValidators;
+
+function validateTarget(
+  name: TargetName,
+  candidate: string | undefined,
+): string {
   const value = validateValue(candidate);
-  const patterns: Record<string, RegExp> = {
-    environment: /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/,
-    product: /^(jira|confluence|compass|bitbucket)$/i,
-  };
-  if (patterns[name]?.test(value) === false) throw new Error("Invalid target");
-  if (name === "site") validateSite(value);
+  targetValidators[name](value);
   return value;
 }
 
@@ -52,7 +68,7 @@ function takeTarget(arg: string, pending: string[], options: InstallOptions) {
     options.forwarded.push(arg);
     return;
   }
-  const name = match[1] as string;
+  const name = match[1] as TargetName;
   if (Object.hasOwn(options.targets, name)) throw new Error("Duplicate target");
   options.targets[name] = validateTarget(name, match[2] ?? pending.shift());
 }
@@ -106,7 +122,7 @@ function effectiveTargets(
     product: values["FORGE_PRODUCT"],
   };
   return Object.entries({ ...defaults, ...targets }).flatMap(
-    ([name, value]) => [`--${name}`, validateTarget(name, value)],
+    ([name, value]) => [`--${name}`, validateTarget(name as TargetName, value)],
   );
 }
 

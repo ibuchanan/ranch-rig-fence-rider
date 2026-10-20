@@ -1,12 +1,10 @@
 import { checkManifest, configure, members } from "./configured";
 import { checkInterruption, passthrough } from "./process";
+import { isEnvironmentName, isLocalControl } from "./policy";
 import { runWorkflow } from "./workflow";
 
 function validateTarget(target: string) {
-  if (
-    ["staging", "production"].includes(target) ||
-    !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(target)
-  )
+  if (["staging", "production"].includes(target) || !isEnvironmentName(target))
     throw new Error("Unsupported tunnel environment");
   return target;
 }
@@ -57,14 +55,7 @@ function injectRuntime({
 
 function validateRuntime(runtime: string[]) {
   for (const key of runtime) {
-    if (
-      [
-        "FORGE_ENVIRONMENT",
-        "FORGE_ENV",
-        "FORGE_SITE",
-        "FORGE_PRODUCT",
-      ].includes(key)
-    )
+    if (isLocalControl(key))
       throw new Error("Local control cannot be a tunnel runtime variable");
   }
 }
