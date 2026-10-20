@@ -28,11 +28,19 @@ export class CommandFailure extends Error {
   }
 }
 
+/** Failure of a command delegated to Forge; its exit code is propagated to the operator. */
+export class DelegatedFailure extends CommandFailure {}
+
+/** The one mapping from an interruption signal to its conventional exit status. */
+export function signalExitCode(reason: unknown) {
+  return reason === "SIGINT" ? 130 : 143;
+}
+
 export function checkInterruption(signal: AbortSignal) {
   if (signal.aborted)
     throw new CommandFailure(
       `interrupted by ${signal.reason}`,
-      signal.reason === "SIGINT" ? 130 : 143,
+      signalExitCode(signal.reason),
     );
 }
 
@@ -53,7 +61,13 @@ export async function passthrough(
   signal: AbortSignal,
   env = process.env,
 ) {
-  await supervise(tool, args, signal, env, true);
+  try {
+    await supervise(tool, args, signal, env, true);
+  } catch (error) {
+    if (error instanceof CommandFailure)
+      throw new DelegatedFailure(error.message, error.exitCode);
+    throw error;
+  }
 }
 
 type Child = Bun.Subprocess<

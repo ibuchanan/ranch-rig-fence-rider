@@ -1,6 +1,6 @@
 import { accessSync, constants } from "node:fs";
 import { resolve } from "node:path";
-import { CommandFailure, capture } from "./process";
+import { CommandFailure, capture, signalExitCode } from "./process";
 
 function deliveredSecretSpec(state: ConfigurationState) {
   state.stage =
@@ -241,7 +241,7 @@ export function reportConfiguredFailure(
   console.error(
     `Fence Rider: ${state.stage} failed${detail}. No further commands were run.`,
   );
-  if (state.signal.aborted) return state.signal.reason === "SIGINT" ? 130 : 143;
+  if (state.signal.aborted) return signalExitCode(state.signal.reason);
   return delegatedFailureStatus(error, state.stage === delegatedStage);
 }
 
