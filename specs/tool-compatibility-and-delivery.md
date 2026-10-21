@@ -49,5 +49,5 @@ support.
 ## Evidence rules
 
 Record exact versions and the platform for each result in the
-[validation record](../docs/reference/validation.md). Keep ordinary tests
+[tested versions](../docs/reference/validation.md). Keep ordinary tests
 offline and free of real credentials; setup network use is checked separately.

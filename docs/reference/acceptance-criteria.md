@@ -1,15 +1,12 @@
 # Acceptance criteria
 
-The scenarios that the test suite and the evidence maps refer to by ID. This
-page defines what each ID requires today. Passing checks and the evidence that
-is still missing are recorded elsewhere:
-
-- AC-01–AC-18 (variables and deployment): [validation record](validation.md#acceptance-traceability).
-- CW-01–CW-22 (configured workflows): [consumer evidence map](consumer-workflows.md#cw-acceptance-map).
+The scenarios that the test suite refers to by ID. This page defines what each
+ID requires today; the tests are the evidence. The tested versions and the
+evidence still missing are in [tested versions and evidence](validation.md).
 
 IDs are stable names. Where the contract changed after an ID was first
 written (see the [decision records](../adr/)), the text below is the current
-requirement and the evidence maps note the history.
+requirement.
 
 ## Variables and deployment
 

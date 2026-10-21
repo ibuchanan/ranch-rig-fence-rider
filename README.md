@@ -74,7 +74,7 @@ state.** Set up a disposable app first.
 ## Documentation
 
 - [Command help](docs/reference/command-help.md) and [variable contract](docs/reference/reference.md)
-- [Acceptance criteria](docs/reference/acceptance-criteria.md) and [version evidence](docs/reference/deployment.md)
+- [Acceptance criteria](docs/reference/acceptance-criteria.md) and [tested versions](docs/reference/validation.md)
 - [Why Forge has three kinds of variables](docs/explanation/explanation.md)
 - [What Fence Rider is for, and where it stops](docs/explanation/scope-and-boundaries.md)
 - [Decision records](docs/adr/) and [planned future work](specs/README.md)

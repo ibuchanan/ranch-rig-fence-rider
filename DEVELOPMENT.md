@@ -79,8 +79,8 @@ matches SecretSpec.
 
 `tests/integration/fake-tools/check-script.test.ts` exercises validation output
 and statuses with isolated tools and passing/failing Bun fixtures. No nested full-suite
-invocation is needed. The acceptance map is in the
-[deployment evidence reference](docs/reference/deployment.md).
+invocation is needed. Scenario IDs are defined in the
+[acceptance criteria](docs/reference/acceptance-criteria.md).
 
 ## Installed-package delivery checks
 
@@ -97,8 +97,8 @@ See [delivery evidence and limits](docs/reference/installation.md). Installed
 consumer acceptance reads the checked-in `docs/examples` scripts/declarations
 rather than maintaining a second script specification; all seven workflows and
 a controls-only variant run with native SecretSpec and controlled Forge.
-The [CW evidence map](docs/reference/consumer-workflows.md) separates controlled,
-native, interface and blocked live results.
+[Tested versions and evidence](docs/reference/validation.md) separates
+controlled, native, interface and blocked live results.
 
 ## Validation commands
 
@@ -113,9 +113,8 @@ native, interface and blocked live results.
 | `bun run test:coverage` | Coverage report for inspection |
 | `bun run test:watch` | Interactive test feedback |
 | `bun run lint` | Biome, formatting, typecheck, and Fallow in parallel |
-| `bun run lint:fallow` | Full Fallow gate; report displayed only on failure |
 | `bun run lint:docs` | All Markdown and spelling checks |
-| `bun run check` | Forced pre-push gate: tests (failing if SecretSpec is missing) and lint; optional size/pack scripts are currently absent |
+| `bun run check` | Forced pre-push gate: tests (failing if SecretSpec is missing) and lint |
 | `bun run build` | Compiled CLI at `dist/fence-rider` |
 
 Fallow still fails on dead-code, duplication, or health thresholds as before;
@@ -124,12 +123,64 @@ printed on any nonzero status, including tool errors. Run
 `bunx --no-install fallow` to inspect a successful full report voluntarily.
 `check` uses Bun's `--only-failures`; ordinary `test` remains verbose.
 
-`check` does not include documentation lint or build, so run those separately.
-The current `check` passes after the Fallow cleanup; historical failures and
-current results are recorded in the [validation record](docs/reference/validation.md).
-Documentation lint also passes after the formatting cleanup; run it separately
-because it is not included in `check`.
-Do not raise thresholds or suppress findings to make a gate pass.
+## Runbook
+
+### Check gates
+
+| Gate | Runs | Passes when |
+| --- | --- | --- |
+| `bun run check` | `lint` and `test:check` in parallel | Both pass; the pre-push hook runs it |
+| `bun run lint` | Biome lint, Biome format check, typecheck and Fallow in parallel | All four pass |
+| `bun run test:check` | `test` with `FENCE_RIDER_REQUIRE_NATIVE=1` and `--only-failures` | Every test passes, with SecretSpec 0.21.1 on `PATH` |
+| `bun run lint:docs` | markdownlint and cspell over every Markdown file | No findings |
+
+`check` does not run `lint:docs` or `build`; run them yourself after touching
+documentation or `src/`. Fallow prints nothing on success and its full output on
+any nonzero status; run `bunx --no-install fallow` for a full report. Do not
+raise thresholds or suppress findings to make a gate pass.
+
+### Known validation failures
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `check` fails naming SecretSpec 0.21.1 | Not installed, or not on `PATH`, with the native gate forced | Install SecretSpec 0.21.1 separately |
+| `bun run test` reports skipped native tests | Same, without the forced gate | A skipped run is not native evidence; install SecretSpec |
+| `docs.test.ts` fails on `docs/reference/command-help.md` | A command's usage text changed | Update the page, see below |
+| `docs.test.ts` fails on "usage text ... does not appear in" | A docs page repeats a line of command usage | Link to the command help page instead |
+| `lint` fails in parallel with a cancelled typecheck | Fail-fast cancelled it after Fallow failed | Run `bun run typecheck` alone |
+
+### Bump a tested tool version
+
+1. Install the new version and run `bun run check`. Fix what breaks, including
+   `tests/support/secretspec-answers.ts` if the contract test reports a changed
+   answer shape.
+2. Update `tested` in the tool table in `src/doctor.ts`; change `lowest` only if
+   you exercised the older release.
+3. Update the version table and source findings in
+   [tested versions](docs/reference/validation.md), and the version in the test
+   tier tables above.
+4. Run `bun run lint:docs`.
+
+### Add a command
+
+1. Implement the command in its own `src/<name>.ts`, exporting a `<name>Usage`
+   string and a `run`-shaped function that takes arguments and `Io`.
+2. Add it to the `commands` table in `src/commands.ts` with a `summary`, `usage`
+   and `run`; `main` dispatches from that table and top-level help lists it.
+3. Write a unit test through `main`; add an integration test only for what needs
+   a real process.
+4. Add the command to the `commands` list in `tests/unit/docs.test.ts` and to
+   [command help](docs/reference/command-help.md), then document its contract in
+   [the reference](docs/reference/reference.md) and, if it has scenarios, the
+   [acceptance criteria](docs/reference/acceptance-criteria.md).
+
+### Update the command help page
+
+The command table in `src/commands.ts` is the only place usage text is wired. Run
+`./dist/fence-rider help <command>` after `bun run build` and paste the output
+verbatim into the matching `text` block in
+[command help](docs/reference/command-help.md); `tests/unit/docs.test.ts`
+fails until they match. Other pages link there rather than restating usage.
 
 ## Repository layout
 

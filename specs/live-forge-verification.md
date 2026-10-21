@@ -6,8 +6,7 @@ Status: blocked. No authorization for a disposable app has been supplied.
 
 Every workflow is implemented and tested locally against real SecretSpec 0.21.1
 and controlled Forge executables for Forge CLI 14.2.0
-([evidence map](../docs/reference/consumer-workflows.md),
-[validation record](../docs/reference/validation.md#live-forge-verification--blocked)).
+([tested versions and evidence](../docs/reference/validation.md)).
 Controlled executables prove argument boundaries, ordering, environments, and
 cleanup. They cannot prove what Forge's servers or runtime do.
 

@@ -3,7 +3,7 @@
 This reference defines variable declarations, scope semantics, target
 precedence, per-command behavior and the failure boundary for Fence Rider.
 Tested versions and evidence levels are in the
-[version baseline](validation.md#evidence-levels); procedures are in the
+[version baseline](validation.md#version-baseline); procedures are in the
 [how-to guides](../how-to/installation.md); the reasoning is in
 [Why Forge has three kinds of environment variables][explanation]. Usage text
 for each command lives only in the [command help](command-help.md).

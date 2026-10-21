@@ -6,8 +6,8 @@ uploaded, encrypted.
 
 Before you start, finish the [installation guide](installation.md), and use a
 registered app and environment you are authorized to change. Live Forge
-compatibility is not yet certified; see the [version
-evidence](../reference/deployment.md).
+compatibility is not yet certified; see the [tested
+versions](../reference/validation.md).
 
 ## Configure a dotenv provider
 
@@ -88,7 +88,7 @@ Tunnel maps runtime members to Forge's local mechanism and uploads nothing; see
 ## Deploy in CI with existing authentication
 
 1. Provision SecretSpec, the Forge CLI and `fence-rider` in the runner, using
-   the tested versions from the [version evidence](../reference/deployment.md).
+   the tested versions from the [tested versions](../reference/validation.md).
 2. Supply `FORGE_EMAIL` and `FORGE_API_TOKEN` from the runner's protected
    secret settings, using a Forge-supported scoped API token. Never run an
    interactive login or print them.

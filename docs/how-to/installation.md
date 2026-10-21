@@ -99,4 +99,4 @@ Deployment approval does not grant install scope consent. Keep `--confirm-scopes
 stops before deploying if the upload fails. Forge 14.2.0 has no uninstall
 `--non-interactive` flag, so `uninstall:forge` injects no policy: run it only
 with removal authorization. Evidence limits and live blockers are in the
-[consumer acceptance reference](../reference/consumer-workflows.md).
+[tested versions and evidence](../reference/validation.md).

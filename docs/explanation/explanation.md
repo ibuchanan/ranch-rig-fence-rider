@@ -191,8 +191,8 @@ Only `variables` handles values itself, because it must pass each one to Forge
 as an argument. Tunnel's script uses Forge's local prefixed environment instead
 of changing the remote variable store; printing it reads only names from
 SecretSpec. One resolution can serve these destinations without pretending they
-share a lifecycle. See [consumer workflow
-evidence](../reference/consumer-workflows.md).
+share a lifecycle. See the [tested versions and
+evidence](../reference/validation.md).
 
 ## Related material
 

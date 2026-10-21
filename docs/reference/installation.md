@@ -46,7 +46,8 @@ letters, digits and underscores, which `tunnel` cannot clear. This check is
 advisory and never changes the exit status. No value is printed. The lowest
 supported versions (SecretSpec 0.17, Forge CLI 1.3)
 are inferred from the features used, not exercised; the highest tested versions
-are the only exercised baseline, SecretSpec 0.21.1 and Forge 14.2.0. No
+are the only exercised baseline, listed in
+[tested versions](validation.md#version-baseline). No
 dependency lifecycle script, `setup` command, mirror variable, or cache is
 involved, so Bun's blocked install-script policy and `--ignore-scripts` do not
 affect package installation. Help, version, and invalid commands need neither
@@ -68,5 +69,5 @@ Ordinary tests use controlled executables and need no network. When a real
 `secretspec` is on `PATH`, the suite also runs native synthetic dotenv checks,
 including installed-consumer checks against that executable; without it they
 skip rather than claiming SecretSpec compatibility. Only the 0.21.1 release is
-exercised. See [validation](validation.md) and the
+exercised. See [tested versions](validation.md) and the
 [consumer installation guide](../how-to/installation.md).
