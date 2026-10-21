@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { capture } from "./process";
+import { checkManifest, scopeMembers } from "./configured";
 import { recognizedScopes, unrecognizedScopes } from "./resolution";
 
 /**
@@ -23,8 +24,8 @@ type Dependency = (typeof dependencies)[number];
 export const doctorUsage = [
   "Usage: fence-rider doctor",
   "Report the SecretSpec and Forge CLI versions on PATH against the lowest supported and highest tested versions.",
-  "Also checks the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml) and warns about scopes Fence Rider never reads.",
-  "Exits 1 when a tool is missing, unreadable or older than supported; a newer version or an unused scope is only a warning.",
+  "Also reads the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml): it warns about scopes Fence Rider never reads, and when a manifest scope exists it asks SecretSpec (value-free) for its members and checks that manifest.yml declares them.",
+  "Exits 1 when a tool is missing, unreadable or older than supported, or a manifest scope member is not declared in manifest.yml; a newer version or an unused scope is only a warning.",
   "Other commands never pre-check versions: a changed tool contract surfaces as that command's failure.",
 ].join("\n");
 
@@ -91,14 +92,15 @@ async function declaredScopes(file: string) {
   }
 }
 
+const specificationFile = () =>
+  resolve(process.env["SECRETSPEC_FILE"] ?? "secretspec.toml");
+
 /**
  * Warn about scopes that Fence Rider ignores, where a typo would otherwise pass
  * silently. Advisory only: it reads just the named file, so scopes SecretSpec
  * inherits from other files are not seen.
  */
-async function inspectConfiguration() {
-  const file = resolve(process.env["SECRETSPEC_FILE"] ?? "secretspec.toml");
-  const scopes = await declaredScopes(file);
+function scopeLines(file: string, scopes: string[] | undefined) {
   if (!scopes)
     return [
       `Configuration: ${file} missing or unparsable; scope check skipped`,
@@ -107,10 +109,52 @@ async function inspectConfiguration() {
   return unused.length ? unused : [`Configuration: ${file} scopes ok`];
 }
 
+/** Check that the manifest scope's members are declared in manifest.yml; the check asks SecretSpec, value-free. */
+async function inspectManifest(
+  secretspec: string | undefined,
+  scopes: string[] | undefined,
+) {
+  if (!secretspec || !scopes?.includes("manifest"))
+    return {
+      failed: false,
+      line: "Manifest: no manifest scope; check skipped",
+    };
+  const state = {
+    stage: "manifest validation",
+    signal: new AbortController().signal,
+  };
+  try {
+    await checkManifest(
+      (scope) => scopeMembers(secretspec, scope, state),
+      state,
+    );
+    return {
+      failed: false,
+      line: "Manifest: manifest scope members are declared in manifest.yml",
+    };
+  } catch {
+    return { failed: true, line: `Manifest: ${state.stage} failed` };
+  }
+}
+
+/** The lines of one doctor run, and whether any of them is a failure. */
+async function inspectAll() {
+  const file = specificationFile();
+  const scopes = await declaredScopes(file);
+  const secretspec = Bun.which("secretspec") ?? undefined;
+  const checks = [
+    ...(await Promise.all(dependencies.map(inspect))),
+    await inspectManifest(secretspec, scopes),
+  ];
+  return {
+    lines: [...checks.map(({ line }) => line), ...scopeLines(file, scopes)],
+    failed: checks.some(({ failed }) => failed),
+  };
+}
+
 /** Report each external tool's version against its supported range, then check the configuration. */
 export async function doctor(): Promise<number> {
-  const results = await Promise.all(dependencies.map(inspect));
-  for (const { line } of results) console.log(line);
-  for (const line of await inspectConfiguration()) console.log(line);
-  return results.some(({ failed }) => failed) ? 1 : 0;
+  const { lines, failed } = await inspectAll();
+  for (const line of lines) console.log(line);
+  return failed ? 1 : 0;
 }

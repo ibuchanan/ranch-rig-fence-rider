@@ -3,10 +3,10 @@
   "scripts": {
     "deploy": "fence-rider deploy --non-interactive --approve MAJOR_VERSION_RULE",
     "deploy:reviewed": "fence-rider deploy --non-interactive --approve REVIEWED_RULE_FROM_FORGE",
-    "install:forge": "fence-rider install --confirm-scopes --non-interactive",
-    "upgrade:forge": "fence-rider install --upgrade --confirm-scopes --non-interactive",
-    "uninstall:forge": "fence-rider uninstall",
-    "lint:forge": "fence-rider lint",
+    "install:forge": "cmd=$(fence-rider install --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
+    "upgrade:forge": "cmd=$(fence-rider install --upgrade --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
+    "uninstall:forge": "cmd=$(fence-rider uninstall) && sh -c \"$cmd\" sh",
+    "lint:forge": "cmd=$(fence-rider lint) && sh -c \"$cmd\" sh",
     "tunnel": "fence-rider tunnel"
   }
 }

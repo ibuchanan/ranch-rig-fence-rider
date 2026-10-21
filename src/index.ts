@@ -9,6 +9,11 @@ Usage: fence-rider <command> [options]
 Supported workflows:
 ${workflowListing}
 
+lint, install and uninstall print a shell script instead of running Forge. Run one
+from a package script, for example:
+  "lint:forge": "cmd=$(fence-rider lint) && sh -c \\"$cmd\\" sh"
+The && stops the script if fence-rider refuses; deploy and tunnel run directly.
+
 Deployment target: explicit option, resolved FORGE_ENVIRONMENT, then development.
 
 Discovery:

@@ -16,7 +16,7 @@ export async function packedConsumer() {
     join(project, "package.json"),
     JSON.stringify({
       private: true,
-      scripts: { "forge:lint": "fence-rider lint" },
+      scripts: { "forge:lint": 'cmd=$(fence-rider lint) && sh -c "$cmd" sh' },
     }),
   );
   const installed = Bun.spawnSync(

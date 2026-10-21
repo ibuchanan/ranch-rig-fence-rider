@@ -42,7 +42,7 @@ test("installed package exposes discovery without tools or configuration", async
   }
 });
 
-test("installed configured invocation rejects a missing SecretSpec before Forge runs", async () => {
+test("installed lint script stops with the shell's not-found status when SecretSpec is missing", async () => {
   const project = await packedConsumer();
   rmSync(join(project, "bin/secretspec"));
   const child = Bun.spawn([process.execPath, "run", "forge:lint"], {
@@ -59,8 +59,8 @@ test("installed configured invocation rejects a missing SecretSpec before Forge 
     new Response(child.stdout).text(),
     new Response(child.stderr).text(),
   ]);
-  expect(status).toBe(1);
-  expect(stdout + stderr).toContain("secretspec prerequisite");
+  expect(status).toBe(127);
+  expect(stdout + stderr).toContain("secretspec");
   expect(existsSync(join(project, "tool-calls"))).toBe(false);
 });
 
@@ -97,11 +97,14 @@ test.skipIf(!realSecretSpec)(
       new Response(child.stdout).text(),
       new Response(child.stderr).text(),
     ]);
-    expect({ status, stdout, stderr }).toEqual({
+    expect({ status, stdout }).toEqual({
       status: 0,
       stdout: "synthetic lint result\n",
-      stderr: "$ fence-rider lint\nsynthetic lint warning\n",
     });
+    expect(stderr).toStartWith(
+      '$ cmd=$(fence-rider lint) && sh -c "$cmd" sh\n',
+    );
+    expect(stderr).toContain("synthetic lint warning\n");
     const calls = (await Bun.file(join(project, "tool-calls")).text())
       .trim()
       .split("\n")
@@ -329,7 +332,7 @@ test.skipIf(!realSecretSpec)(
 );
 
 test.skipIf(!realSecretSpec)(
-  "installed controls-only consumer uses defaults, refuses target options and needs no dummy credentials",
+  "installed controls-only consumer uses defaults, appends runner arguments after the targets and needs no dummy credentials",
   async () => {
     const project = await packedConsumer();
     const example = await Bun.file(
@@ -374,8 +377,22 @@ test.skipIf(!realSecretSpec)(
       {
         script: "install:forge",
         declarations: "",
+        // The generator refuses target options only when given to fence-rider;
+        // what a script runner appends goes to Forge after the injected targets.
         args: ["--site", "override.atlassian.net"],
-        expected: null,
+        expected: [
+          "install",
+          "--environment",
+          "development",
+          "--site",
+          "synthetic.atlassian.net",
+          "--product",
+          "jira",
+          "--confirm-scopes",
+          "--non-interactive",
+          "--site",
+          "override.atlassian.net",
+        ],
       },
       {
         script: "tunnel",

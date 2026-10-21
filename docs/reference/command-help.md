@@ -18,21 +18,26 @@ SecretSpec and Forge must be installed on PATH and authenticated separately.
 
 ```text
 Usage: fence-rider lint [Forge options]
-Check optional manifest metadata, then run forge lint under secretspec run with the whole active profile resolved into its environment.
-Unlike deploy and tunnel, values are not validated by Fence Rider, and an exported variable the profile does not resolve (or declare) stays visible to Forge.
+Prints a shell script that runs forge lint under secretspec run, with the whole active profile resolved into its environment. Run it from a package script:
+  cmd=$(fence-rider lint) && sh -c "$cmd" sh
+Options given here are embedded in the script; options a script runner appends after `sh` are passed too.
 Forge stdin is inherited; stdout/stderr stream live and unredacted. Upstream output may expose values.
 No target flags are injected and no runtime variables are uploaded.
-SecretSpec and Forge must be installed on PATH and authenticated separately.
+Fence Rider does not validate values, and an exported variable the profile does not resolve (or declare) stays visible to Forge.
+SecretSpec and Forge must be installed on PATH and authenticated separately; run fence-rider doctor to check them.
 ```
 
 ## install
 
 ```text
 Usage: fence-rider install [Forge options]
-Runs forge under secretspec run, with the whole profile resolved into its environment. Targets come from FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT; only environment falls back to development.
+Prints a shell script that runs forge install under secretspec run, with the whole profile resolved into its environment. Run it from a package script:
+  cmd=$(fence-rider install) && sh -c "$cmd" sh
+Options given here are embedded in the script; options a script runner appends after `sh` are passed too.
+Targets come from FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT; only environment falls back to development.
 Site and product are required, and no target may be empty or start with a dash; Forge validates their values.
-The wrapper's own target options (-e/--environment, -s/--site, -p/--product) are not accepted; for other targets run secretspec and forge directly.
-Unlike lint and deploy, values are not validated by Fence Rider, and an exported variable the profile does not resolve (or declare) stays visible to Forge.
+The target options -e/--environment, -s/--site and -p/--product are not accepted; for other targets run secretspec and forge directly.
+Fence Rider does not validate values, and an exported variable the profile does not resolve (or declare) stays visible to Forge.
 Use --upgrade [all|code], --confirm-scopes and --non-interactive only when intended.
 No runtime uploads, variable deletion or deployment.
 Forge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.
@@ -42,10 +47,13 @@ Forge input/output is inherited, live and unredacted. SecretSpec and Forge must 
 
 ```text
 Usage: fence-rider uninstall [Forge options]
-Runs forge under secretspec run, with the whole profile resolved into its environment. Targets come from FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT; only environment falls back to development.
+Prints a shell script that runs forge uninstall under secretspec run, with the whole profile resolved into its environment. Run it from a package script:
+  cmd=$(fence-rider uninstall) && sh -c "$cmd" sh
+Options given here are embedded in the script; options a script runner appends after `sh` are passed too.
+Targets come from FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT; only environment falls back to development.
 Site and product are required, and no target may be empty or start with a dash; Forge validates their values.
-The wrapper's own target options (-e/--environment, -s/--site, -p/--product) are not accepted; for other targets run secretspec and forge directly.
-Unlike lint and deploy, values are not validated by Fence Rider, and an exported variable the profile does not resolve (or declare) stays visible to Forge.
+The target options -e/--environment, -s/--site and -p/--product are not accepted; for other targets run secretspec and forge directly.
+Fence Rider does not validate values, and an exported variable the profile does not resolve (or declare) stays visible to Forge.
 Uninstall changes remote installation state; Forge owns remaining interaction. Forge 14.2.0 does not support --non-interactive. No upgrade, consent, approval or confirmation switches are injected.
 No runtime uploads, variable deletion or deployment.
 Forge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.
@@ -66,7 +74,7 @@ No remote variable uploads/deletion, deployment or installation. SecretSpec and 
 ```text
 Usage: fence-rider doctor
 Report the SecretSpec and Forge CLI versions on PATH against the lowest supported and highest tested versions.
-Also checks the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml) and warns about scopes Fence Rider never reads.
-Exits 1 when a tool is missing, unreadable or older than supported; a newer version or an unused scope is only a warning.
+Also reads the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml): it warns about scopes Fence Rider never reads, and when a manifest scope exists it asks SecretSpec (value-free) for its members and checks that manifest.yml declares them.
+Exits 1 when a tool is missing, unreadable or older than supported, or a manifest scope member is not declared in manifest.yml; a newer version or an unused scope is only a warning.
 Other commands never pre-check versions: a changed tool contract surfaces as that command's failure.
 ```

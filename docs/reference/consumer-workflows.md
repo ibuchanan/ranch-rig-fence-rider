@@ -32,14 +32,14 @@ certify real Forge execution under Bun.
 | ID | Observable local evidence | Service/other evidence still missing |
 | --- | --- | --- |
 | CW-01 | Installed package discovery; documented installed consumer scripts run via Bun package scripts | Registry publication is not attempted or required |
-| CW-02 | Installed consumer runs native lint against SecretSpec on `PATH`; missing-tool diagnostics before Forge runs; `doctor` version report | Floors are inferred, not exercised; other platform execution unverified |
+| CW-02 | Installed consumer runs the printed lint script against SecretSpec on `PATH`; `doctor` version report and missing-tool report | Floors are inferred, not exercised; other platform execution unverified |
 | CW-03 | Required values fail before Forge in compiled native cases and installed controls-only uninstall | Other providers unverified |
 | CW-04 | Deployment shared-values test sees unchanged implicit local values and removes stale absent optional; compiled tests cover empty strings | Broader native providers unverified |
 | CW-05 | Shared value matches local upload args and tunnel prefix mapping from one export; native profile tests count one schema/export, with scope checks name-only | Actual manifest substitution and connected runtime receipt blocked |
 | CW-06 | Environment control selection in native compiled tests and installed controls-only cases | Named server environment identity blocked |
 | CW-07 | Installed controls-only install takes all targets from the profile and refuses target options; compiled deploy upload/deploy target checks | Actual server destination blocked |
 | CW-08 | Command grammar tests reject target options and missing targets and preserve unrelated options | Upstream version range unverified |
-| CW-09 | Installed lint script gets all inputs through `secretspec run` and live output; only one lint call with no injected target or writes | Real Forge manifest acceptance blocked |
+| CW-09 | Installed lint script gets all inputs through `secretspec run` and live output; one lint call with no injected target or writes; the manifest check is a `doctor` check | Real Forge manifest acceptance blocked |
 | CW-10 | Installed install/upgrade preserve explicit consent/non-interactive switches and configured targets | Real install/upgrade/scope consent blocked |
 | CW-11 | Installed uninstall injects only targets; no runtime sync or inherited install policy | Actual removal and terminal-specific prompts blocked |
 | CW-12 | Installed tunnel gets explicit runtime values through prefixed env and no variable writes; compiled restrictions/debug/interruption tests | Connected local runtime receipt and named environment identity blocked |
@@ -49,7 +49,7 @@ certify real Forge execution under Bun.
 | CW-16 | Native/controlled manifest mismatch and optional omission tests; installed shared manifest inputs arrive locally | Forge substitution into supported real manifest fields blocked |
 | CW-17 | Existing special-value, option payload and no-shell-injection tests; installed approval/verbose preservation | Remote acceptance of positional edge-case values unverified |
 | CW-18 | Existing inherited-input/streaming tests for all user-facing workflows; installed scripts preserve results/warnings; private helper secrecy tests | Terminal UI specifics unverified; user output is intentionally not redacted |
-| CW-19 | Existing SIGINT/SIGTERM process-tree/failure tests; delegated exit preservation | Windows unsupported; SIGKILL cannot clean up; live tunnel interruption blocked |
+| CW-19 | SIGINT/SIGTERM process-tree/failure tests for deploy and tunnel; lint, install and uninstall `exec` into `secretspec run`, so exit status and signals are the tools' own | Windows unsupported; SIGKILL cannot clean up; live tunnel interruption blocked |
 | CW-20 | Controlled partial upload failure stops later writes/deploy and warns without values or rollback claim | Actual partial server mutation blocked |
 | CW-21 | Installed help/version/unsupported commands need neither config nor tools; compiled discovery tests | No service evidence needed for discovery |
 | CW-22 | All seven documented scripts run through installed artifact with real SecretSpec and controlled Forge; controls-only variant passes | End-to-end live compatibility/readiness remains blocked, not certified |
@@ -81,8 +81,9 @@ removes stale ambient declarations, and delivers all resolved values locally.
 Optional manifest scope only cross-checks applicable native manifest
 declarations. Explicit runtime scope authorizes deployment uploads or
 tunnel-local injection, not synchronization on lint. Install/uninstall make no
-scope or export call, and lint makes only the manifest scope call: `secretspec
-run` resolves the profile for all three, without clearing stale ambient values.
+scope or export call, and lint makes none either: each prints a script that
+runs `secretspec run`, which resolves the profile without clearing stale ambient
+values. The optional manifest scope check for lint is `fence-rider doctor`.
 A shared value reuses the same export result in deploy and tunnel.
 
 Deployment validates all selected values before encrypted writes; the following

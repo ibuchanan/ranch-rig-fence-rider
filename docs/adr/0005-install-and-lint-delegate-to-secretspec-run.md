@@ -1,8 +1,14 @@
 ---
-status: accepted
+status: superseded by ADR 0006 in how it is executed
 ---
 
 # Run install, uninstall and lint under `secretspec run`
+
+> Execution superseded by
+> [ADR 0006](0006-generate-shell-for-lint-install-uninstall.md): these commands
+> no longer run `secretspec run` themselves but print the script that does, and
+> lint's manifest check moved to `fence-rider doctor`. The rationale below for
+> delegating to `secretspec run` still stands.
 
 `fence-rider install`, `uninstall` and `lint` used to resolve the profile
 themselves (`secretspec schema` and `export`), validate and type the values,

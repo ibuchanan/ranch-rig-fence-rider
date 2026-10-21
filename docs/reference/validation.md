@@ -4,6 +4,24 @@ Recorded 2026-10-19. Public seams: the compiled CLI subprocess
 and observable validation-command output/status, confirmed by the user.
 No private-function tests or second native proof suite were introduced.
 
+## Script generators for lint, install and uninstall — 2026-10-21
+
+`fence-rider lint`, `install` and `uninstall` no longer run Forge: each prints one
+shell script on stdout, `exec secretspec run --scope '' -- …`, for a package
+script to run ([ADR 0006](../adr/0006-generate-shell-for-lint-install-uninstall.md)).
+Arguments given to the generator are shell-quoted into the script and
+arguments appended by a script runner arrive as `"$@"`. Refusals print the
+reason on stderr, nothing on stdout, and exit 1, so the documented guarded form
+stops; an unguarded `eval` of an empty string exits 0, which is why the guard is
+documented. Fence Rider no longer supervises these commands, so their
+interruption tests were removed and exit status and signals belong to
+`secretspec run` and Forge. Lint's manifest-scope check moved to
+`fence-rider doctor`, which runs the value-free
+`secretspec check --json --scope manifest` when the file declares that scope.
+Deploy and tunnel are unchanged. Observed with a stub Forge and the real
+SecretSpec 0.21.1: the generated scripts run, appended arguments reach Forge
+intact, and a refusal stops the guarded form with exit 1.
+
 ## Lint under `secretspec run` — 2026-10-21
 
 `fence-rider lint` now applies the optional manifest scope check and then runs

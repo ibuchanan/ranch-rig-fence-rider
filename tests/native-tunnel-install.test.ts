@@ -5,7 +5,7 @@ import {
   deploymentSpec,
   installationSpec,
   realSecretSpec,
-  runInstallation,
+  runScript,
   runWorkflow,
 } from "./support/fixtures.ts";
 
@@ -211,7 +211,7 @@ test.skipIf(!realSecretSpec).each(
 )(
   "native configured $command controls-only profile: $name",
   async ({ command, declarations, target, args, pass }) => {
-    const result = await runInstallation({
+    const result = await runScript({
       command,
       realSecretSpec: realSecretSpec ?? "",
       spec: `[project]\nname = "synthetic-install"\nrevision = "1.0"\n[profiles.default]\n${declarations.replaceAll(" = {", ' = { description = "Synthetic control",')}\nFORGE_SITE = { description = "Installation site", default = "synthetic.atlassian.net" }\nFORGE_PRODUCT = { description = "Installation product", default = "jira" }\n`,
@@ -279,7 +279,7 @@ test.skipIf(!realSecretSpec).each(
       SHARED: "synthetic-native-shared",
       LOCAL_ONLY: "synthetic-native-local",
     };
-    const result = await runInstallation({
+    const result = await runScript({
       command,
       realSecretSpec: realSecretSpec ?? "",
       spec,
@@ -297,8 +297,5 @@ test.skipIf(!realSecretSpec).each(
       [],
     );
     expect(result.stderr).toContain(missing);
-    expect(result.stderr).toContain(
-      `${command === "install" ? "installation" : "uninstallation"} failed`,
-    );
   },
 );

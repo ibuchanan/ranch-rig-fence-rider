@@ -13,17 +13,25 @@ example with a package manager such as Homebrew. The decision and the rejected
 alternatives are recorded in
 [ADR 0001](../adr/0001-secretspec-cli-on-path.md).
 
-Configured workflows do not pre-check tool versions. A missing executable stops
-a workflow before Forge or any remote change runs, and a tool whose behavior has
-changed incompatibly surfaces as the failure of the step that depends on it. Run
+Configured workflows do not pre-check tool versions. For deploy and tunnel, a
+missing executable stops the workflow before Forge or any remote change runs;
+the scripts printed by lint, install and uninstall check nothing, so a missing
+tool is the shell's "command not found" when the script runs. A tool whose
+behavior has changed incompatibly surfaces as the failure of the step that
+depends on it. Run
 `fence-rider doctor` to compare the installed versions with the lowest supported
 and highest tested release of each tool; the table is in `src/doctor.ts`. A
 newer-than-tested version is a warning, an older-than-supported or unreadable
 one is a failure.
 `doctor` also reads the SecretSpec file and warns about any `[scopes.*]` table
 other than `manifest` and `runtime`, which Fence Rider ignores; a scope read by
-another tool is legitimate, so this is only a warning, while malformed scope
-metadata fails. The lowest supported versions (SecretSpec 0.17, Forge CLI 1.3)
+another tool is legitimate, so this is only a warning, and an unparsable file
+only skips that check. When the file declares a `manifest` scope and `secretspec`
+is on `PATH`, `doctor` also runs the value-free
+`secretspec check --json --scope manifest` and checks that `manifest.yml`
+declares each member, so it reads providers; a missing declaration fails. This
+is the manifest consistency check for lint, which no longer runs it. The lowest
+supported versions (SecretSpec 0.17, Forge CLI 1.3)
 are inferred from the features used, not exercised; the highest tested versions
 are the only exercised baseline, SecretSpec 0.21.1 and Forge 14.2.0. No
 dependency lifecycle script, `setup` command, mirror variable, or cache is

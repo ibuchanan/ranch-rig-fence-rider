@@ -198,7 +198,11 @@ credentials and app registration are never supplied automatically.
 - (Superseded 2026-10-21 for `lint`: it now runs `secretspec run --scope "" --
   forge lint` after the optional manifest scope check, making no `schema` or
   `export` call and not clearing stale ambient values. See
-  `docs/adr/0005-install-and-lint-delegate-to-secretspec-run.md`.)
+  `docs/adr/0005-install-and-lint-delegate-to-secretspec-run.md`. Further
+  superseded 2026-10-21: `lint`, `install` and `uninstall` no longer run
+  anything; they print that script for a package script to run, and the manifest
+  scope check for lint moved to `fence-rider doctor`. See
+  `docs/adr/0006-generate-shell-for-lint-install-uninstall.md`.)
 - Explicit target arguments override target selection, not SecretSpec
   requiredness. Missing required declarations still fail even if a command
   option could otherwise supply that target.

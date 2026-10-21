@@ -10,7 +10,7 @@ type Command = {
   summary?: string;
   usage: string;
   /** Receives the arguments after the command name; returns the exit code. */
-  run: (args: string[]) => Promise<number>;
+  run: (args: string[]) => number | Promise<number>;
 };
 
 /** The one error for any invocation the command table cannot resolve. */
@@ -35,17 +35,18 @@ const commands: Record<string, Command> = {
     run: deploy,
   },
   lint: {
-    summary: "Configured lint with live, unredacted Forge output",
+    summary: "Prints a script for lint under secretspec run",
     usage: lintUsage,
     run: lint,
   },
   install: {
-    summary: "Configured installation or explicit --upgrade; no runtime writes",
+    summary:
+      "Prints a script for installation or --upgrade under secretspec run",
     usage: installUsage("install"),
     run: (args) => install(args, "install"),
   },
   uninstall: {
-    summary: "Configured removal; changes remote installation state",
+    summary: "Prints a script for removal; changes remote installation state",
     usage: installUsage("uninstall"),
     run: (args) => install(args, "uninstall"),
   },

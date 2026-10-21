@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { quote } from "../../src/shell.ts";
 import { cli } from "./cli.ts";
 
 export const sharedValue =
@@ -232,6 +233,15 @@ export function prepareProject(options: WorkflowOptions) {
   return project;
 }
 
+/** Exit status and both output streams of a spawned tool, collected together. */
+function collect(child: Bun.Subprocess<"ignore", "pipe", "pipe">) {
+  return Promise.all([
+    child.exited,
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+  ]);
+}
+
 async function killFixtureProcess(path: string) {
   if (!existsSync(path)) return;
   const pid = Number(await Bun.file(path).text());
@@ -242,7 +252,6 @@ async function killFixtureProcess(path: string) {
 
 export async function runWorkflow(options: WorkflowOptions = {}) {
   const project = prepareProject(options);
-  const calls = join(project, "tool-calls");
   const child = Bun.spawn(
     [cli.executable, options.command ?? "deploy", ...(options.args ?? [])],
     {
@@ -254,20 +263,11 @@ export async function runWorkflow(options: WorkflowOptions = {}) {
       detached: process.platform !== "win32",
     },
   );
-  const output = Promise.all([
-    child.exited,
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-  ]);
+  const output = collect(child);
   try {
     await options.onSpawn?.(child, project);
     const [exitCode, stdout, stderr] = await output;
-    const interactions: ToolCall[] = existsSync(calls)
-      ? (await Bun.file(calls).text())
-          .trim()
-          .split("\n")
-          .map((line) => JSON.parse(line))
-      : [];
+    const interactions = await readInteractions(project);
     expect(stdout + stderr).not.toContain(sharedValue);
     expect(stdout + stderr).not.toContain("FENCE_RIDER_SYNTHETIC_SECRET_06");
     expect(existsSync(join(project, "injected"))).toBe(false);
@@ -285,7 +285,7 @@ export const installationSpec = deploymentSpec.replace(
   '[profiles.default]\nFORGE_SITE = { description = "Installation site", default = "synthetic.atlassian.net" }\nFORGE_PRODUCT = { description = "Installation product", default = "jira" }',
 );
 
-export const installationSchema = {
+const installationSchema = {
   ...deploymentSchema,
   properties: {
     ...deploymentSchema.properties,
@@ -300,14 +300,105 @@ export const installationValues = {
   FORGE_PRODUCT: "jira",
 };
 
-export function runInstallation(options: WorkflowOptions = {}) {
-  return runWorkflow({
-    command: "install",
-    spec: installationSpec,
-    schema: installationSchema,
-    values: installationValues,
+export const installationOptions = {
+  spec: installationSpec,
+  schema: installationSchema,
+  values: installationValues,
+};
+
+export type ScriptOptions = WorkflowOptions & {
+  command: "lint" | "install" | "uninstall";
+  /** Arguments given to `fence-rider <command>`, embedded in the script. */
+  generate?: readonly string[];
+  /** Arguments a script runner appends after the shell command, arriving as "$@". */
+  appended?: readonly string[];
+};
+
+function withDefaults(options: ScriptOptions): ScriptOptions {
+  return options.command === "lint"
+    ? options
+    : { ...installationOptions, ...options };
+}
+
+async function readInteractions(project: string) {
+  const calls = join(project, "tool-calls");
+  const interactions: ToolCall[] = existsSync(calls)
+    ? (await Bun.file(calls).text())
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line))
+    : [];
+  return interactions;
+}
+
+async function finishScript(
+  project: string,
+  child: Bun.Subprocess<"ignore", "pipe", "pipe">,
+) {
+  const [exitCode, stdout, stderr] = await collect(child);
+  expect(stdout + stderr).not.toContain(sharedValue);
+  expect(existsSync(join(project, "injected"))).toBe(false);
+  return {
+    exitCode,
+    stdout,
+    stderr,
+    interactions: await readInteractions(project),
+    project,
+  };
+}
+
+/**
+ * Generate the script with the compiled CLI, then run it the way a script
+ * runner would: `sh -c "$script" sh <appended…>`, with the fake tools on PATH.
+ */
+export async function runScript(input: ScriptOptions) {
+  const options = withDefaults(input);
+  const generated = await runWorkflow({
     ...options,
+    args: options.generate ?? [],
   });
+  if (generated.exitCode !== 0) return { ...generated, generated };
+  const child = Bun.spawn(
+    ["/bin/sh", "-c", generated.stdout, "sh", ...(options.appended ?? [])],
+    {
+      cwd: generated.project,
+      env: deploymentEnv(generated.project, options),
+      stdin: "ignore",
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
+  return { ...(await finishScript(generated.project, child)), generated };
+}
+
+/**
+ * Run the documented package.json idiom,
+ * `cmd=$(fence-rider <command> …) && sh -c "$cmd" sh`, with fence-rider on PATH.
+ */
+export async function runIdiom(input: ScriptOptions) {
+  const options = withDefaults(input);
+  const project = prepareProject(options);
+  symlinkSync(cli.executable, join(project, "bin", "fence-rider"));
+  const generate = [options.command, ...(options.generate ?? [])]
+    .map(quote)
+    .join(" ");
+  const child = Bun.spawn(
+    [
+      "/bin/sh",
+      "-c",
+      `cmd=$(fence-rider ${generate}) && sh -c "$cmd" sh "$@"`,
+      "sh",
+      ...(options.appended ?? []),
+    ],
+    {
+      cwd: project,
+      env: deploymentEnv(project, options),
+      stdin: "ignore",
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
+  return finishScript(project, child);
 }
 
 export const realSecretSpec = Bun.which("secretspec");

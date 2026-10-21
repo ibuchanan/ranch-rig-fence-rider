@@ -4,22 +4,19 @@ import {
   deploymentSchema,
   deploymentSpec,
   realSecretSpec,
+  runScript,
   runWorkflow,
 } from "./support/fixtures.ts";
 
 useBuiltCli();
 
-test.skipIf(!realSecretSpec).each([
-  { missing: "SHARED", stage: "lint failed" },
-  { missing: "LOCAL_ONLY", stage: "manifest scope membership failed" },
-])(
-  "native configured lint blocks missing whole-profile requirement $missing ($stage)",
-  async ({ missing, stage }) => {
-    const result = await runWorkflow({
+test.skipIf(!realSecretSpec).each(["SHARED", "LOCAL_ONLY"])(
+  "native lint script fails inside secretspec run for missing whole-profile requirement %s",
+  async (missing) => {
+    const result = await runScript({
       command: "lint",
       realSecretSpec: realSecretSpec ?? "",
       spec: `${deploymentSpec}\n[scopes.manifest]\nsecrets = ["LOCAL_ONLY"]\n`,
-      manifest: "environment:\n  variables: [LOCAL_ONLY]\n",
       env: {
         SECRETSPEC_PROVIDER: "dotenv:values.env",
         SECRETSPEC_SCOPE: "manifest",
@@ -29,25 +26,24 @@ test.skipIf(!realSecretSpec).each([
           ? "LOCAL_ONLY=synthetic-native-local\n"
           : "SHARED=synthetic-native-shared\n",
     });
-    expect(result.exitCode).toBe(1);
+    expect(result.exitCode).not.toBe(0);
     expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
       [],
     );
-    expect(result.stderr).toContain(stage);
+    expect(result.stderr).toContain(missing);
     expect(result.stderr).not.toContain("synthetic-native");
   },
 );
 
 test.skipIf(!realSecretSpec)(
-  "native configured lint delivers a selected inherited profile and shared manifest value, and leaves an ambient optional visible",
+  "native lint script delivers the selected profile despite an ambient scope, and leaves an ambient optional visible",
   async () => {
     const spec = `${deploymentSpec.replace("[scopes.runtime]", '[profiles.release]\nLOCAL_ONLY = { description = "Local override", default = "synthetic-release" }\n\n[scopes.runtime]')}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`;
-    const result = await runWorkflow({
+    const result = await runScript({
       command: "lint",
       realSecretSpec: realSecretSpec ?? "",
       spec,
       files: { "selected.toml": spec },
-      manifest: "environment:\n  variables: [SHARED]\n",
       schema: deploymentSchema,
       env: {
         SECRETSPEC_FILE: "selected.toml",
@@ -74,15 +70,15 @@ test.skipIf(!realSecretSpec)(
     const native = result.interactions.filter(
       ({ tool }) => tool === "secretspec",
     );
-    expect(native.map(({ args }) => args[0])).toEqual(["check", "run"]);
+    expect(native.map(({ args }) => args[0])).toEqual(["run"]);
     for (const { args } of native) expect(args).not.toContain("--profile");
   },
 );
 
 test.skipIf(!realSecretSpec)(
-  "native configured lint supports controls-only profiles without target injection or manifest file",
+  "native lint script supports controls-only profiles without target injection or a manifest file",
   async () => {
-    const result = await runWorkflow({
+    const result = await runScript({
       command: "lint",
       realSecretSpec: realSecretSpec ?? "",
       spec: '[project]\nname = "synthetic-lint-controls"\nrevision = "1.0"\n[profiles.default]\nFORGE_ENVIRONMENT = { description = "Target", default = "staging" }\nFORGE_SITE = { description = "Site", default = "synthetic.atlassian.net" }\nFORGE_PRODUCT = { description = "Product", default = "jira" }\n',

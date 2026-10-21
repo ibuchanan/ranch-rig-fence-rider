@@ -6,9 +6,6 @@ import {
   deploymentSchema,
   deploymentSpec,
   deploymentValues,
-  installationSchema,
-  installationSpec,
-  installationValues,
   prepareProject,
   runWorkflow,
   sharedValue,
@@ -143,24 +140,17 @@ test("configured tunnel maps only explicit runtime members from one resolution w
   ]);
 });
 
-test.each(["lint", "install", "uninstall", "tunnel"] as const)(
+test.each(["tunnel"] as const)(
   "configured %s streams before exit and inherits input, ordinary settings, and authentication without redaction",
   async (command) => {
     const options: WorkflowOptions = {
-      ...(command === "install" || command === "uninstall"
-        ? {
-            spec: installationSpec,
-            schema: installationSchema,
-            values: installationValues,
-          }
-        : {}),
       env: {
         LINT_READ_INPUT: "1",
         ORDINARY_SETTING: "synthetic-setting",
         FORGE_API_TOKEN: "synthetic-auth",
       },
     };
-    if (command === "tunnel") options.args = ["-edevelopment"];
+    options.args = ["-edevelopment"];
     const project = prepareProject(options);
     const child = Bun.spawn(
       [cli.executable, command, ...(options.args ?? [])],

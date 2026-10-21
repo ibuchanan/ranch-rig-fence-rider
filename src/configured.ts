@@ -52,7 +52,7 @@ export async function checkManifest(members: ScopeMembers, state: Workflow) {
   throw new Error("Manifest declaration is missing");
 }
 
-export function prerequisite(tool: string, state: Workflow) {
+function prerequisite(tool: string, state: Workflow) {
   state.stage = `${tool} prerequisite (install and authenticate separately on PATH)`;
   const path = Bun.which(tool);
   if (!path) throw new Error("Missing executable");

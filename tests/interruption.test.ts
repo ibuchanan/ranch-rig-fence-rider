@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { processRunning, useBuiltCli, waitUntil } from "./support/cli.ts";
-import { runInstallation, runWorkflow } from "./support/fixtures.ts";
+import { runWorkflow } from "./support/fixtures.ts";
 
 useBuiltCli();
 
@@ -77,125 +77,6 @@ test.skipIf(process.platform === "win32")(
     });
     expect(result.exitCode).toBe(143);
     expect(result.stderr).toContain("interrupted by SIGTERM");
-  },
-  12_000,
-);
-
-test.skipIf(process.platform === "win32").each([
-  {
-    blockStage: "check",
-    signal: "SIGINT",
-    ignoreSignal: false,
-    spawnDescendant: false,
-  },
-  {
-    blockStage: "check",
-    signal: "SIGTERM",
-    ignoreSignal: false,
-    spawnDescendant: false,
-  },
-  {
-    blockStage: "lint",
-    signal: "SIGINT",
-    ignoreSignal: false,
-    spawnDescendant: true,
-  },
-  {
-    blockStage: "lint",
-    signal: "SIGTERM",
-    ignoreSignal: true,
-    spawnDescendant: true,
-  },
-] as const)(
-  "configured lint interruption $signal at $blockStage cleans up the active process group",
-  async ({ blockStage, signal, ignoreSignal, spawnDescendant }) => {
-    const result = await runWorkflow({
-      command: "lint",
-      blockStage,
-      ignoreSignal,
-      spawnDescendant,
-      onSpawn: async (child, project) => {
-        await waitUntil(
-          () =>
-            existsSync(join(project, "ready")) &&
-            (!spawnDescendant || existsSync(join(project, "descendant-ready"))),
-          "lint process readiness",
-        );
-        const pid = Number(await Bun.file(join(project, "ready")).text());
-        const descendant = spawnDescendant
-          ? Number(await Bun.file(join(project, "descendant-ready")).text())
-          : undefined;
-        child.kill(signal);
-        await waitUntil(
-          () => child.exitCode !== null || child.signalCode !== null,
-          "interrupted wrapper exit",
-        );
-        await waitUntil(
-          () =>
-            !processRunning(pid) &&
-            (descendant === undefined || !processRunning(descendant)),
-          "lint process group cleanup",
-        );
-        expect(await Bun.file(join(project, "received-signal")).text()).toBe(
-          signal,
-        );
-      },
-    });
-    expect(result.exitCode).toBe(signal === "SIGINT" ? 130 : 143);
-    expect(result.stderr).toContain(`interrupted by ${signal}`);
-    expect(result.interactions.at(-1)?.args[0]).toBe(blockStage);
-    expect(result.stderr).not.toContain(
-      "Remote variables may already have changed",
-    );
-  },
-  12_000,
-);
-
-test
-  .skipIf(process.platform === "win32")
-  .each(
-    (["install", "uninstall"] as const).flatMap((command) =>
-      (["SIGINT", "SIGTERM"] as const).map((signal) => ({ command, signal })),
-    ),
-  )(
-  "configured $command interruption $signal cleans ignoring helpers and descendants",
-  async ({ command, signal }) => {
-    const result = await runInstallation({
-      command,
-      blockStage: command,
-      ignoreSignal: true,
-      spawnDescendant: true,
-      onSpawn: async (child, project) => {
-        await waitUntil(
-          () =>
-            existsSync(join(project, "ready")) &&
-            existsSync(join(project, "descendant-ready")),
-          "installation readiness",
-        );
-        const pid = Number(await Bun.file(join(project, "ready")).text());
-        const descendant = Number(
-          await Bun.file(join(project, "descendant-ready")).text(),
-        );
-        child.kill(signal);
-        await waitUntil(
-          () =>
-            child.exitCode !== null &&
-            !processRunning(pid) &&
-            !processRunning(descendant),
-          "installation process group cleanup",
-        );
-        expect(await Bun.file(join(project, "received-signal")).text()).toBe(
-          signal,
-        );
-      },
-    });
-    expect(result.exitCode).toBe(signal === "SIGINT" ? 130 : 143);
-    expect(result.stderr).toContain(`interrupted by ${signal}`);
-    expect(
-      result.interactions
-        .filter(({ tool }) => tool === "forge")
-        .map(({ args }) => args[0]),
-    ).toEqual([command]);
   },
   12_000,
 );

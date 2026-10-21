@@ -66,7 +66,9 @@ Without that scope, a resolved local value can still supply a substitution.
 Forge validates its own manifest declarations; it does not know whether a
 SecretSpec scope exists. Omitting the scope alone therefore does not cause
 Forge lint to fail. The optional check helps keep the two files consistent
-without replacing Forge's parser or SecretSpec's validation rules.
+without replacing Forge's parser or SecretSpec's validation rules. Deploy and
+tunnel run it before touching Forge; lint prints a script and checks nothing
+itself, so `fence-rider doctor` is where that check lives for lint.
 
 A manifest input is not automatically a runtime variable. Its value can
 influence the deployed configuration without becoming an entry in the app's
@@ -175,9 +177,11 @@ a missing or mismatched tool is visible before any remote change.
 
 The installed scripts expose policy while configuration supplies targets.
 Approvals, scope consent, upgrades, and non-interactive execution remain visible
-choices instead of consequences of declaring a variable. Lint reuses validated
-local values without acquiring deployment's writes, and install/uninstall hand
-the same job to `secretspec run`, which injects the resolved profile itself.
+choices instead of consequences of declaring a variable. Lint, install and
+uninstall do not run Forge at all: they print a script that hands the job to
+`secretspec run`, which injects the resolved profile itself, so signals, exit
+status and interactive input belong to SecretSpec and Forge rather than to a
+Fence Rider process, and the generated text never contains a value.
 Tunnel uses Forge's local prefixed environment instead of changing the remote
 variable store. One resolution can serve these destinations without pretending
 they share a lifecycle. See [consumer workflow evidence](../reference/consumer-workflows.md).

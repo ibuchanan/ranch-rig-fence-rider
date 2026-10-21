@@ -31,13 +31,28 @@ The example has no helper, target expansion, or separate key inventory:
 {
   "deploy": "fence-rider deploy --non-interactive --approve MAJOR_VERSION_RULE",
   "deploy:reviewed": "fence-rider deploy --non-interactive --approve REVIEWED_RULE_FROM_FORGE",
-  "install:forge": "fence-rider install --confirm-scopes --non-interactive",
-  "upgrade:forge": "fence-rider install --upgrade --confirm-scopes --non-interactive",
-  "uninstall:forge": "fence-rider uninstall",
-  "lint:forge": "fence-rider lint",
+  "install:forge": "cmd=$(fence-rider install --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
+  "upgrade:forge": "cmd=$(fence-rider install --upgrade --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
+  "uninstall:forge": "cmd=$(fence-rider uninstall) && sh -c \"$cmd\" sh",
+  "lint:forge": "cmd=$(fence-rider lint) && sh -c \"$cmd\" sh",
   "tunnel": "fence-rider tunnel"
 }
 ```
+
+Deploy and tunnel run Fence Rider directly. Lint, install and uninstall print a
+shell script, and the package script runs it:
+
+- The `&&` keeps the script from running when Fence Rider refuses. A refusal
+  prints its reason on stderr and nothing on stdout. Without the guard,
+  `eval "$(fence-rider lint)"` evaluates an empty string and exits 0, so the
+  refusal would silently pass.
+- `sh -c "$cmd" sh` runs the script in a fresh shell rather than using `eval`.
+  Arguments a script runner appends arrive as the script's `"$@"` and are not
+  parsed a second time, so spaces and quotes stay intact.
+- The script ends in `exec`, so `secretspec run` replaces the shell. Ctrl-C,
+  the exit status and interactive prompts go straight to SecretSpec and Forge.
+- Options written inside the generator call, such as `--confirm-scopes`, are
+  quoted into the script; options appended by the runner come after them.
 
 `MAJOR_VERSION_RULE` is the documented Forge approval rule. Replace the explicit
 `REVIEWED_RULE_FROM_FORGE` placeholder with a different exact rule reported by
@@ -49,9 +64,9 @@ Deployment approval does not grant install scope consent. Keep `--confirm-scopes
 
 ## Run the intended lifecycle
 
-- Run `bun run lint:forge` for whole-profile resolution under `secretspec run`,
-  optional manifest checks, and live Forge lint output. No targets or runtime
-  uploads are injected.
+- Run `bun run lint:forge` for whole-profile resolution under `secretspec run`
+  and live Forge lint output. No targets or runtime uploads are injected, and the
+  optional manifest check is `bun run fence-rider doctor`.
 - Run `bun run deploy` or the distinct approval variant `bun run deploy:reviewed`
   only after reviewing that policy. Deployment encrypts selected runtime values
   before one deployment to the same environment. Partial writes can remain after
@@ -69,7 +84,8 @@ Deployment approval does not grant install scope consent. Keep `--confirm-scopes
 
 Targets for install/uninstall come only from the profile; to aim elsewhere,
 select another profile, change the declaration, or export the variable when
-the profile leaves it unresolved. Extra Forge options are forwarded:
+the profile leaves it unresolved. Extra Forge options are appended to the
+script's arguments:
 
 ```sh
 bun run lint:forge --verbose
@@ -107,9 +123,11 @@ all commands still require every required declaration in the active profile.
 Lint/install/uninstall/tunnel inherit input and stream output without redaction;
 never publish output on the assumption that values are hidden. Deployment and
 private resolution/upload helpers suppress raw output. OS process inspection can
-still expose positional upload values and child environments. SIGINT/SIGTERM
-stop later work and bound descendant cleanup on exercised POSIX systems; SIGKILL
-and untested platforms provide no cleanup guarantee.
+still expose positional upload values and child environments. For deploy and
+tunnel, SIGINT/SIGTERM stop later work and bound descendant cleanup on exercised
+POSIX systems; SIGKILL and untested platforms provide no cleanup guarantee.
+Lint, install and uninstall have no Fence Rider process to interrupt, so the
+terminal signals `secretspec run` and Forge directly.
 
 Use Forge directly for unsupported commands, app registration, login, variable
 listing/deletion, logs, and other administrative operations. Do not infer those

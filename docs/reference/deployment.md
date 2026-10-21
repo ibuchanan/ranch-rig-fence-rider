@@ -41,7 +41,9 @@ version remain side-effect-free.
 | Forge target | Explicit `-e` / `--environment`, resolved `FORGE_ENVIRONMENT`, then `development` |
 | Authentication | Existing tool configuration and process environment; no automatic login |
 
-Both prerequisites must be executable on `PATH` before resolution starts.
+For deploy and tunnel, both prerequisites must be executable on `PATH` before
+resolution starts. Lint, install and uninstall check nothing: they print a
+script, and `fence-rider doctor` reports the tools.
 Fence Rider does not read or validate `secretspec.toml`: `project.extends`,
 profile inheritance, and scope rules are SecretSpec's. It passes no `--file` or
 `--profile`; the child process inherits `SECRETSPEC_FILE`, `SECRETSPEC_PROFILE`,
@@ -60,9 +62,11 @@ secretspec check --json --scope manifest
 secretspec check --json --scope runtime
 ```
 
-`manifest` is asked by lint, deploy, and tunnel; `runtime` by deploy and tunnel.
-Install and uninstall make none of these calls: they run Forge under
-`secretspec run --scope ""`, which resolves the profile itself. A scope the
+`manifest` and `runtime` are asked by deploy and tunnel. Lint, install and
+uninstall make none of these calls, and no `schema` or `export` call either: they
+print a script that runs Forge under `secretspec run --scope ''`, which resolves
+the profile itself. `fence-rider doctor` asks for `manifest` when the file
+declares it. A scope the
 file does not define has no members; that is recognized from SecretSpec's "is
 not defined in secretspec.toml" error text, the one contract on error text.
 Values come only from the single whole-profile export, so a run makes up to

@@ -73,28 +73,34 @@ Live Forge compatibility is not yet certified; see the
 
 ## Run configured lint
 
-From the configured app directory, use the same provider and built binary:
-
-```sh
-SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli lint
-```
-
-To use a short package script, put the built binary on `PATH` as `fence-rider`
-and add this entry to the app's existing `scripts` object:
+`fence-rider lint` prints a shell script rather than running Forge, so a package
+script runs its output. Put the built binary on `PATH` as `fence-rider` (or use
+the installed package) and add this entry to the app's existing `scripts` object:
 
 ```json
-{ "lint:forge": "fence-rider lint" }
+{ "lint:forge": "cmd=$(fence-rider lint) && sh -c \"$cmd\" sh" }
 ```
 
-Run `bun run lint:forge`, or append explicit Forge options such as `--verbose`.
-No target-variable expansion, Bash helper, or second variable inventory is
-needed. The [installed package](installation.md) supplies the executable; SecretSpec
-and Forge remain separately installed on `PATH`.
+The `&&` stops the script when Fence Rider refuses, and `sh -c` hands appended
+arguments to the script as `"$@"` without parsing them again; see the
+[short scripts](consumer-workflows.md) for why. From the configured app
+directory, with the same provider:
+
+```sh
+SECRETSPEC_PROVIDER=dotenv:values.env bun run lint:forge
+```
+
+Append explicit Forge options such as `--verbose` to the command, or write them
+inside the generator call. No target-variable expansion, Bash helper, or second
+variable inventory is needed. The [installed package](installation.md) supplies
+the executable; SecretSpec and Forge remain separately installed on `PATH`, and
+`fence-rider doctor` checks them.
 
 Resolve every required profile declaration, including runtime credentials,
 before lint. Use native optional declarations or a suitable profile for
 legitimate absence; a manifest scope does not narrow requiredness. If manifest
-membership is present, declare each effective member in `environment.variables`.
+membership is present, declare each effective member in `environment.variables`;
+`fence-rider doctor` checks that, since lint itself no longer does.
 
 Lint performs no runtime uploads or deployment and adds no target flags. It runs
 under `secretspec run`, so a stale ambient value for an unresolved optional
@@ -119,8 +125,8 @@ the [output and input policy](../reference/reference.md#output-and-input-policy)
 
    ```json
    {
-     "install:forge": "fence-rider install",
-     "upgrade:forge": "fence-rider install --upgrade"
+     "install:forge": "cmd=$(fence-rider install) && sh -c \"$cmd\" sh",
+     "upgrade:forge": "cmd=$(fence-rider install --upgrade) && sh -c \"$cmd\" sh"
    }
    ```
 
@@ -128,10 +134,11 @@ the [output and input policy](../reference/reference.md#output-and-input-policy)
    installation, or `bun run upgrade:forge` to upgrade an existing installation.
    Both change remote installation state; use only an authorized app and site.
    Forge owns remaining prompts. Add `--confirm-scopes` and `--non-interactive`
-   explicitly only when that consent and interaction policy is intended:
+   explicitly only when that consent and interaction policy is intended, either
+   appended to the command or written into the generator call:
 
    ```sh
-   SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli install --upgrade --confirm-scopes --non-interactive
+   SECRETSPEC_PROVIDER=dotenv:values.env bun run upgrade:forge --confirm-scopes --non-interactive
    ```
 
 Targets come only from the resolved profile: `FORGE_ENVIRONMENT`, `FORGE_SITE`
@@ -147,9 +154,9 @@ as a fallback.
 
 Installation and upgrade do not upload, delete, or activate changed runtime
 values, deploy code, or apply Fence Rider's optional manifest declaration check.
-They run only one `forge install` under `secretspec run`, which resolves the
-whole profile; a stale ambient value for an unresolved optional declaration is
-not cleared here. Output and input
+The script runs only one `forge install` under `secretspec run`, which resolves
+the whole profile; a stale ambient value for an unresolved optional declaration
+is not cleared here. Output and input
 are live and not redacted. See the [installation reference][installation] for
 verified grammar, products, and the separate live-verification blocker.
 
@@ -163,7 +170,7 @@ verified grammar, products, and the separate live-verification blocker.
 2. Add this entry to your app's existing package scripts:
 
    ```json
-   { "uninstall:forge": "fence-rider uninstall" }
+   { "uninstall:forge": "cmd=$(fence-rider uninstall) && sh -c \"$cmd\" sh" }
    ```
 
 3. Review the destination and obtain authorization to remove that installation.

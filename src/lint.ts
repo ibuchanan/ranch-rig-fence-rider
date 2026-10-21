@@ -1,15 +1,15 @@
-import { checkManifest, prerequisite, scopeMembers } from "./configured";
 import { type CommandSpec, parseForgeArgs } from "./forge-args";
-import { checkInterruption, passthrough } from "./process";
-import { runWorkflow } from "./workflow";
+import { emit, underSecretSpec } from "./shell";
 
 export const lintUsage = [
   "Usage: fence-rider lint [Forge options]",
-  "Check optional manifest metadata, then run forge lint under secretspec run with the whole active profile resolved into its environment.",
-  "Unlike deploy and tunnel, values are not validated by Fence Rider, and an exported variable the profile does not resolve (or declare) stays visible to Forge.",
+  "Prints a shell script that runs forge lint under secretspec run, with the whole active profile resolved into its environment. Run it from a package script:",
+  '  cmd=$(fence-rider lint) && sh -c "$cmd" sh',
+  "Options given here are embedded in the script; options a script runner appends after `sh` are passed too.",
   "Forge stdin is inherited; stdout/stderr stream live and unredacted. Upstream output may expose values.",
   "No target flags are injected and no runtime variables are uploaded.",
-  "SecretSpec and Forge must be installed on PATH and authenticated separately.",
+  "Fence Rider does not validate values, and an exported variable the profile does not resolve (or declare) stays visible to Forge.",
+  "SecretSpec and Forge must be installed on PATH and authenticated separately; run fence-rider doctor to check them.",
 ].join("\n");
 
 const lintSpec: CommandSpec = {
@@ -17,26 +17,11 @@ const lintSpec: CommandSpec = {
   help: ["--help", "-h"],
 };
 
-/** Run configured Forge lint with inherited input and unredacted live output. */
-export async function lint(args: string[]): Promise<number> {
-  const { forwarded, help } = parseForgeArgs(lintSpec, args);
-  if (help) {
-    console.log(lintUsage);
-    return 0;
-  }
-  return runWorkflow(async (state) => {
-    const secretspec = prerequisite("secretspec", state);
-    const forge = prerequisite("forge", state);
-    await checkManifest(
-      (scope) => scopeMembers(secretspec, scope, state),
-      state,
-    );
-    state.stage = "lint";
-    await passthrough(
-      secretspec,
-      ["run", "--scope", "", "--", forge, "lint", ...forwarded],
-      state.signal,
-    );
-    checkInterruption(state.signal);
+/** Print the script that runs Forge lint with the profile in its environment. */
+export function lint(args: string[]): number {
+  return emit(() => {
+    const { forwarded, help } = parseForgeArgs(lintSpec, args);
+    if (help) return lintUsage;
+    return underSecretSpec(["forge", "lint", ...forwarded]);
   });
 }

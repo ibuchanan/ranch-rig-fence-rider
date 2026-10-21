@@ -8,8 +8,8 @@ and [deployment evidence](deployment.md) separate native SecretSpec delivery,
 controlled Forge behavior, and unverified upstream acceptance.
 
 This reference defines variable declarations, local availability, manifest
-checks, and runtime upload selection for deployment. Configured lint runs under
-`secretspec run` after the optional manifest check, without uploads or injected
+checks, and runtime upload selection for deployment. Configured lint prints a
+script that runs under `secretspec run`, without uploads or injected
 target flags; its [output boundary](#configured-lint)
 differs from private deployment output.
 The repository-owned `secretspec.toml` specifies and validates every variable.
@@ -316,13 +316,13 @@ The metadata boundary is:
 - Resolve the whole profile once for deploy and tunnel: `secretspec schema` for
   effective names and types, `secretspec export --scope "" --format json` for
   values.
-- Ask SecretSpec for the members of `manifest` (lint, deploy, tunnel) and
+- Ask SecretSpec for the members of `manifest` (deploy, tunnel) and
   `runtime` (deploy, tunnel) with `secretspec check --json --scope NAME`. The
   report is value-free and includes optional declarations absent from exported
-  values, so the manifest check still covers them. Install and uninstall ask
-  for neither, and make no `schema` or `export` call either: they run under
-  `secretspec run`. Lint asks for `manifest` only, then runs under
-  `secretspec run` the same way.
+  values, so the manifest check still covers them. Lint, install and uninstall
+  make no SecretSpec call at all: they print a script that runs under
+  `secretspec run`. `fence-rider doctor` asks for `manifest` when the file
+  declares that scope, so the manifest check for lint now lives there.
 - A scope the file does not define has no members, so a missing runtime scope
   means no uploads. SecretSpec reports this only as "is not defined in
   secretspec.toml" on stderr, which Fence Rider matches without printing it.
@@ -408,21 +408,35 @@ signal termination, or interruption cannot become success.
 
 ## Configured lint
 
-`fence-rider lint [Forge options]` applies the optional manifest check, then
-runs `secretspec run --scope "" -- forge lint …`, so SecretSpec resolves the
-entire active profile into Forge's environment. Fence Rider makes no `schema` or
-`export` call and builds no environment for lint. A required local, manifest,
-runtime, or control value can block lint even when lint does not use it: this is
+`fence-rider lint [Forge options]` runs nothing. It prints one shell script on
+stdout, `exec secretspec run --scope '' -- forge lint …` with the options given
+to it quoted into the script, and a package script executes that output. Options
+that a script runner appends later reach Forge through the script's `"$@"`
+without being parsed again. The documented package script assigns the output
+to a variable, then runs it with `sh -c` only if that assignment succeeded (see
+the [short scripts](../how-to/consumer-workflows.md)): when Fence Rider refuses,
+it prints the reason on stderr, nothing on stdout, and exits 1, so the `&&`
+stops the script. Without the guard, `eval "$(fence-rider lint)"` evaluates an
+empty string and exits 0, so a refusal would pass silently.
+
+Because the script `exec`s `secretspec run`, the shell is replaced: Fence Rider
+supervises nothing, and signals, the exit status and interactive input belong to
+SecretSpec and Forge directly. Fence Rider checks neither `PATH` nor the
+optional manifest declarations for lint; a missing tool is the shell's "command
+not found" when the script runs, and `fence-rider doctor` reports both tool
+versions and the manifest-scope check. SecretSpec resolves the entire active
+profile into Forge's environment, so a required local, manifest, runtime, or
+control value can block lint even when lint does not use it: this is
 whole-profile repository readiness, not command-scoped requiredness. Native
 optional declarations and profiles represent legitimate absence.
 
 A missing required value fails inside `secretspec run` with SecretSpec's own
-error before Forge starts. The one exception is a required value in the
-`manifest` scope, which the preceding scope check reports generically. Like
-install and uninstall, lint does not validate resolved values and does not clear
-a stale ambient value for an unresolved optional declaration, and an exported
-variable that the profile neither declares nor resolves stays visible to Forge.
-See [ADR 0005](../adr/0005-install-and-lint-delegate-to-secretspec-run.md).
+error before Forge starts. Like install and uninstall, lint does not validate
+resolved values and does not clear a stale ambient value for an unresolved
+optional declaration, and an exported variable that the profile neither declares
+nor resolves stays visible to Forge. The generated text never contains a value.
+See [ADR 0005](../adr/0005-install-and-lint-delegate-to-secretspec-run.md) and
+[ADR 0006](../adr/0006-generate-shell-for-lint-install-uninstall.md).
 
 No environment/site/product flags are injected. Explicit lint arguments,
 including Forge's environment option, retain their boundaries and order; Forge
@@ -435,7 +449,8 @@ suppress local delivery or Forge's substitution requirements.
 
 SecretSpec schema/export and encrypted-upload stdout remain private and stderr
 is not shown. Deployment retains its existing suppressed-output contract.
-Delegated lint, installation, uninstall, and tunnel inherit stdin, stdout, and stderr:
+Forge as run by the lint, installation, and uninstall scripts, and by tunnel,
+inherits stdin, stdout, and stderr:
 output is live, without redaction, and on its original stream; input is available
 without wrapper prompts. Wrapper-owned diagnostics omit values and raw helper
 errors. **Forge output, exception details, application logs, echoed input, and
@@ -445,13 +460,15 @@ redaction or credential isolation. Existing ambient authentication is retained.
 This shared user-facing stdio mode serves lint, installation, uninstall, and
 tunnel; it does not certify terminal-specific prompt behavior.
 Ordinary pipe checks establish input and pre-exit streaming.
-POSIX interruption forwards SIGINT/SIGTERM to the active process group, escalates
-after one second, and kills remaining group members, including when the direct
-child exits first. Windows process-tree cleanup remains uncertified.
+For tunnel and deploy, POSIX interruption forwards SIGINT/SIGTERM to the active
+process group, escalates after one second, and kills remaining group members,
+including when the direct child exits first. Lint, install and uninstall have no
+Fence Rider process to interrupt: the terminal signals `secretspec run` and Forge
+directly. Windows process-tree cleanup remains uncertified.
 
-Numeric Forge lint statuses are preserved. Resolution, validation, launch,
-signal termination, and interruption are non-success; operator interruption
-returns 130/143. Help-looking option values and terminator payloads are not
+Numeric Forge lint statuses are preserved because the script replaces the shell.
+Resolution, validation, launch, signal termination, and interruption are
+non-success. Help-looking option values and terminator payloads are not
 discovery requests.
 
 Observed 2026-10-19: installed Forge CLI 14.2.0 `lint --help` lists `--verbose`,
@@ -466,15 +483,16 @@ No live app was contacted. See the [validation record](validation.md).
 
 ## Configured installation
 
-`fence-rider install [Forge options]` delegates exactly one installation to
-SecretSpec itself: it runs `secretspec run --scope "" -- sh -c SCRIPT sh install
-ARGS…`, so SecretSpec resolves the whole active profile into the child
-environment and the script `exec`s Forge with inherited application values,
-ordinary settings, and existing authentication. The script is a fixed string;
-the command and forwarded arguments arrive as positional parameters, never
-interpolated. The command needs `sh`. Fence Rider performs no `schema` or
-`export` call, no scope lookup, no runtime upload, remote deletion, deployment,
-or optional manifest declaration cross-check. Controls-only profiles work.
+`fence-rider install [Forge options]` runs nothing. It prints one shell script,
+`exec secretspec run --scope '' -- sh -c SCRIPT sh install ARGS… "$@"`, and a
+package script executes it as described for [lint](#configured-lint). SecretSpec
+resolves the whole active profile into the child environment and the inner
+script `exec`s Forge with inherited application values, ordinary settings, and
+existing authentication. The inner script is a fixed string; the command and the
+quoted arguments arrive as positional parameters, never interpolated. The
+command needs `sh`. Fence Rider performs no `schema`, `export` or scope
+lookup, no runtime upload, remote deletion, deployment, or optional manifest
+declaration cross-check. Controls-only profiles work.
 Installation does not activate changed runtime values. SecretSpec requiredness
 applies to the whole profile, and `--scope ""` keeps an ambient
 `SECRETSPEC_SCOPE` from narrowing it.
@@ -498,11 +516,12 @@ and lint differ from deploy and tunnel in three ways:
 Forge is invoked as `forge install --environment E --site S --product P`
 followed by the forwarded arguments, and Forge validates what the values mean.
 The target options `--environment`/`-e`, `--site`/`-s` and `--product`/`-p` are
-**not accepted**: any spelling of them is refused before SecretSpec or Forge is
-called, because forwarding one would give Forge a second copy of an option the
-wrapper injects. A missing or invalid target also fails before Forge, and Forge's
-target prompts never open. Someone who needs explicit control writes the command
-with `secretspec` and `forge` directly, for example
+**not accepted**: any spelling of them is refused before any script is printed
+(nothing on stdout, exit 1), because forwarding one would give Forge a second
+copy of an option the script injects. A missing or invalid target fails in the
+script before Forge, and Forge's target prompts never open. Someone who needs
+explicit control writes the command with `secretspec` and `forge` directly, for
+example
 `secretspec run -- forge install --environment … --site … --product …`, which is
 now almost what the wrapper does itself. See
 [ADR 0004](../adr/0004-install-targets-from-profile-only.md) and
@@ -522,9 +541,8 @@ after `--` are preserved. The wrapper does not implement a universal parser
 for future Forge options.
 
 Forge input/output uses the [live output policy](#output-and-input-policy).
-Numeric failures propagate; private helpers stay suppressed. Help-looking
-required values and terminator payloads are not help requests. POSIX
-interruption uses the existing bounded process-group XX
+Numeric failures propagate. Help-looking required values and terminator payloads
+are not help requests.
 
 Observed 2026-10-19: installed Forge CLI 14.2.0 `install --help`, published
 14.2.0 installation registration/context parsing source, and `@forge/cli-shared`
@@ -541,8 +559,9 @@ registration, or cleanup was authorized or executed. See the
 
 ## Configured uninstall
 
-`fence-rider uninstall [Forge options]` delegates exactly one `forge uninstall`
-through `secretspec run --scope ""`, as described for installation, with all
+`fence-rider uninstall [Forge options]` prints the script that runs exactly one
+`forge uninstall` through `secretspec run --scope ''`, as described for
+installation, with all
 resolved local values, ordinary settings, and existing authentication. Stale
 ambient values for unresolved optional declarations are not cleared. Missing
 required app credentials or controls block execution. Controls-only
@@ -572,9 +591,9 @@ Forge owns remaining prompts and native uninstall effects, including related
 installation contexts. This is not a read-only command.
 
 The [live stdio policy](#output-and-input-policy) applies without redaction.
-Numeric status is preserved; private helper/launch/signal failures cannot become
-success. Operator SIGINT/SIGTERM returns 130/143 with bounded POSIX process-group
-cleanup. Required-value and terminator payloads are not help.
+Numeric status is preserved and launch or signal failures cannot become
+success, because the script replaces the shell and no Fence Rider process
+supervises it. Required-value and terminator payloads are not help.
 
 Observed 2026-10-19: installed Forge CLI 14.2.0 `uninstall --help`, published
 14.2.0 `register-installation-commands.js`, `command.js`, and

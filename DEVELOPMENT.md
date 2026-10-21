@@ -80,14 +80,18 @@ Do not raise thresholds or suppress findings to make a gate pass.
 ## Repository layout
 
 - `src/index.ts`: CLI discovery and command dispatch.
-- `src/configured.ts`: native profile resolution, scope membership queries,
-  manifest checks, child environments, stdio policy, and process cleanup.
+- `src/configured.ts`: native profile resolution for deploy and tunnel, scope
+  membership queries, manifest checks, child environments, stdio policy, and
+  process cleanup.
+- `src/shell.ts`: shell quoting and the `secretspec run` script that `lint`,
+  `install` and `uninstall` print; pure strings, so tests need no processes.
+- `src/doctor.ts`: tool version ranges, the unrecognized-scope warning and the
+  manifest-scope check.
 - `src/deploy.ts`: target options and encrypted deployment lifecycle.
-- `src/lint.ts`: configured lint with live output without redaction and
-  inherited input.
-- `src/install.ts`: install/uninstall through `secretspec run`, with a fixed
-  target script, command-specific option grammar and no automatic
-  synchronization.
+- `src/lint.ts`: prints the script that runs `forge lint` under
+  `secretspec run`; Fence Rider supervises nothing.
+- `src/install.ts`: prints the install/uninstall script, with a fixed target
+  script, refusal of target options and no automatic synchronization.
 - `tests/`: compiled CLI and validation-command behavior.
 - `docs/`: task guides, reference, and architectural explanation.
 - `specs/fence-rider-spec.md`: product contract and AC-01 through AC-18.

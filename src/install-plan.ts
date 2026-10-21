@@ -14,6 +14,8 @@ const installSpec: CommandSpec = {
 export function parseInstallOptions(args: string[]) {
   const { owned, forwarded, help } = parseForgeArgs(installSpec, args);
   if (Object.keys(owned).length)
-    throw new Error("Target options are not accepted");
+    throw new Error(
+      "Target options are not accepted; set FORGE_ENVIRONMENT, FORGE_SITE and FORGE_PRODUCT in the profile, or run secretspec and forge directly",
+    );
   return { forwarded, help };
 }
