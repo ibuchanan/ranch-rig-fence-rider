@@ -7,39 +7,64 @@ bun install
 bun run test
 bun run typecheck
 bun run build
-./dist/cli --help
+./dist/fence-rider --help
 ```
 
-## Public test boundaries
+## Test tiers
 
-The CLI test files in `tests/` build the real CLI and invoke it in isolated projects
-with controlled executables. Tests observe status, safe output, argument
-boundaries, child environments, and process cleanup, not private helpers.
-They need no credentials, network, vault, or real Forge app. Synthetic
-fixture files and interaction records are removed after the suite.
+Tests live in two tiers under `tests/`, with shared helpers in `tests/support/`.
 
-`bun run test` runs the files in parallel worker processes. Each file builds its
-own CLI in a private workspace (`useBuiltCli()` in `tests/support/cli.ts`), so
-new tests must use per-test temp directories and avoid fixed ports, a shared
-cwd, or other shared mutable state.
+| Tier | Location | What runs | Speed |
+| --- | --- | --- | --- |
+| Unit | `tests/unit/` | In-process calls to `main`, with no subprocesses | A fraction of a second for the whole tier |
+| Integration | `tests/integration/` | Real processes: the compiled CLI, fake or real tools on `PATH`, signals, installed packages | Seconds; each file runs in its own worker |
 
-When SecretSpec is on `PATH`, the same suite also runs native synthetic
-dotenv integration checks. Install SecretSpec 0.21.1 separately to reproduce
-that evidence. Without it, native checks are skipped: a green controlled
-suite alone does not certify SecretSpec compatibility. POSIX interruption
-checks are skipped on Windows; Windows process-tree cleanup is not certified.
+Rule of thumb: output and decisions are unit tests; real processes, signals,
+`PATH` and installed packages are integration tests. Start with a unit test and
+move to integration only when the behavior cannot be seen in-process.
 
-`tests/check.test.ts` exercises validation output and statuses with isolated
-tools and passing/failing Bun fixtures. No nested full-suite invocation is
-needed. The acceptance map is in the
+`Io` (`src/io.ts`) is the seam between the tiers. It carries everything a
+command touches outside its own process: stdout and stderr, the environment,
+`PATH` lookup, file reads and helper-tool calls. `src/index.ts` passes the real
+`consoleIo`; unit tests pass their own.
+
+To test a new command in-process, call its public entry point, `main` in
+`src/cli.ts`, with an `Io` built from `recordingIo()` in
+`tests/support/main.ts`. Override `which`, `readFile`, `capture` or `env` on that
+`Io` to supply fake tools and files, then assert on the exit code and the
+recorded output. `runMain(args)` does this with the default `Io`. Pass the output
+and helper calls in rather than patching modules or globals. `tests/unit/doctor.test.ts`
+is a worked example.
+
+Integration tests observe status, safe output, argument boundaries, child
+environments, and process cleanup, not private helpers. They need no
+credentials, network, vault, or real Forge app. Synthetic fixture files and
+interaction records are removed after the suite.
+
+`bun run test` runs the files in parallel worker processes. Integration files
+that need the compiled CLI build it through `useBuiltCli()` in
+`tests/support/cli.ts`, into a private workspace. New tests must use per-test
+temp directories and avoid fixed ports, a shared cwd, or other shared mutable
+state.
+
+When SecretSpec is on `PATH`, the suite also runs native synthetic dotenv
+integration checks (`tests/integration/native-*.test.ts`). Install SecretSpec
+0.21.1 separately to reproduce that evidence. Without it, native checks are
+skipped: a green controlled suite alone does not certify SecretSpec
+compatibility. POSIX interruption checks are skipped on Windows; Windows
+process-tree cleanup is not certified.
+
+`tests/integration/check.test.ts` exercises validation output and statuses with
+isolated tools and passing/failing Bun fixtures. No nested full-suite
+invocation is needed. The acceptance map is in the
 [deployment evidence reference](docs/reference/deployment.md).
 
 ## Installed-package delivery checks
 
 The package executable requires Bun 1.4.3+, and both the packaged and compiled
 CLIs find SecretSpec and Forge on `PATH`. Packaging tests in
-`tests/packaged-consumer.test.ts` pack a local artifact, install it with
-lifecycle scripts blocked, and invoke its installed executable in isolated
+`tests/integration/packaged-consumer.test.ts` pack a local artifact, install it
+with lifecycle scripts blocked, and invoke its installed executable in isolated
 consumers with controlled tools. Native installed checks additionally require
 SecretSpec on `PATH`; without it they skip, not pass. They remove
 consumer fixtures and never publish or contact Forge.
@@ -56,13 +81,15 @@ native, interface and blocked live results.
 | --- | --- |
 | `bun run test` | Full test suite with normal passing-test output |
 | `bun run test:check` | Same tests; only failures and totals are displayed |
+| `bun run test:unit` | Unit tier only: in-process, no subprocesses |
+| `bun run test:integration` | Integration tier only: real processes and tools on `PATH` |
 | `bun run test:coverage` | Coverage report for inspection |
 | `bun run test:watch` | Interactive test feedback |
 | `bun run lint` | Biome, formatting, typecheck, and Fallow in parallel |
 | `bun run lint:fallow` | Full Fallow gate; report displayed only on failure |
 | `bun run lint:docs` | All Markdown and spelling checks |
 | `bun run check` | Forced pre-push gate: tests and lint; optional size/pack scripts are currently absent |
-| `bun run build` | Compiled CLI at `dist/cli` |
+| `bun run build` | Compiled CLI at `dist/fence-rider` |
 
 Fallow still fails on dead-code, duplication, or health thresholds as before;
 quiet success does not disable analyses. Its stdout/stderr are retained and
@@ -79,7 +106,10 @@ Do not raise thresholds or suppress findings to make a gate pass.
 
 ## Repository layout
 
-- `src/index.ts`: CLI discovery and command dispatch.
+- `src/index.ts`: the executable entry; runs `main` with the real `consoleIo`.
+- `src/cli.ts`: `main`, the public entry point: help, version and command
+  dispatch, with output and helper calls taken from `Io`.
+- `src/io.ts`: the `Io` seam for output, environment, `PATH`, files and helpers.
 - `src/configured.ts`: native profile resolution for `variables`, scope
   membership queries, manifest checks, child environments, and the value-free
   name queries the tunnel generator makes.
@@ -100,7 +130,8 @@ Do not raise thresholds or suppress findings to make a gate pass.
   `secretspec run`; Fence Rider supervises nothing.
 - `src/install.ts`: prints the install/uninstall script, with a fixed target
   script, refusal of target options and no automatic synchronization.
-- `tests/`: compiled CLI and validation-command behavior.
+- `tests/unit/`, `tests/integration/`: the two test tiers; `tests/support/`
+  holds shared fixtures, fakes and runners.
 - `docs/`: task guides, reference, and architectural explanation.
 - `specs/fence-rider-spec.md`: product contract and AC-01 through AC-18.
 
