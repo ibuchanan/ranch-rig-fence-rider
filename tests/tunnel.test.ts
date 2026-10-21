@@ -1,21 +1,24 @@
 import { expect, test } from "bun:test";
 import { readdirSync } from "node:fs";
-import { cli, useBuiltCli, waitUntil } from "./support/cli.ts";
+import { useBuiltCli } from "./support/cli.ts";
 import {
-  deploymentEnv,
   deploymentSchema,
   deploymentSpec,
   deploymentValues,
-  prepareProject,
+  runScript,
   runWorkflow,
   sharedValue,
-  type WorkflowOptions,
+  type ToolCall,
 } from "./support/fixtures.ts";
 
 useBuiltCli();
 
+const development = { ...deploymentValues, FORGE_ENVIRONMENT: "development" };
+const forgeCalls = (interactions: ToolCall[]) =>
+  interactions.filter(({ tool }) => tool === "forge");
+
 test.each(["FORGE_ENVIRONMENT", "FORGE_SITE", "FORGE_PRODUCT"])(
-  "configured tunnel rejects runtime selection of %s",
+  "tunnel refuses runtime selection of %s before printing anything",
   async (control) => {
     const result = await runWorkflow({
       command: "tunnel",
@@ -32,21 +35,16 @@ test.each(["FORGE_ENVIRONMENT", "FORGE_SITE", "FORGE_PRODUCT"])(
           [control]: { type: "string" },
         },
       },
-      values: {
-        ...deploymentValues,
-        FORGE_ENVIRONMENT: "development",
-        [control]: "development",
-      },
+      values: { ...development, [control]: "development" },
     });
     expect(result.exitCode).toBe(1);
-    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
-      [],
-    );
+    expect(result.stdout).toBe("");
+    expect(forgeCalls(result.interactions)).toEqual([]);
     expect(result.stderr).toContain("tunnel runtime selection validation");
   },
 );
 
-test("configured tunnel normalizes explicit named development override and preserves debug payloads", async () => {
+test("tunnel normalizes an explicit named development override and preserves debug payloads", async () => {
   const args = [
     "-d",
     "-f",
@@ -61,20 +59,37 @@ test("configured tunnel normalizes explicit named development override and prese
     "--environment",
     "production",
   ];
-  const result = await runWorkflow({
+  const result = await runScript({
     command: "tunnel",
-    args: ["-ealice-dev", ...args],
+    generate: ["-ealice-dev", ...args],
   });
   expect(result.exitCode).toBe(0);
-  expect(result.interactions.at(-1)?.args).toEqual([
-    "tunnel",
-    "--environment",
-    "alice-dev",
-    ...args,
+  expect(forgeCalls(result.interactions).map(({ args }) => args)).toEqual([
+    ["tunnel", "--environment", "alice-dev", ...args],
   ]);
 });
 
-test("configured tunnel rejects reserved prefix declarations rather than losing local values or bypassing selection", async () => {
+test("tunnel appends the runner's arguments after the embedded ones", async () => {
+  const result = await runScript({
+    command: "tunnel",
+    generate: ["-edevelopment", "--verbose"],
+    appended: ["-p", "9230", "a b;$(touch injected)"],
+  });
+  expect(result.exitCode).toBe(0);
+  expect(forgeCalls(result.interactions).map(({ args }) => args)).toEqual([
+    [
+      "tunnel",
+      "--environment",
+      "development",
+      "--verbose",
+      "-p",
+      "9230",
+      "a b;$(touch injected)",
+    ],
+  ]);
+});
+
+test("tunnel refuses reserved prefix declarations rather than losing local values or bypassing selection", async () => {
   const result = await runWorkflow({
     command: "tunnel",
     args: ["-edevelopment"],
@@ -95,19 +110,17 @@ test("configured tunnel rejects reserved prefix declarations rather than losing 
     },
   });
   expect(result.exitCode).toBe(1);
-  expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
-    [],
-  );
+  expect(result.stdout).toBe("");
+  expect(forgeCalls(result.interactions)).toEqual([]);
   expect(result.stderr).toContain("tunnel runtime selection validation");
   expect(result.stderr).not.toContain("synthetic collision");
 });
 
-test("configured tunnel maps only explicit runtime members from one resolution without writes", async () => {
-  const result = await runWorkflow({
+test("tunnel maps only explicit runtime members, resolving values only inside secretspec run, without writes", async () => {
+  const result = await runScript({
     command: "tunnel",
-    values: { ...deploymentValues, FORGE_ENVIRONMENT: "development" },
+    values: development,
     env: {
-      OPTIONAL: "stale",
       FORGE_USER_VAR_SHARED: "stale shared",
       FORGE_USER_VAR_OPTIONAL: "stale optional",
       FORGE_USER_VAR_LOCAL_ONLY: "unauthorized local",
@@ -115,19 +128,23 @@ test("configured tunnel maps only explicit runtime members from one resolution w
     },
   });
   expect(result.exitCode).toBe(0);
-  expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual([
+  expect(forgeCalls(result.interactions)).toEqual([
     {
       tool: "forge",
       args: ["tunnel", "--environment", "development"],
-      values: { ...deploymentValues, FORGE_ENVIRONMENT: "development" },
+      values: development,
       runtime: { SHARED: sharedValue },
     },
   ]);
+  // The generator asks for names only; the values reach Forge through `run`.
+  expect(result.generated.interactions.map(({ args }) => args[0])).toEqual([
+    "schema",
+    "check",
+  ]);
   expect(result.interactions.map(({ args }) => args[0])).toEqual([
     "schema",
-    "export",
     "check",
-    "check",
+    "run",
     "tunnel",
   ]);
   expect(result.stdout).toContain("synthetic tunnel result");
@@ -140,82 +157,50 @@ test("configured tunnel maps only explicit runtime members from one resolution w
   ]);
 });
 
-test.each(["tunnel"] as const)(
-  "configured %s streams before exit and inherits input, ordinary settings, and authentication without redaction",
-  async (command) => {
-    const options: WorkflowOptions = {
-      env: {
-        LINT_READ_INPUT: "1",
-        ORDINARY_SETTING: "synthetic-setting",
-        FORGE_API_TOKEN: "synthetic-auth",
-      },
-    };
-    options.args = ["-edevelopment"];
-    const project = prepareProject(options);
-    const child = Bun.spawn(
-      [cli.executable, command, ...(options.args ?? [])],
-      {
-        cwd: project,
-        env: deploymentEnv(project, options),
-        stdin: "pipe",
-        stdout: "pipe",
-        stderr: "pipe",
-      },
-    );
-    let stdout = "";
-    const output = (async () => {
-      for await (const chunk of child.stdout)
-        stdout += new TextDecoder().decode(chunk);
-    })();
-    const errors = new Response(child.stderr).text();
-    try {
-      await waitUntil(
-        () => stdout.includes(`synthetic ${command} result`),
-        `live ${command} output before input`,
-      );
-      expect(child.exitCode).toBeNull();
-      child.stdin.write(sharedValue);
-      child.stdin.end();
-      expect(await child.exited).toBe(0);
-      await output;
-      expect(stdout).toContain(`input:${sharedValue}`);
-      expect(stdout).toContain("ordinary:synthetic-setting");
-      expect(stdout).toContain("auth:synthetic-auth");
-      expect(await errors).toBe(`synthetic ${command} warning\n`);
-    } finally {
-      child.stdin.end();
-      child.kill("SIGKILL");
-      await child.exited;
-      await output;
-      await errors;
-    }
-  },
-);
+test("a resolved optional runtime member is mapped, even when empty", async () => {
+  const result = await runScript({
+    command: "tunnel",
+    values: { ...development, OPTIONAL: "" },
+  });
+  expect(result.exitCode).toBe(0);
+  expect(forgeCalls(result.interactions)[0]?.runtime).toEqual({
+    SHARED: sharedValue,
+    OPTIONAL: "",
+  });
+});
+
+test("the generator never prints a value", async () => {
+  const result = await runWorkflow({ command: "tunnel", values: development });
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toStartWith("exec secretspec run --scope '' -- sh -c ");
+  expect(result.stdout).toContain('export FORGE_USER_VAR_SHARED="$SHARED"');
+  expect(result.stdout).not.toContain("FORGE_USER_VAR_LOCAL_ONLY");
+  expect(result.stdout).toEndWith(`' sh tunnel "$@"\n`);
+});
 
 test.each([
   { args: ["-e", "--verbose"] },
   { args: ["-edevelopment", "--environment", "development"] },
 ])(
-  "configured tunnel rejects invalid or duplicate targets %j before tools",
+  "tunnel refuses invalid or duplicate targets %j before tools",
   async ({ args }) => {
     const result = await runWorkflow({ command: "tunnel", args });
     expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
     expect(result.interactions).toEqual([]);
     expect(result.stderr).toContain("tunnel option validation");
   },
 );
 
-test.each([""])(
-  "configured tunnel rejects empty configured target %j",
+test.each(["", "-x", "--help"])(
+  "the tunnel script refuses FORGE_ENVIRONMENT=%j without calling Forge",
   async (target) => {
-    const result = await runWorkflow({
+    const result = await runScript({
       command: "tunnel",
       values: { ...deploymentValues, FORGE_ENVIRONMENT: target },
     });
     expect(result.exitCode).toBe(1);
-    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
-      [],
-    );
-    expect(result.stderr).toContain("tunnel target validation");
+    expect(forgeCalls(result.interactions)).toEqual([]);
+    expect(result.stderr).toContain("target is missing or invalid");
   },
 );

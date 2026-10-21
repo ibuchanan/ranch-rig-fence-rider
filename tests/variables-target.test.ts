@@ -10,7 +10,7 @@ import {
 
 useBuiltCli();
 
-test("canonical environment selects the same target for encrypted uploads and one deployment", async () => {
+test("canonical environment selects the target for encrypted uploads", async () => {
   const result = await runWorkflow({
     spec: deploymentSpec,
     schema: deploymentSchema,
@@ -31,7 +31,6 @@ test("canonical environment selects the same target for encrypted uploads and on
       "SHARED",
       sharedValue,
     ],
-    ["deploy", "--environment", "staging"],
   ]);
   expect(
     result.interactions
@@ -62,15 +61,13 @@ test.each([
     const forge = result.interactions.filter(({ tool }) => tool === "forge");
     expect(
       forge.map(({ args }) => args[args.indexOf("--environment") + 1]),
-    ).toEqual(
-      args.length ? ["production", "production"] : ["staging", "staging"],
-    );
-    expect(forge.map(({ args }) => args[0])).toEqual(["variables", "deploy"]);
+    ).toEqual(args.length ? ["production"] : ["staging"]);
+    expect(forge.map(({ args }) => args[0])).toEqual(["variables"]);
     expect(forge.at(-1)?.values).toEqual(deploymentValues);
   },
 );
 
-test("explicit environment overrides the configured target for every Forge command", async () => {
+test("explicit environment overrides the configured target for the upload", async () => {
   const result = await runWorkflow({ args: ["--environment", "production"] });
   expect(result.exitCode).toBe(0);
   expect(
@@ -87,7 +84,6 @@ test("explicit environment overrides the configured target for every Forge comma
       "SHARED",
       sharedValue,
     ],
-    ["deploy", "--environment", "production"],
   ]);
   expect(
     result.interactions
@@ -110,7 +106,7 @@ test.each([
   },
 );
 
-test("site and product defaults stay local and never become deployment flags or uploads", async () => {
+test("site and product defaults stay local and are never uploaded", async () => {
   const result = await runWorkflow({
     spec: deploymentSpec.replace(
       "[profiles.default]",
@@ -129,7 +125,6 @@ test("site and product defaults stay local and never become deployment flags or 
       FORGE_SITE: "synthetic.atlassian.net",
       FORGE_PRODUCT: "jira",
     },
-    args: ["--non-interactive"],
   });
   expect(result.exitCode).toBe(0);
   expect(
@@ -146,6 +141,5 @@ test("site and product defaults stay local and never become deployment flags or 
       "SHARED",
       sharedValue,
     ],
-    ["deploy", "--environment", "staging", "--non-interactive"],
   ]);
 });

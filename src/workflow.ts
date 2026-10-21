@@ -1,6 +1,5 @@
 import {
   CommandFailure,
-  DelegatedFailure,
   signalExitCode,
   workflowInterruption,
 } from "./process";
@@ -41,7 +40,7 @@ export async function runWorkflow(
       `Fence Rider: ${describeStage(workflow)} failed${detail}. No further commands were run.${warning}`,
     );
     if (workflow.signal.aborted) return signalExitCode(workflow.signal.reason);
-    return error instanceof DelegatedFailure ? error.exitCode : 1;
+    return 1;
   } finally {
     interruption.dispose();
   }

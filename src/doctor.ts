@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
-import { capture } from "./process";
 import { checkManifest, scopeMembers } from "./configured";
+import { capture } from "./process";
 import { recognizedScopes, unrecognizedScopes } from "./resolution";
 
 /**

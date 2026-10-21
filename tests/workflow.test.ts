@@ -1,5 +1,5 @@
 import { afterEach, expect, spyOn, test } from "bun:test";
-import { CommandFailure, DelegatedFailure } from "../src/process";
+import { CommandFailure } from "../src/process";
 import { runWorkflow } from "../src/workflow";
 
 const errors = spyOn(console, "error").mockImplementation(() => {});
@@ -22,23 +22,15 @@ test("a failure reports the stage and exits 1", async () => {
   );
 });
 
-test("a delegated failure propagates its exit code whatever the stage says", async () => {
+test("a command failure reports its message but never propagates its exit code", async () => {
   const status = await runWorkflow(async (workflow) => {
-    workflow.stage = "something unrelated to the command";
-    throw new DelegatedFailure("exit status 7", 7);
-  });
-  expect(status).toBe(7);
-  expect(errors).toHaveBeenCalledWith(
-    "Fence Rider: something unrelated to the command failed: exit status 7. No further commands were run.",
-  );
-});
-
-test("a non-delegated command failure does not propagate its exit code", async () => {
-  const status = await runWorkflow(async (workflow) => {
-    workflow.stage = "lint";
+    workflow.stage = "encrypted upload for SHARED";
     throw new CommandFailure("exit status 7", 7);
   });
   expect(status).toBe(1);
+  expect(errors).toHaveBeenCalledWith(
+    "Fence Rider: encrypted upload for SHARED failed: exit status 7. No further commands were run.",
+  );
 });
 
 test.each([
@@ -51,7 +43,7 @@ test.each([
     const status = await runWorkflow(async (workflow) => {
       process.emit(name as NodeJS.Signals, name as NodeJS.Signals);
       expect(workflow.signal.aborted).toBe(true);
-      throw new DelegatedFailure("terminated", 1);
+      throw new CommandFailure("terminated", 1);
     });
     expect(status).toBe(code);
     expect(process.listenerCount(name as NodeJS.Signals)).toBe(before);
@@ -82,11 +74,11 @@ test("a failure after an upload attempt warns that remote variables may have cha
   await runWorkflow(async (workflow) => {
     workflow.target = "staging";
     workflow.uploadAttempted = true;
-    workflow.stage = "deployment";
-    throw new DelegatedFailure("exit status 3", 3);
+    workflow.stage = "encrypted upload for SHARED";
+    throw new CommandFailure("exit status 3", 3);
   });
   expect(errors).toHaveBeenCalledWith(
-    "Fence Rider: deployment (target staging) failed: exit status 3. No further commands were run. Remote variables may already have changed; no rollback was attempted.",
+    "Fence Rider: encrypted upload for SHARED (target staging) failed: exit status 3. No further commands were run. Remote variables may already have changed; no rollback was attempted.",
   );
 });
 

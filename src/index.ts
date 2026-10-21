@@ -9,10 +9,11 @@ Usage: fence-rider <command> [options]
 Supported workflows:
 ${workflowListing}
 
-lint, install and uninstall print a shell script instead of running Forge. Run one
-from a package script, for example:
+lint, deploy, tunnel, install and uninstall print a shell script instead of running
+Forge. Run one from a package script, for example:
   "lint:forge": "cmd=$(fence-rider lint) && sh -c \\"$cmd\\" sh"
-The && stops the script if fence-rider refuses; deploy and tunnel run directly.
+The && stops the script if fence-rider refuses. variables runs directly: it uploads
+the runtime variables that deploy, like forge deploy, leaves alone.
 
 Deployment target: explicit option, resolved FORGE_ENVIRONMENT, then development.
 
@@ -29,7 +30,7 @@ no target options. Site/product are required. Only environment falls back to
 development. Install consent/upgrade/non-interactive policy is explicit.
 Uninstall inherits no install policy; Forge 14.2.0 has no --non-interactive option.
 
-Tunnel uses explicit runtime members via FORGE_USER_VAR_<name>; no remote uploads.
+Tunnel maps explicit runtime members to FORGE_USER_VAR_<name>; no remote uploads.
 Staging/production are unsupported; named targets must be development environments.
 Use fence-rider tunnel --help for tunnel options (-h is debug host, not help).
 `;

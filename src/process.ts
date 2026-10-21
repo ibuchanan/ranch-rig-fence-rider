@@ -30,15 +30,12 @@ export class CommandFailure extends Error {
   }
 }
 
-/** Failure of a command delegated to Forge; its exit code is propagated to the operator. */
-export class DelegatedFailure extends CommandFailure {}
-
 /** The one mapping from an interruption signal to its conventional exit status. */
 export function signalExitCode(reason: unknown) {
   return reason === "SIGINT" ? 130 : 143;
 }
 
-export function checkInterruption(signal: AbortSignal) {
+function checkInterruption(signal: AbortSignal) {
   if (signal.aborted)
     throw new CommandFailure(
       `interrupted by ${signal.reason}`,
@@ -46,44 +43,13 @@ export function checkInterruption(signal: AbortSignal) {
     );
 }
 
-/** Run a helper with private stdio and return its stdout. */
-export function capture(
-  tool: string,
-  args: string[],
-  signal: AbortSignal,
-  env = process.env,
-) {
-  return supervise(tool, args, signal, env, false);
-}
-
-/** Run a user-facing command with unredacted stdio inherited from the operator. */
-export async function passthrough(
-  tool: string,
-  args: string[],
-  signal: AbortSignal,
-  env = process.env,
-) {
-  try {
-    await supervise(tool, args, signal, env, true);
-  } catch (error) {
-    if (error instanceof CommandFailure)
-      throw new DelegatedFailure(error.message, error.exitCode);
-    throw error;
-  }
-}
-
-type Child = Bun.Subprocess<
-  "ignore" | "inherit",
-  "pipe" | "inherit",
-  "pipe" | "inherit"
->;
+type Child = Bun.Subprocess<"ignore", "pipe", "pipe">;
 
 /** Launch with detached process group; `failed.launch` records an asynchronous launch error. */
 function launch(
   tool: string,
   args: string[],
   env: typeof process.env,
-  inherit: boolean,
   failed: { launch: boolean },
 ): Child {
   const options = {
@@ -99,19 +65,12 @@ function launch(
     },
   };
   try {
-    return inherit
-      ? Bun.spawn([tool, ...args], {
-          ...options,
-          stdin: "inherit",
-          stdout: "inherit",
-          stderr: "inherit",
-        })
-      : Bun.spawn([tool, ...args], {
-          ...options,
-          stdin: "ignore",
-          stdout: "pipe",
-          stderr: "pipe",
-        });
+    return Bun.spawn([tool, ...args], {
+      ...options,
+      stdin: "ignore",
+      stdout: "pipe",
+      stderr: "pipe",
+    });
   } catch {
     throw new CommandFailure(
       "unable to launch executable; check installation and its interpreter",
@@ -158,27 +117,22 @@ function checkExit(
     throw new CommandFailure(`exit status ${code}`, code, diagnostic);
 }
 
-/** Shared supervision core: launch, group-kill on interruption, and classify exit. */
-async function supervise(
+/** Run a helper with private stdio and return its stdout; group-kill on interruption and classify exit. */
+export async function capture(
   tool: string,
   args: string[],
   signal: AbortSignal,
-  env: typeof process.env,
-  inherit: boolean,
+  env = process.env,
 ) {
   checkInterruption(signal);
   const failed = { launch: false };
-  const child = launch(tool, args, env, inherit, failed);
+  const child = launch(tool, args, env, failed);
   const cleanup = forwardInterruption(child, signal);
   try {
     const [code, stdout, diagnostic] = await Promise.all([
       child.exited,
-      child.stdout instanceof ReadableStream
-        ? new Response(child.stdout).text()
-        : "",
-      child.stderr instanceof ReadableStream
-        ? new Response(child.stderr).text()
-        : "",
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
     ]);
     checkInterruption(signal);
     checkExit(child, code, failed.launch, diagnostic);

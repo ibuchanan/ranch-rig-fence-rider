@@ -10,9 +10,8 @@ test.skipIf(process.platform === "win32").each([
   { blockStage: "schema", signal: "SIGINT", ignoreSignal: false },
   { blockStage: "export", signal: "SIGTERM", ignoreSignal: false },
   { blockStage: "variables", signal: "SIGINT", ignoreSignal: false },
-  { blockStage: "deploy", signal: "SIGINT", ignoreSignal: false },
-  { blockStage: "deploy", signal: "SIGTERM", ignoreSignal: false },
-  { blockStage: "deploy", signal: "SIGTERM", ignoreSignal: true },
+  { blockStage: "variables", signal: "SIGTERM", ignoreSignal: false },
+  { blockStage: "variables", signal: "SIGTERM", ignoreSignal: true },
 ] as const)(
   "operator interruption $signal during $blockStage cleans up (ignores signal: $ignoreSignal)",
   async ({ blockStage, signal, ignoreSignal }) => {
@@ -41,8 +40,8 @@ test.skipIf(process.platform === "win32").each([
     expect(result.stderr).toContain(`interrupted by ${signal}`);
     expect(result.stderr).toContain("target production");
     expect(result.interactions.at(-1)?.args[0]).toBe(blockStage);
-    expect(result.stdout).not.toContain("Deployment completed");
-    if (["variables", "deploy"].includes(blockStage))
+    expect(result.stdout).not.toContain("Uploaded");
+    if (blockStage === "variables")
       expect(result.stderr).toContain(
         "Remote variables may already have changed",
       );
@@ -54,7 +53,7 @@ test.skipIf(process.platform === "win32")(
   "interruption cleans up descendants even when the active helper exits first",
   async () => {
     const result = await runWorkflow({
-      blockStage: "deploy",
+      blockStage: "variables",
       spawnDescendant: true,
       onSpawn: async (child, project) => {
         await waitUntil(
@@ -77,53 +76,6 @@ test.skipIf(process.platform === "win32")(
     });
     expect(result.exitCode).toBe(143);
     expect(result.stderr).toContain("interrupted by SIGTERM");
-  },
-  12_000,
-);
-
-test.skipIf(process.platform === "win32").each([
-  { blockStage: "schema", signal: "SIGINT", ignoreSignal: false },
-  { blockStage: "export", signal: "SIGTERM", ignoreSignal: true },
-  { blockStage: "tunnel", signal: "SIGINT", ignoreSignal: false },
-  { blockStage: "tunnel", signal: "SIGINT", ignoreSignal: true },
-  { blockStage: "tunnel", signal: "SIGTERM", ignoreSignal: true },
-] as const)(
-  "configured tunnel interruption $signal at $blockStage cleans descendants (ignores: $ignoreSignal)",
-  async ({ blockStage, signal, ignoreSignal }) => {
-    const result = await runWorkflow({
-      command: "tunnel",
-      args: ["-edevelopment"],
-      blockStage,
-      ignoreSignal,
-      spawnDescendant: true,
-      onSpawn: async (child, project) => {
-        await waitUntil(
-          () =>
-            existsSync(join(project, "ready")) &&
-            existsSync(join(project, "descendant-ready")),
-          "tunnel group readiness",
-        );
-        const pid = Number(await Bun.file(join(project, "ready")).text());
-        const descendant = Number(
-          await Bun.file(join(project, "descendant-ready")).text(),
-        );
-        child.kill(signal);
-        await waitUntil(
-          () => child.exitCode !== null,
-          "interrupted tunnel wrapper exit",
-        );
-        await waitUntil(
-          () => !processRunning(pid) && !processRunning(descendant),
-          "tunnel group cleanup",
-        );
-        expect(await Bun.file(join(project, "received-signal")).text()).toBe(
-          signal,
-        );
-      },
-    });
-    expect(result.exitCode).toBe(signal === "SIGINT" ? 130 : 143);
-    expect(result.stderr).toContain(`interrupted by ${signal}`);
-    expect(result.interactions.at(-1)?.args[0]).toBe(blockStage);
   },
   12_000,
 );

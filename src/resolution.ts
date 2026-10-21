@@ -100,6 +100,12 @@ function parseValue(
   return value;
 }
 
+/** Names the SecretSpec schema declares, which never carries values. */
+export function declaredNames(schema: unknown) {
+  if (!isObject(schema)) throw new Error("Malformed schema output");
+  return Object.keys(parseProperties(schema));
+}
+
 /** Parse the schema and export output together into typed properties and values. */
 export function parseResolved(schema: unknown, exported: unknown) {
   if (!isObject(schema)) throw new Error("Malformed schema output");

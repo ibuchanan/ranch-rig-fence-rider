@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   manifestKeys,
-  parseResolved,
   parseMembers,
+  parseResolved,
   unrecognizedScopes,
 } from "../src/resolution.ts";
 import {

@@ -92,11 +92,7 @@ test("manifest scope checks declarations including absent optionals before uploa
       "environment:\n  variables:\n    - SHARED\n    - key: OPTIONAL\n      default: fallback\n",
   });
   expect(match.exitCode).toBe(0);
-  expect(match.interactions.at(-1)?.args).toEqual([
-    "deploy",
-    "--environment",
-    "staging",
-  ]);
+  expect(match.interactions.at(-1)?.args[0]).toBe("variables");
 });
 
 test("rejects control-variable upload selection and unsupported runtime inputs before any upload", async () => {

@@ -66,7 +66,6 @@ test.skipIf(!realSecretSpec)(
         "SHARED",
         "synthetic-native-shared",
       ],
-      ["deploy", "--environment", "staging"],
     ]);
     for (const call of forge) {
       expect(call.values).toEqual({
@@ -151,14 +150,9 @@ test.skipIf(!realSecretSpec)(
       exitCode: 0,
       stderr: "",
     });
-    const forge = result.interactions.filter(({ tool }) => tool === "forge");
-    expect(forge.map(({ args }) => args)).toEqual([
-      ["deploy", "--environment", "production"],
-    ]);
-    expect(forge[0]?.values).toEqual({
-      FORGE_ENVIRONMENT: "production",
-      LOCAL_ONLY: "synthetic-standalone",
-    });
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
   },
 );
 
@@ -180,7 +174,7 @@ test.skipIf(!realSecretSpec)(
       stderr: "",
     });
     const forge = result.interactions.filter(({ tool }) => tool === "forge");
-    expect(forge).toHaveLength(2);
+    expect(forge).toHaveLength(1);
     for (const call of forge) {
       expect(call.values).toEqual({
         FORGE_ENVIRONMENT: "staging",
@@ -221,7 +215,6 @@ test.skipIf(!realSecretSpec).each([
         "SHARED",
         runtime,
       ],
-      ["deploy", "--environment", "staging"],
     ]);
     for (const call of forge)
       expect(call.values).toEqual({
@@ -275,7 +268,7 @@ test.skipIf(!realSecretSpec).each([
     succeeds: true,
   },
 ])(
-  "native configuration: $name is validated without remote writes",
+  "native configuration: $name is validated, uploading only declared runtime values",
   async ({ name, spec, succeeds }) => {
     const result = await runWorkflow({
       realSecretSpec: realSecretSpec ?? "",
@@ -289,14 +282,7 @@ test.skipIf(!realSecretSpec).each([
       stderr: succeeds ? result.stderr : "",
     }).toEqual({ exitCode: succeeds, stderr: "" });
     const forge = result.interactions.filter(({ tool }) => tool === "forge");
-    if (succeeds) {
-      expect(forge.at(-1)?.args[0]).toBe("deploy");
-      if (name !== "empty extends") expect(forge).toHaveLength(1);
-      if (name === "empty optional profile")
-        expect(forge[0]?.values).toEqual({});
-    } else {
-      expect(forge).toEqual([]);
-    }
+    expect(forge).toHaveLength(name === "empty extends" ? 1 : 0);
   },
 );
 

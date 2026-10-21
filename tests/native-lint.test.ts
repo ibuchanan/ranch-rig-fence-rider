@@ -5,7 +5,6 @@ import {
   deploymentSpec,
   realSecretSpec,
   runScript,
-  runWorkflow,
 } from "./support/fixtures.ts";
 
 useBuiltCli();
@@ -126,40 +125,35 @@ test.skipIf(!realSecretSpec).each([
     args: ["--environment", "production"],
   },
   {
-    name: "absent canonical clears stale ambient target",
+    name: "unresolved optional target keeps the exported value",
     declarations:
       'FORGE_ENVIRONMENT = { description = "Optional target", required = false }',
     env: { FORGE_ENVIRONMENT: "stale-production" },
-    target: "development",
+    target: "stale-production",
     args: [],
   },
 ])(
-  "native controls-only profile: $name deploys without writes",
+  "native controls-only profile: $name deploys via one secretspec run without writes",
   async ({ declarations, env, target, args }) => {
-    const result = await runWorkflow({
+    const result = await runScript({
+      command: "deploy",
       realSecretSpec: realSecretSpec ?? "",
       spec: `[project]\nname = "synthetic-controls"\nrevision = "1.0"\n[profiles.default]\n${declarations}\n`,
       schema: { properties: { FORGE_ENVIRONMENT: {} } },
       env: { SECRETSPEC_PROVIDER: "dotenv:values.env", ...env },
       dotenv: "",
-      args,
+      generate: args,
     });
-    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
-      exitCode: 0,
-      stderr: "",
-    });
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toContain("synthetic deploy warning");
     const forge = result.interactions.filter(({ tool }) => tool === "forge");
     expect(forge.map(({ args }) => args)).toEqual([
       ["deploy", "--environment", target],
     ]);
-    expect(forge[0]?.values).not.toHaveProperty(
-      "FORGE_ENVIRONMENT",
-      "stale-production",
-    );
     expect(
       result.interactions
         .filter(({ tool }) => tool === "secretspec")
         .map(({ args }) => args[0]),
-    ).toEqual(["schema", "export", "check", "check"]);
+    ).toEqual(["run"]);
   },
 );

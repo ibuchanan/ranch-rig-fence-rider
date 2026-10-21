@@ -51,7 +51,13 @@ export type ToolCall = {
 };
 
 export type WorkflowOptions = {
-  command?: "deploy" | "lint" | "install" | "uninstall" | "tunnel";
+  command?:
+    | "variables"
+    | "deploy"
+    | "lint"
+    | "install"
+    | "uninstall"
+    | "tunnel";
   spec?: string;
   values?: unknown;
   schema?: unknown;
@@ -85,6 +91,7 @@ function writeTool(path: string, tool: string) {
 export const { appendFileSync, writeFileSync } = require("node:fs");
 export const args = process.argv.slice(2);
 export const tool = ${JSON.stringify(tool)};
+export const scripted = ["lint", "deploy", "install", "uninstall", "tunnel"];
 export const fixture = JSON.parse(process.env.FIXTURE);
 export const names = Object.keys(fixture.schema?.properties ?? {});
 appendFileSync(process.env.TOOL_CALL_LOG, JSON.stringify({
@@ -123,7 +130,7 @@ if (tool === "secretspec" && args[0] === "run") {
   }
   process.exit(status ?? 1);
 }
-if (["lint", "install", "uninstall", "tunnel"].includes(args[0])) {
+if (scripted.includes(args[0])) {
   console.log("synthetic " + args[0] + " result");
   console.error("synthetic " + args[0] + " warning");
   if (process.env.LINT_READ_INPUT) Bun.stdin.text().then(input => {
@@ -133,7 +140,7 @@ if (["lint", "install", "uninstall", "tunnel"].includes(args[0])) {
   });
 } else console.error("synthetic helper noise: " + ${JSON.stringify(sharedValue)});
 if (fixture.failStage === args[0] && (!fixture.failKey || fixture.failKey === args[5])) {
-  if (!["lint", "install", "uninstall", "tunnel"].includes(args[0])) console.log(${JSON.stringify(sharedValue)});
+  if (!scripted.includes(args[0])) console.log(${JSON.stringify(sharedValue)});
   if (fixture.failureMode === "throw") throw new Error("synthetic error details: " + ${JSON.stringify(sharedValue)});
   if (fixture.failureMode === "signal") process.kill(process.pid, "SIGTERM");
   else process.exit(fixture.exitCode ?? 23);
@@ -142,7 +149,7 @@ if (fixture.blockStage === args[0]) {
   if (fixture.spawnDescendant) Bun.spawn([process.execPath, "-e", 'process.on("SIGINT", () => {}); process.on("SIGTERM", () => {}); require("node:fs").writeFileSync("descendant-ready", String(process.pid)); setInterval(() => {}, 1000);'], { stdin: "ignore", stdout: "ignore", stderr: "ignore" });
   for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {
     writeFileSync("received-signal", signal);
-    console.error(["lint", "install", "uninstall", "tunnel"].includes(args[0]) ? "synthetic " + args[0] + " interrupted" : "synthetic signal error: " + ${JSON.stringify(sharedValue)});
+    console.error(scripted.includes(args[0]) ? "synthetic " + args[0] + " interrupted" : "synthetic signal error: " + ${JSON.stringify(sharedValue)});
     if (!fixture.ignoreSignal) process.exit(0);
   });
   setInterval(() => {}, 1000);
@@ -201,6 +208,9 @@ function prepareTools(project: string, options: WorkflowOptions) {
   mkdirSync(bin);
   // `secretspec run` starts the install script with `sh`, found on this PATH alone.
   symlinkSync("/bin/sh", join(bin, "sh"));
+  // The tunnel script lists ambient prefixed variables with `env | sed`.
+  symlinkSync("/usr/bin/env", join(bin, "env"));
+  symlinkSync("/usr/bin/sed", join(bin, "sed"));
   for (const tool of ["secretspec", "forge"]) {
     if (options.missingTool === tool) continue;
     writeTool(join(bin, tool), tool);
@@ -252,7 +262,7 @@ async function killFixtureProcess(path: string) {
 export async function runWorkflow(options: WorkflowOptions = {}) {
   const project = prepareProject(options);
   const child = Bun.spawn(
-    [cli.executable, options.command ?? "deploy", ...(options.args ?? [])],
+    [cli.executable, options.command ?? "variables", ...(options.args ?? [])],
     {
       cwd: project,
       env: deploymentEnv(project, options),
@@ -306,7 +316,7 @@ const installationOptions = {
 };
 
 export type ScriptOptions = WorkflowOptions & {
-  command: "lint" | "install" | "uninstall";
+  command: "lint" | "deploy" | "tunnel" | "install" | "uninstall";
   /** Arguments given to `fence-rider <command>`, embedded in the script. */
   generate?: readonly string[];
   /** Arguments a script runner appends after the shell command, arriving as "$@". */
@@ -314,9 +324,9 @@ export type ScriptOptions = WorkflowOptions & {
 };
 
 function withDefaults(options: ScriptOptions): ScriptOptions {
-  return options.command === "lint"
-    ? options
-    : { ...installationOptions, ...options };
+  return ["install", "uninstall"].includes(options.command)
+    ? { ...installationOptions, ...options }
+    : options;
 }
 
 async function readInteractions(project: string) {

@@ -6,7 +6,6 @@ import {
   installationSpec,
   realSecretSpec,
   runScript,
-  runWorkflow,
 } from "./support/fixtures.ts";
 
 useBuiltCli();
@@ -29,12 +28,12 @@ test.skipIf(!realSecretSpec).each([
     target: "alice-dev",
   },
   {
-    name: "optional fallback",
+    name: "unresolved optional environment keeps the exported value",
     declarations:
       'FORGE_ENVIRONMENT = { description = "Target", required = false }',
     args: [],
     pass: true,
-    target: "development",
+    target: "stale",
   },
   {
     name: "required despite override",
@@ -45,11 +44,11 @@ test.skipIf(!realSecretSpec).each([
     target: "unused",
   },
 ])(
-  "native configured tunnel controls-only profile: $name",
+  "native tunnel controls-only profile: $name",
   async ({ declarations, args, pass, target }) => {
-    const result = await runWorkflow({
+    const result = await runScript({
       command: "tunnel",
-      args,
+      generate: args,
       realSecretSpec: realSecretSpec ?? "",
       spec: `[project]\nname = "synthetic-tunnel-controls"\nrevision = "1.0"\n[profiles.default]\n${declarations}\nFORGE_SITE = { description = "Site", default = "synthetic.atlassian.net" }\nFORGE_PRODUCT = { description = "Product", default = "jira" }\n`,
       schema: {
@@ -77,10 +76,10 @@ test.skipIf(!realSecretSpec).each([
 );
 
 test.skipIf(!realSecretSpec)(
-  "native configured tunnel shares one inherited profile resolution with local manifest and runtime destinations",
+  "native tunnel shares one inherited profile resolution with local manifest and runtime destinations",
   async () => {
     const spec = `${deploymentSpec.replace("[scopes.runtime]", '[profiles.localdev]\nFORGE_ENVIRONMENT = { description = "Target", default = "development" }\nLOCAL_ONLY = { description = "Local override", default = "synthetic-local-dev" }\n\n[scopes.runtime]')}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`;
-    const result = await runWorkflow({
+    const result = await runScript({
       command: "tunnel",
       realSecretSpec: realSecretSpec ?? "",
       spec,
@@ -117,20 +116,19 @@ test.skipIf(!realSecretSpec)(
     );
     expect(native.map(({ args }) => args[0])).toEqual([
       "schema",
-      "export",
       "check",
-      "check",
+      "run",
     ]);
     for (const { args } of native) expect(args).not.toContain("--profile");
   },
 );
 
 test.skipIf(!realSecretSpec).each(["SHARED", "LOCAL_ONLY"])(
-  "native configured tunnel blocks missing whole-profile %s despite explicit target",
+  "native tunnel blocks missing whole-profile %s despite explicit target",
   async (missing) => {
-    const result = await runWorkflow({
+    const result = await runScript({
       command: "tunnel",
-      args: ["-edevelopment"],
+      generate: ["-edevelopment"],
       realSecretSpec: realSecretSpec ?? "",
       spec: deploymentSpec,
       schema: deploymentSchema,
@@ -151,11 +149,11 @@ test.skipIf(!realSecretSpec).each(["SHARED", "LOCAL_ONLY"])(
 );
 
 test.skipIf(!realSecretSpec)(
-  "native configured tunnel omits absent optional runtime values and stale injection",
+  "native tunnel with an unresolved optional runtime member maps the exported value, as lint and install leave it visible, but drops ambient prefixed ones",
   async () => {
-    const result = await runWorkflow({
+    const result = await runScript({
       command: "tunnel",
-      args: ["-edevelopment"],
+      generate: ["-edevelopment"],
       realSecretSpec: realSecretSpec ?? "",
       spec: deploymentSpec,
       schema: deploymentSchema,
@@ -172,9 +170,11 @@ test.skipIf(!realSecretSpec)(
       FORGE_ENVIRONMENT: "staging",
       SHARED: "synthetic-native-shared",
       LOCAL_ONLY: "synthetic-native-local",
+      OPTIONAL: "stale",
     });
     expect(result.interactions.at(-1)?.runtime).toEqual({
       SHARED: "synthetic-native-shared",
+      OPTIONAL: "stale",
     });
   },
 );

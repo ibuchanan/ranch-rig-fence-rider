@@ -3,6 +3,7 @@ import { doctor, doctorUsage } from "./doctor";
 import { install, installUsage } from "./install";
 import { lint, lintUsage } from "./lint";
 import { tunnel, tunnelUsage } from "./tunnel";
+import { variables, variablesUsage } from "./variables";
 
 /** One top-level command: its help is defined here once and reused everywhere. */
 type Command = {
@@ -30,9 +31,14 @@ export function findCommand(name: string | undefined) {
 
 const commands: Record<string, Command> = {
   deploy: {
-    summary: "Deployment with encrypted runtime variables",
+    summary: "Prints a script for deployment under secretspec run",
     usage: deployUsage,
     run: deploy,
+  },
+  variables: {
+    summary: "Uploads encrypted runtime variables; run when they change",
+    usage: variablesUsage,
+    run: variables,
   },
   lint: {
     summary: "Prints a script for lint under secretspec run",
@@ -51,7 +57,8 @@ const commands: Record<string, Command> = {
     run: (args) => install(args, "uninstall"),
   },
   tunnel: {
-    summary: "Configured local runtime delivery; development environments only",
+    summary:
+      "Prints a script for a tunnel with runtime variables; development only",
     usage: tunnelUsage,
     run: tunnel,
   },

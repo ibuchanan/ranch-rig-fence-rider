@@ -11,42 +11,17 @@ import {
 
 useBuiltCli();
 
-test("deployment preserves unrelated options and CI arguments without changing boundaries", async () => {
-  const forwarded = [
-    "--non-interactive",
-    "--tag",
-    sharedValue,
-    "--verbose",
-    "--approve",
-    "MAJOR_VERSION_RULE",
-    "OTHER_RULE",
-    "--major-version",
-    "4",
-    "--inspect",
-    "--no-verify",
-    "--skip-rollout",
-    "--future-option=value",
-  ];
-  const result = await runWorkflow({
-    args: [...forwarded.slice(0, 3), "-e", "production", ...forwarded.slice(3)],
-  });
-  expect(result.exitCode).toBe(0);
-  expect(
-    result.interactions
-      .filter(({ tool }) => tool === "forge")
-      .map(({ args }) => args),
-  ).toEqual([
-    [
-      "variables",
-      "set",
-      "--encrypt",
-      "--environment",
-      "production",
-      "SHARED",
-      sharedValue,
-    ],
-    ["deploy", "--environment", "production", ...forwarded],
-  ]);
+test("variables refuses Forge options before any tool call", async () => {
+  for (const args of [
+    ["--non-interactive"],
+    ["--", "-x"],
+    ["-e", "production", "--verbose"],
+  ]) {
+    const result = await runWorkflow({ args });
+    expect(result.exitCode).toBe(1);
+    expect(result.interactions).toEqual([]);
+    expect(result.stderr).toContain("environment option validation");
+  }
 });
 
 test.each(["secretspec", "forge"])(
@@ -60,7 +35,7 @@ test.each(["secretspec", "forge"])(
   },
 );
 
-test("deploy resolves once, encrypts only runtime values, then deploys to the configured target", async () => {
+test("variables resolves once and encrypts only runtime values for the configured target", async () => {
   const result = await runWorkflow();
   expect(result.exitCode).toBe(0);
   expect(result.interactions.map(({ tool, args }) => [tool, ...args])).toEqual([
@@ -78,7 +53,6 @@ test("deploy resolves once, encrypts only runtime values, then deploys to the co
       "SHARED",
       sharedValue,
     ],
-    ["forge", "deploy", "--environment", "staging"],
   ]);
   for (const call of result.interactions.filter(
     ({ tool }) => tool === "forge",
@@ -122,29 +96,27 @@ test.each(["FORGE_ENVIRONMENT", "FORGE_SITE", "FORGE_PRODUCT"])(
   },
 );
 
-test("deployment emits safe stage progress without forwarding helper streams", async () => {
+test("variables emits safe stage progress without forwarding helper streams", async () => {
   const result = await runWorkflow();
   expect(result.exitCode).toBe(0);
   expect(result.stdout).toContain(
     "Fence Rider: encrypted upload for SHARED (target staging).",
   );
-  expect(result.stdout).toContain("Fence Rider: deployment (target staging).");
-  expect(result.stdout).toContain("Deployment completed.");
+  expect(result.stdout).toContain("Uploaded 1 runtime variable(s).");
   expect(result.stdout + result.stderr).not.toContain("synthetic helper noise");
 });
 
-test("omitted runtime scope and empty active-profile intersection deploy without writes or deletion", async () => {
+test("omitted runtime scope and empty active-profile intersection upload nothing and delete nothing", async () => {
   for (const spec of [
     deploymentSpec.split("[scopes.runtime]")[0],
     `${deploymentSpec.replace('["SHARED", "OPTIONAL"]', '["OTHER_PROFILE_VALUE"]')}\n[profiles.other]\nOTHER_PROFILE_VALUE = { description = "Not active" }\n`,
   ]) {
     const result = await runWorkflow({ spec: spec ?? "" });
     expect(result.exitCode).toBe(0);
-    expect(
-      result.interactions
-        .filter(({ tool }) => tool === "forge")
-        .map(({ args }) => args),
-    ).toEqual([["deploy", "--environment", "staging"]]);
+    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+      [],
+    );
+    expect(result.stdout).toContain("Uploaded 0 runtime variable(s).");
     expect(
       result.interactions
         .filter(({ tool }) => tool === "secretspec")
@@ -153,7 +125,7 @@ test("omitted runtime scope and empty active-profile intersection deploy without
   }
 });
 
-test("missing configured target falls back to development for uploads and deployment", async () => {
+test("missing configured target falls back to development for uploads", async () => {
   const result = await runWorkflow({
     values: { SHARED: sharedValue, LOCAL_ONLY: "synthetic local-only" },
     schema: { ...deploymentSchema, required: ["SHARED", "LOCAL_ONLY"] },
@@ -162,10 +134,10 @@ test("missing configured target falls back to development for uploads and deploy
   const forge = result.interactions.filter(({ tool }) => tool === "forge");
   expect(
     forge.map(({ args }) => args[args.indexOf("--environment") + 1]),
-  ).toEqual(["development", "development"]);
+  ).toEqual(["development"]);
 });
 
-test("all encrypted writes complete before exactly one deployment", async () => {
+test("every runtime value is encrypted in declaration order", async () => {
   const result = await runWorkflow({
     values: { ...deploymentValues, OPTIONAL: "second synthetic value" },
   });
@@ -193,6 +165,5 @@ test("all encrypted writes complete before exactly one deployment", async () => 
       "OPTIONAL",
       "second synthetic value",
     ],
-    ["deploy", "--environment", "staging"],
   ]);
 });

@@ -9,50 +9,38 @@ const tunnelSpec: CommandSpec = {
   help: ["--help"],
 };
 
-function validateTarget(target: string) {
-  if (!isOptionValue(target)) throw new Error("Invalid tunnel environment");
-  return target;
-}
-
 export function parseTunnelOptions(args: string[]) {
   const { owned, forwarded, help } = parseForgeArgs(
     tunnelSpec,
     args,
-    (_name, value) => validateTarget(value),
+    (_name, value) => {
+      if (!isOptionValue(value)) throw new Error("Invalid tunnel environment");
+      return value;
+    },
   );
   return { target: owned["environment"], forwarded, help };
 }
 
-/** Explicit target, then the resolved environment, then development. */
-export function tunnelTarget(
-  explicit: string | undefined,
-  configured: string | undefined,
-) {
-  return validateTarget(explicit ?? configured ?? "development");
-}
+const isReserved = (name: string) => name.startsWith(reservedPrefix);
 
-export function tunnelArgs(target: string, forwarded: string[]) {
-  return ["tunnel", "--environment", target, ...forwarded];
-}
-
-export function isReservedVariable(name: string) {
-  return name.startsWith(reservedPrefix);
-}
-
-/** Map runtime members alone to FORGE_USER_VAR_<name>; empty strings are kept. */
-export function tunnelRuntimeVariables(
-  declared: string[],
-  runtime: string[],
-  values: Record<string, string>,
-) {
-  if (declared.some(isReservedVariable))
+/**
+ * Shell lines that give Forge the runtime members alone as
+ * FORGE_USER_VAR_<name>, run inside `secretspec run` where each member is
+ * already in the environment. Ambient prefixed variables are removed first;
+ * a member that is set, even to the empty string, is mapped.
+ */
+export function tunnelPrologue(declared: string[], runtime: string[]) {
+  if (declared.some(isReserved))
     throw new Error("Reserved tunnel prefix in application declaration");
-  const variables: Record<string, string> = {};
-  for (const key of runtime) {
+  const mappings = runtime.map((key) => {
     if (isLocalControl(key))
       throw new Error("Local control cannot be a tunnel runtime variable");
-    const value = values[key];
-    if (value !== undefined) variables[`${reservedPrefix}${key}`] = value;
-  }
-  return variables;
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key))
+      throw new Error("Invalid variable name");
+    return `if [ "\${${key}+set}" ]; then export ${reservedPrefix}${key}="$${key}"; fi\n`;
+  });
+  return [
+    `for name in $(env | sed -n 's/^\\(${reservedPrefix}[A-Za-z0-9_]*\\)=.*/\\1/p'); do unset "$name"; done\n`,
+    ...mappings,
+  ].join("");
 }

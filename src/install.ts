@@ -1,5 +1,5 @@
 import { type InstallCommand, parseInstallOptions } from "./install-plan";
-import { emit, underSecretSpec } from "./shell";
+import { emit, forgeUnderSecretSpec } from "./shell";
 
 const installPolicy = {
   install:
@@ -24,38 +24,15 @@ export function installUsage(command: InstallCommand) {
   ].join("\n");
 }
 
-/**
- * Runs inside `secretspec run`, which has put the resolved profile in the
- * environment. The command and forwarded arguments arrive as positional
- * parameters, so no caller-supplied text is ever interpolated into the script.
- */
-const targetScript = `
-command=$1; shift
-environment=\${FORGE_ENVIRONMENT-development}
-site=\${FORGE_SITE-}
-product=\${FORGE_PRODUCT-}
-for target in "$environment" "$site" "$product"; do
-  case $target in
-    ''|-*)
-      echo "Fence Rider: the environment, site or product target is missing or invalid; set FORGE_SITE and FORGE_PRODUCT (FORGE_ENVIRONMENT defaults to development), none empty or starting with a dash" >&2
-      exit 1 ;;
-  esac
-done
-exec forge "$command" --environment "$environment" --site "$site" --product "$product" "$@"
-`;
-
 /** The script that runs one installation lifecycle command with the profile in its environment, or the usage text for help; throws on a refusal. */
 export function installScript(args: string[], command: InstallCommand) {
   const { forwarded, help } = parseInstallOptions(args);
   if (help) return installUsage(command);
-  return underSecretSpec([
-    "sh",
-    "-c",
-    targetScript,
-    "sh",
+  return forgeUnderSecretSpec({
     command,
-    ...forwarded,
-  ]);
+    forwarded,
+    targets: ["environment", "site", "product"],
+  });
 }
 
 /** Print what installScript builds. */

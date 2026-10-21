@@ -1,5 +1,10 @@
 import { CommandFailure, capture } from "./process";
-import { manifestKeys, parseMembers, parseResolved } from "./resolution";
+import {
+  declaredNames,
+  manifestKeys,
+  parseMembers,
+  parseResolved,
+} from "./resolution";
 import type { Workflow } from "./workflow";
 
 /**
@@ -98,5 +103,18 @@ export async function configure(state: Workflow) {
     values,
     environment,
     env: forgeEnvironment(properties, values),
+  };
+}
+
+/** Declared and runtime-scope names from SecretSpec, without resolving any value. */
+export async function runtimeNames(state: Workflow) {
+  const secretspec = prerequisite("secretspec", state);
+  state.stage = "SecretSpec schema";
+  const schema: unknown = JSON.parse(
+    await capture(secretspec, ["schema"], state.signal),
+  );
+  return {
+    declared: declaredNames(schema),
+    runtime: await scopeMembers(secretspec, "runtime", state),
   };
 }

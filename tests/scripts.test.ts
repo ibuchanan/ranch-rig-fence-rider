@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { deployScript } from "../src/deploy.ts";
 import { installScript } from "../src/install.ts";
 import { lintScript } from "../src/lint.ts";
 import { quote, underSecretSpec } from "../src/shell.ts";
@@ -29,6 +30,62 @@ describe("lint script", () => {
     const usage = lintScript([flag as string]);
     expect(usage).toStartWith("Usage: fence-rider lint");
     expect(usage).toContain('cmd=$(fence-rider lint) && sh -c "$cmd" sh');
+    expect(usage).not.toContain("exec secretspec");
+  });
+});
+
+describe("deploy script", () => {
+  const body = 'exec forge "$command" --environment "$environment" "$@"';
+
+  test("runs the fixed target script under secretspec run, taking the environment from the profile", () => {
+    const script = deployScript([]);
+    expect(script).toStartWith(`${prefix}sh -c '`);
+    expect(script).toEndWith(`' sh deploy "$@"`);
+    expect(script).toContain("FORGE_ENVIRONMENT-development");
+    expect(script).toContain(body);
+    expect(script).not.toContain("--site");
+  });
+
+  test.each(
+    [
+      ["-e", "production"],
+      ["--environment", "production"],
+      ["--environment=production"],
+      ["-eproduction"],
+    ].map((args) => ({ args })),
+  )("embeds the explicit target $args instead of the profile's", ({ args }) => {
+    const script = deployScript(args);
+    expect(script).toContain("environment=production\n");
+    expect(script).not.toContain("FORGE_ENVIRONMENT-development");
+    expect(script).toEndWith(`' sh deploy "$@"`);
+  });
+
+  test("embeds forwarded options quoted after the command word, leaving payloads after -- alone", () => {
+    expect(
+      deployScript(["--tag", "a b;$(id)", "-e", "x", "--", "-e", "payload"]),
+    ).toEndWith(`' sh deploy --tag 'a b;$(id)' -- -e payload "$@"`);
+  });
+
+  test.each(
+    [
+      ["-e"],
+      ["--environment", ""],
+      ["--environment", "--non-interactive"],
+      ["-e", "a", "--environment=b"],
+    ].map((args) => ({ args })),
+  )("refuses the invalid target $args", ({ args }) => {
+    expect(() => deployScript(args)).toThrow();
+  });
+
+  test.each(
+    [["--help"], ["-h"], ["--non-interactive", "-h"]].map((args) => ({
+      args,
+    })),
+  )("$args gives usage, not a script", ({ args }) => {
+    const usage = deployScript(args);
+    expect(usage).toStartWith("Usage: fence-rider deploy");
+    expect(usage).toContain('cmd=$(fence-rider deploy) && sh -c "$cmd" sh');
+    expect(usage).toContain("fence-rider variables");
     expect(usage).not.toContain("exec secretspec");
   });
 });
@@ -102,14 +159,16 @@ describe("shell building blocks", () => {
 });
 
 describe("the CLI prints scripts", () => {
-  test.each(["lint", ...installCommands])(
+  test.each(["lint", "deploy", ...installCommands])(
     "%s writes exactly the script and a newline",
     async (command) => {
       const result = await runCli([command], true);
       const script =
         command === "lint"
           ? lintScript([])
-          : installScript([], command as "install" | "uninstall");
+          : command === "deploy"
+            ? deployScript([])
+            : installScript([], command as "install" | "uninstall");
       expect(result).toEqual({
         exitCode: 0,
         stdout: `${script}\n`,
@@ -117,6 +176,13 @@ describe("the CLI prints scripts", () => {
       });
     },
   );
+
+  test("deploy refuses an invalid target with nothing on stdout", async () => {
+    const result = await runCli(["deploy", "-e", "--verbose"], true);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toStartWith("Fence Rider: Invalid Forge target");
+  });
 
   test.each(installCommands)(
     "%s refuses a target option with nothing on stdout",
@@ -128,7 +194,7 @@ describe("the CLI prints scripts", () => {
     },
   );
 
-  test.each(["lint", ...installCommands])(
+  test.each(["lint", "deploy", ...installCommands])(
     "help %s prints usage, not a script",
     async (command) => {
       const result = await runCli(["help", command], true);
@@ -219,6 +285,86 @@ describe("running the lint script", () => {
 
   test("exits with the status of a failing secretspec run", async () => {
     const result = await run(lintScript([]), { secretspecStatus: 5 });
+    expect(result.exitCode).toBe(5);
+    expect(result.forgeArgs).toBeUndefined();
+  });
+});
+
+describe("running the deploy script", () => {
+  const env = (args: string[] = []) => ["deploy", "--environment", ...args];
+
+  test("passes the profile's environment, then embedded and appended arguments, under one secretspec run", async () => {
+    const embedded = ["--non-interactive", "--tag", "a b;$(touch injected)"];
+    const appended = ["--verbose", "--", "--environment", "x"];
+    const result = await run(deployScript(embedded), {
+      appended,
+      env: { OPTIONAL: "stale" },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.forgeArgs).toEqual([
+      ...env(["staging"]),
+      ...embedded,
+      ...appended,
+    ]);
+    expect(result.forgeEnv).toMatchObject({ ...profile, OPTIONAL: "stale" });
+    expect(result.secretspecArgs?.slice(0, 4)).toEqual([
+      "run",
+      "--scope",
+      "",
+      "--",
+    ]);
+  });
+
+  test("an explicit target wins over the resolved environment", async () => {
+    const result = await run(deployScript(["-e", "production", "--verbose"]));
+    expect(result.exitCode).toBe(0);
+    expect(result.forgeArgs).toEqual([...env(["production"]), "--verbose"]);
+  });
+
+  test("defaults the environment to development when nothing resolves it", async () => {
+    const values = { ...profile } as Record<string, string>;
+    delete values["FORGE_ENVIRONMENT"];
+    const result = await run(deployScript([]), {
+      values,
+      required: ["SHARED", "LOCAL_ONLY"],
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.forgeArgs).toEqual(env(["development"]));
+  });
+
+  test("never uploads variables: Forge is called once, for deploy", async () => {
+    const result = await run(deployScript([]));
+    expect(result.forgeArgs?.slice(0, 1)).toEqual(["deploy"]);
+    expect(result.forgeArgs).not.toContain("variables");
+  });
+
+  test.each(["", "-x", "--help"])(
+    "refuses FORGE_ENVIRONMENT=%j without calling Forge",
+    async (value) => {
+      const result = await run(deployScript([]), {
+        values: { ...profile, FORGE_ENVIRONMENT: value },
+      });
+      expect(result.exitCode).toBe(1);
+      expect(result.forgeArgs).toBeUndefined();
+      expect(result.stderr).toContain("target is missing or invalid");
+    },
+  );
+
+  test("replaces the shell, so no wrapper process remains", async () => {
+    const result = await run(deployScript([]));
+    expect(result.forgePid).toBe(result.scriptPid);
+  });
+
+  test.each([2, 23, 127, 255])(
+    "exits with Forge's status %i",
+    async (status) => {
+      const result = await run(deployScript([]), { forgeStatus: status });
+      expect(result.exitCode).toBe(status);
+    },
+  );
+
+  test("exits with the status of a failing secretspec run, before Forge", async () => {
+    const result = await run(deployScript([]), { secretspecStatus: 5 });
     expect(result.exitCode).toBe(5);
     expect(result.forgeArgs).toBeUndefined();
   });
@@ -391,6 +537,7 @@ describe("the package.json idiom", () => {
 
 test.each([
   ["lint", lintScript([])],
+  ["deploy", deployScript([])],
   ["install", installScript([], "install")],
   ["uninstall", installScript([], "uninstall")],
 ] as const)(

@@ -4,19 +4,12 @@ import { deploymentValues, runWorkflow } from "./support/fixtures.ts";
 
 useBuiltCli();
 
-test("resolution, upload, and deployment failures never report success or leak helper output", async () => {
-  for (const failStage of ["schema", "export", "variables", "deploy"]) {
+test("resolution and upload failures never report success or leak helper output", async () => {
+  for (const failStage of ["schema", "export", "variables"]) {
     const result = await runWorkflow({ failStage });
     expect(result.exitCode).not.toBe(0);
-    expect(result.stdout).not.toContain("Deployment completed");
+    expect(result.stdout).not.toContain("Uploaded");
     expect(result.stderr).not.toContain("synthetic helper noise");
-    if (failStage !== "deploy") {
-      expect(
-        result.interactions.some(
-          ({ tool, args }) => tool === "forge" && args[0] === "deploy",
-        ),
-      ).toBe(false);
-    }
     expect(result.stderr).toContain(
       failStage === "schema"
         ? "SecretSpec schema"
@@ -41,11 +34,11 @@ test.each(["secretspec", "forge"])(
     expect(result.interactions.some(({ tool }) => tool === launchTool)).toBe(
       false,
     );
-    expect(result.stdout).not.toContain("Deployment completed");
+    expect(result.stdout).not.toContain("Uploaded");
   },
 );
 
-test.each(["schema", "export", "variables", "deploy"])(
+test.each(["schema", "export", "variables"])(
   "child signal termination during %s cannot become success",
   async (failStage) => {
     const result = await runWorkflow({
@@ -57,11 +50,11 @@ test.each(["schema", "export", "variables", "deploy"])(
     expect(result.stderr).toContain("terminated by SIGTERM");
     expect(result.stderr).toContain("target production");
     expect(result.interactions.at(-1)?.args[0]).toBe(failStage);
-    expect(result.stdout).not.toContain("Deployment completed");
+    expect(result.stdout).not.toContain("Uploaded");
   },
 );
 
-test.each(["schema", "export", "variables", "deploy"])(
+test.each(["schema", "export", "variables"])(
   "helper exception during %s never leaks stdout stderr or error details",
   async (failStage) => {
     const result = await runWorkflow({
@@ -82,19 +75,17 @@ test.each(["schema", "export", "variables", "deploy"])(
 );
 
 test.each([2, 23, 127, 255])(
-  "delegated deployment preserves exit status %i without raw helper output",
+  "a failed upload with exit status %i is reported as exit 1 without raw helper output",
   async (exitCode) => {
-    const result = await runWorkflow({ failStage: "deploy", exitCode });
-    expect(result.exitCode).toBe(exitCode);
-    expect(
-      result.interactions.filter(({ args }) => args[0] === "deploy"),
-    ).toHaveLength(1);
+    const result = await runWorkflow({ failStage: "variables", exitCode });
+    expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain(`exit status ${exitCode}`);
-    expect(result.stderr).toContain("deployment (target staging)");
+    expect(result.stderr).toContain(
+      "encrypted upload for SHARED (target staging)",
+    );
     expect(result.stderr).toContain(
       "Remote variables may already have changed",
     );
-    expect(result.stdout).not.toContain("Deployment completed");
   },
 );
 
@@ -117,6 +108,6 @@ test.each(["SHARED", "OPTIONAL"])(
     expect(result.stderr).toContain(
       "Remote variables may already have changed",
     );
-    expect(result.stdout).not.toContain("Deployment completed");
+    expect(result.stdout).not.toContain("Uploaded");
   },
 );

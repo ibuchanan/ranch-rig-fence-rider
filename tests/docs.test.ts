@@ -5,7 +5,15 @@ import { root, runCli, useBuiltCli } from "./support/cli.ts";
 
 useBuiltCli();
 
-const commands = ["deploy", "lint", "install", "uninstall", "tunnel", "doctor"];
+const commands = [
+  "deploy",
+  "variables",
+  "lint",
+  "install",
+  "uninstall",
+  "tunnel",
+  "doctor",
+];
 const docsRoot = join(root, "docs");
 const helpPage = join(docsRoot, "reference", "command-help.md");
 

@@ -11,7 +11,7 @@ test("no command prints help without external tools or valid configuration", asy
   expect(result.stderr).toBe("");
 });
 
-test.each(["deploy", "lint", "install", "uninstall", "tunnel"])(
+test.each(["deploy", "variables", "lint", "install", "uninstall", "tunnel"])(
   "help and --help print the same usage for %s",
   async (command) => {
     const viaHelp = await runCli(["help", command], true);
@@ -25,7 +25,14 @@ test.each(["deploy", "lint", "install", "uninstall", "tunnel"])(
 
 test("top-level help lists every supported workflow", async () => {
   const result = await runCli(["--help"]);
-  for (const command of ["deploy", "lint", "install", "uninstall", "tunnel"])
+  for (const command of [
+    "deploy",
+    "variables",
+    "lint",
+    "install",
+    "uninstall",
+    "tunnel",
+  ])
     expect(result.stdout).toMatch(new RegExp(`^  ${command} {2,}\\S`, "m"));
 });
 
@@ -91,11 +98,26 @@ test.each([
   },
 );
 
-test("deployment help documents the environment control without resolving secrets", async () => {
+test("deployment help documents the environment control and the separate upload without resolving secrets", async () => {
   const result = await runCli(["deploy", "--help"], true);
   expect(result.exitCode).toBe(0);
   expect(result.stdout).toContain("FORGE_ENVIRONMENT");
   expect(result.stdout).not.toContain("FORGE_ENV legacy alias");
+  expect(result.stdout).toContain("fence-rider variables");
+  expect(result.stdout).toContain("unredacted");
+  expect(result.stderr).toBe("");
+});
+
+test.each([
+  { args: ["variables", "--help"] },
+  { args: ["variables", "-h"] },
+  { args: ["variables", "--environment", "production", "--help"] },
+])("variables help %j stays side-effect-free", async ({ args }) => {
+  const result = await runCli(args, true);
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain("Usage: fence-rider variables");
+  expect(result.stdout).toContain("deploy never uploads");
+  expect(result.stdout).toContain("not rolled back");
   expect(result.stderr).toBe("");
 });
 
@@ -162,6 +184,7 @@ for (const toolsAvailable of [false, true]) {
       expect(result.stderr).toBe("");
       expect(result.stdout).toContain("Usage: fence-rider");
       expect(result.stdout).toContain("deploy");
+      expect(result.stdout).toContain("variables");
       expect(result.stdout).toContain("encrypted runtime variables");
       expect(result.stdout).toContain("SecretSpec CLI");
       expect(result.stdout).toContain("Forge CLI");

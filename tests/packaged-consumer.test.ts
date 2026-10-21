@@ -124,7 +124,7 @@ test.skipIf(!realSecretSpec)(
 );
 
 test.skipIf(!realSecretSpec)(
-  "documented installed consumer deploy script resolves shared values and preserves approval policy",
+  "documented installed consumer release script uploads runtime variables, then deploys, resolving shared values and preserving approval policy",
   async () => {
     const example = await Bun.file(
       join(root, "docs/examples/package.json"),
@@ -150,7 +150,7 @@ test.skipIf(!realSecretSpec)(
         },
       },
     };
-    const child = Bun.spawn([process.execPath, "run", "deploy"], {
+    const child = Bun.spawn([process.execPath, "run", "release"], {
       cwd: project,
       env: {
         ...deploymentEnv(project, {
@@ -214,14 +214,19 @@ test.skipIf(!realSecretSpec)(
       RUNTIME_ONLY: "synthetic-runtime",
       SHARED: "https://example.com",
     });
-    for (const call of calls)
+    for (const call of calls.slice(0, -1))
       expect(call.values).toEqual(calls[0]?.values ?? {});
+    // Deploy runs under `secretspec run`, which leaves the unresolved optional's exported value visible.
+    expect(calls.at(-1)?.values).toEqual({
+      ...calls[0]?.values,
+      OPTIONAL: "stale",
+    });
     expect(stdout + stderr).not.toContain("synthetic-runtime");
   },
 );
 
 test.skipIf(!realSecretSpec)(
-  "documented installed consumer scripts preserve workflow-specific policy without unwanted writes",
+  "documented installed consumer scripts preserve workflow-specific policy; only variables uploads",
   async () => {
     const example = await Bun.file(
       join(root, "docs/examples/package.json"),
@@ -244,7 +249,19 @@ test.skipIf(!realSecretSpec)(
           "--approve",
           "REVIEWED_RULE_FROM_FORGE",
         ],
-        uploads: true,
+      },
+      {
+        script: "variables",
+        expected: [
+          "variables",
+          "set",
+          "--encrypt",
+          "--environment",
+          "development",
+          "SHARED",
+          "https://example.com",
+        ],
+        count: 2,
       },
       {
         script: "install:forge",
@@ -293,7 +310,7 @@ test.skipIf(!realSecretSpec)(
         expected: ["tunnel", "--environment", "development"],
       },
     ];
-    for (const { script, expected, uploads } of cases) {
+    for (const { script, expected, count = 1 } of cases) {
       const callsFile = join(project, "tool-calls");
       rmSync(callsFile, { force: true });
       const child = Bun.spawn([process.execPath, "run", script], {
@@ -321,7 +338,7 @@ test.skipIf(!realSecretSpec)(
         .map((line) => JSON.parse(line))
         .filter(({ tool }: ToolCall) => tool === "forge");
       expect(calls.at(-1)?.args).toEqual(expected);
-      expect(calls.length).toBe(uploads ? 3 : 1);
+      expect(calls.length).toBe(count);
       if (script === "tunnel")
         expect(calls[0]?.runtime).toEqual({
           RUNTIME_ONLY: "synthetic-runtime",
