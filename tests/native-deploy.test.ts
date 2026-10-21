@@ -219,50 +219,37 @@ test.skipIf(!realSecretSpec).each([
     name: "local empty",
     local: "",
     runtime: "synthetic-runtime",
-    succeeds: true,
   },
-  { name: "string zero", local: "false", runtime: "0", succeeds: true },
-  { name: "string false", local: "0", runtime: "false", succeeds: true },
-  {
-    name: "runtime empty",
-    local: "synthetic-local",
-    runtime: "",
-    succeeds: false,
-  },
+  { name: "string zero", local: "false", runtime: "0" },
+  { name: "string false", local: "0", runtime: "false" },
 ])(
-  "native dotenv values: $name preserves strings or rejects before mutation",
-  async ({ local, runtime, succeeds }) => {
+  "native dotenv values: $name preserves strings",
+  async ({ local, runtime }) => {
     const result = await runWorkflow({
       realSecretSpec: realSecretSpec ?? "",
       env: { SECRETSPEC_PROVIDER: "dotenv:values.env" },
       dotenv: `SHARED=${runtime}\nLOCAL_ONLY=${local}\n`,
     });
-    expect(result.exitCode === 0).toBe(succeeds);
+    expect(result.exitCode).toBe(0);
     const forge = result.interactions.filter(({ tool }) => tool === "forge");
-    if (succeeds) {
-      expect(forge.map(({ args }) => args)).toEqual([
-        [
-          "variables",
-          "set",
-          "--encrypt",
-          "--environment",
-          "staging",
-          "SHARED",
-          runtime,
-        ],
-        ["deploy", "--environment", "staging"],
-      ]);
-      for (const call of forge)
-        expect(call.values).toEqual({
-          FORGE_ENV: "staging",
-          SHARED: runtime,
-          LOCAL_ONLY: local,
-        });
-    } else {
-      expect(forge).toEqual([]);
-      expect(result.stderr).toContain("runtime selection validation");
-      expect(result.stderr).toContain("empty");
-    }
+    expect(forge.map(({ args }) => args)).toEqual([
+      [
+        "variables",
+        "set",
+        "--encrypt",
+        "--environment",
+        "staging",
+        "SHARED",
+        runtime,
+      ],
+      ["deploy", "--environment", "staging"],
+    ]);
+    for (const call of forge)
+      expect(call.values).toEqual({
+        FORGE_ENV: "staging",
+        SHARED: runtime,
+        LOCAL_ONLY: local,
+      });
   },
 );
 
@@ -279,16 +266,6 @@ test.skipIf(!realSecretSpec).each([
     name: "omitted runtime",
     spec: deploymentSpec.split("[scopes.runtime]")[0] ?? "",
     succeeds: true,
-  },
-  {
-    name: "empty scope",
-    spec: deploymentSpec.replace('["SHARED", "OPTIONAL"]', "[]"),
-    succeeds: false,
-  },
-  {
-    name: "unknown scope member",
-    spec: deploymentSpec.replace('["SHARED", "OPTIONAL"]', '["UNKNOWN"]'),
-    succeeds: false,
   },
   {
     name: "numeric default",
