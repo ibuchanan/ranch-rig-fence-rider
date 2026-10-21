@@ -6,6 +6,7 @@
     "bunx",
     "diataxis",
     "feproduction",
+    "napi",
     "pocock",
     "preimplementation",
     "requiredness",
@@ -14,5 +15,5 @@
     "unredacted",
     "webtriggers"
   ],
-  "ignorePaths": ["node_modules/**", "vendor/**"]
+  "ignorePaths": ["node_modules/**", "vendor/**", ".scratch/**"]
 }
