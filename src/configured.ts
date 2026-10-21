@@ -1,4 +1,5 @@
-import { CommandFailure, capture } from "./process";
+import type { Io } from "./io";
+import { CommandFailure } from "./process";
 import {
   declaredNames,
   manifestKeys,
@@ -11,8 +12,8 @@ import type { Workflow } from "./workflow";
  * Names declared in manifest.yml, read from the working directory (the Forge
  * app root), which need not be the directory holding the SecretSpec file.
  */
-async function parseManifestKeys() {
-  return manifestKeys(Bun.YAML.parse(await Bun.file("manifest.yml").text()));
+async function parseManifestKeys(io: Io) {
+  return manifestKeys(Bun.YAML.parse(await io.readFile("manifest.yml")));
 }
 
 /** SecretSpec reports a scope the file does not define only as this error text. */
@@ -30,7 +31,11 @@ export async function scopeMembers(
   state.stage = `SecretSpec ${scope} scope membership`;
   try {
     const report: unknown = JSON.parse(
-      await capture(tool, ["check", "--json", "--scope", scope], state.signal),
+      await state.io.capture(
+        tool,
+        ["check", "--json", "--scope", scope],
+        state.signal,
+      ),
     );
     return parseMembers(report);
   } catch (error) {
@@ -50,7 +55,7 @@ export async function checkManifest(members: ScopeMembers, state: Workflow) {
   const names = await members("manifest");
   if (!names.length) return;
   state.stage = "manifest validation";
-  const keys = await parseManifestKeys();
+  const keys = await parseManifestKeys(state.io);
   const missing = names.find((key) => !keys.has(key));
   if (!missing) return;
   state.stage = `manifest declaration for ${missing}`;
@@ -59,7 +64,7 @@ export async function checkManifest(members: ScopeMembers, state: Workflow) {
 
 function prerequisite(tool: string, state: Workflow) {
   state.stage = `${tool} prerequisite (install and authenticate separately on PATH)`;
-  const path = Bun.which(tool);
+  const path = state.io.which(tool);
   if (!path) throw new Error("Missing executable");
   return path;
 }
@@ -68,11 +73,11 @@ function prerequisite(tool: string, state: Workflow) {
 async function resolveProfile(tool: string, state: Workflow) {
   state.stage = "SecretSpec schema";
   const schema: unknown = JSON.parse(
-    await capture(tool, ["schema"], state.signal),
+    await state.io.capture(tool, ["schema"], state.signal),
   );
   state.stage = "SecretSpec resolution";
   const exported: unknown = JSON.parse(
-    await capture(
+    await state.io.capture(
       tool,
       ["export", "--scope", "", "--format", "json"],
       state.signal,
@@ -85,8 +90,9 @@ async function resolveProfile(tool: string, state: Workflow) {
 function forgeEnvironment(
   properties: Record<string, unknown>,
   values: Record<string, string>,
+  ambient: NodeJS.ProcessEnv,
 ) {
-  const env = { ...process.env };
+  const env = { ...ambient };
   for (const key of Object.keys(properties)) delete env[key];
   return Object.assign(env, values);
 }
@@ -102,7 +108,7 @@ export async function configure(state: Workflow) {
     properties,
     values,
     environment,
-    env: forgeEnvironment(properties, values),
+    env: forgeEnvironment(properties, values, state.io.env),
   };
 }
 
@@ -111,7 +117,7 @@ export async function runtimeNames(state: Workflow) {
   const secretspec = prerequisite("secretspec", state);
   state.stage = "SecretSpec schema";
   const schema: unknown = JSON.parse(
-    await capture(secretspec, ["schema"], state.signal),
+    await state.io.capture(secretspec, ["schema"], state.signal),
   );
   return {
     declared: declaredNames(schema),

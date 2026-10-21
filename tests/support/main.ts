@@ -1,11 +1,12 @@
 import { main } from "../../src/cli";
-import type { Io } from "../../src/io";
+import { consoleIo, type Io } from "../../src/io";
 
 /** An Io that records what a command wrote instead of printing it. */
 export function recordingIo() {
   const stdout: string[] = [];
   const stderr: string[] = [];
   const io: Io = {
+    ...consoleIo,
     out: (text) => void stdout.push(text),
     err: (text) => void stderr.push(text),
   };

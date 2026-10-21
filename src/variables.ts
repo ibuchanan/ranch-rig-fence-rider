@@ -1,6 +1,5 @@
 import { checkManifest, configure } from "./configured";
 import type { Io } from "./io";
-import { capture } from "./process";
 import { parseTargetOptions, validateTarget } from "./target";
 import { planUploads, type Upload } from "./variables-plan";
 import { describeStage, runWorkflow, type Workflow } from "./workflow";
@@ -25,7 +24,7 @@ async function upload(
     workflow.stage = `encrypted upload for ${key}`;
     workflow.uploadAttempted = true;
     io.out(`Fence Rider: ${describeStage(workflow)}.`);
-    await capture(tool, args, workflow.signal, env);
+    await io.capture(tool, args, workflow.signal, env);
   }
 }
 

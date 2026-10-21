@@ -9,6 +9,7 @@ import {
 export type Workflow = {
   stage: string;
   signal: AbortSignal;
+  io: Io;
   /** Forge environment the run acts on, once known; shown in stage labels. */
   target?: string;
   /** Set once remote variables may have been changed, so failures warn of it. */
@@ -29,6 +30,7 @@ export async function runWorkflow(
   const workflow: Workflow = {
     stage: "configuration",
     signal: interruption.signal,
+    io,
   };
   try {
     await body(workflow);

@@ -114,6 +114,7 @@ function scopeLines(file: string, scopes: string[] | undefined) {
 async function inspectManifest(
   secretspec: string | undefined,
   scopes: string[] | undefined,
+  io: Io,
 ) {
   if (!secretspec || !scopes?.includes("manifest"))
     return {
@@ -123,6 +124,7 @@ async function inspectManifest(
   const state = {
     stage: "manifest validation",
     signal: new AbortController().signal,
+    io,
   };
   try {
     await checkManifest(
@@ -139,13 +141,13 @@ async function inspectManifest(
 }
 
 /** The lines of one doctor run, and whether any of them is a failure. */
-async function inspectAll() {
+async function inspectAll(io: Io) {
   const file = specificationFile();
   const scopes = await declaredScopes(file);
   const secretspec = Bun.which("secretspec") ?? undefined;
   const checks = [
     ...(await Promise.all(dependencies.map(inspect))),
-    await inspectManifest(secretspec, scopes),
+    await inspectManifest(secretspec, scopes, io),
   ];
   return {
     lines: [...checks.map(({ line }) => line), ...scopeLines(file, scopes)],
@@ -155,7 +157,7 @@ async function inspectAll() {
 
 /** Report each external tool's version against its supported range, then check the configuration. */
 export async function doctor(io: Io): Promise<number> {
-  const { lines, failed } = await inspectAll();
+  const { lines, failed } = await inspectAll(io);
   for (const line of lines) io.out(line);
   return failed ? 1 : 0;
 }
