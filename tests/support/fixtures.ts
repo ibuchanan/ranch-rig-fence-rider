@@ -2,6 +2,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -80,86 +81,13 @@ export type WorkflowOptions = {
   dotenv?: string;
 };
 
-function writeTool(path: string, tool: string) {
+/** The fake tool's source; each copy gets a shebang for the Bun running the tests. */
+const fakeToolSource = new URL("./fake-tool.ts", import.meta.url);
+
+function writeTool(path: string) {
   writeFileSync(
     path,
-    `#!${process.execPath}
-export const { appendFileSync, writeFileSync } = require("node:fs");
-export const args = process.argv.slice(2);
-export const tool = ${JSON.stringify(tool)};
-export const scripted = ["lint", "deploy", "install", "uninstall", "tunnel"];
-export const fixture = JSON.parse(process.env.FIXTURE);
-export const names = Object.keys(fixture.schema?.properties ?? {});
-appendFileSync(process.env.TOOL_CALL_LOG, JSON.stringify({
-  tool, args,
-  ...(args[0] === "tunnel" ? { runtime: Object.fromEntries(Object.entries(process.env).filter(([name]) => name.startsWith("FORGE_USER_VAR_")).map(([name, value]) => [name.slice(15), value])) } : {}),
-  values: Object.fromEntries(names.filter(name => process.env[name] !== undefined).map(name => [name, process.env[name]]))
-}) + "\\n");
-if (tool === "secretspec" && process.env.REAL_SECRETSPEC) {
-  const result = Bun.spawnSync([process.env.REAL_SECRETSPEC, ...args], { stdout: "pipe", stderr: "pipe" });
-  process.stdout.write(result.stdout);
-  process.stderr.write(result.stderr);
-  process.exit(result.exitCode);
-}
-if (tool === "secretspec" && args[0] === "run") {
-  if (fixture.failStage === "run") process.exit(fixture.exitCode ?? 23);
-  const missing = (fixture.schema?.required ?? []).find(name => !Object.hasOwn(fixture.values ?? {}, name));
-  if (missing !== undefined) {
-    console.error("Secret '" + missing + "' is required but not set");
-    process.exit(1);
-  }
-  // Like the real secretspec run: survive an operator signal that reaches the whole process group and wait for the child's own shutdown.
-  for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {});
-  let child;
-  try {
-    child = Bun.spawn(args.slice(args.indexOf("--") + 1), { env: { ...process.env, ...fixture.values }, stdin: "inherit", stdout: "inherit", stderr: "inherit" });
-  } catch {
-    console.error("Failed to run command: unable to launch the executable");
-    process.exit(1);
-  }
-  const status = await child.exited;
-  if (child.signalCode) {
-    process.removeAllListeners("SIGINT");
-    process.removeAllListeners("SIGTERM");
-    process.kill(process.pid, child.signalCode);
-    await Bun.sleep(1000);
-  }
-  process.exit(status ?? 1);
-}
-if (scripted.includes(args[0])) {
-  console.log("synthetic " + args[0] + " result");
-  console.error("synthetic " + args[0] + " warning");
-  if (process.env.LINT_READ_INPUT) Bun.stdin.text().then(input => {
-    console.log("input:" + input);
-    console.log("ordinary:" + process.env.ORDINARY_SETTING);
-    console.log("auth:" + process.env.FORGE_API_TOKEN);
-  });
-} else console.error("synthetic helper noise: " + ${JSON.stringify(hostileValue)});
-if (fixture.failStage === args[0] && (!fixture.failKey || fixture.failKey === args[5])) {
-  if (!scripted.includes(args[0])) console.log(${JSON.stringify(hostileValue)});
-  if (fixture.failureMode === "throw") throw new Error("synthetic error details: " + ${JSON.stringify(hostileValue)});
-  if (fixture.failureMode === "signal") process.kill(process.pid, "SIGTERM");
-  else process.exit(fixture.exitCode ?? 23);
-}
-if (fixture.blockStage === args[0]) {
-  if (fixture.spawnDescendant) Bun.spawn([process.execPath, "-e", 'process.on("SIGINT", () => {}); process.on("SIGTERM", () => {}); require("node:fs").writeFileSync("descendant-ready", String(process.pid)); setInterval(() => {}, 1000);'], { stdin: "ignore", stdout: "ignore", stderr: "ignore" });
-  for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {
-    writeFileSync("received-signal", signal);
-    console.error(scripted.includes(args[0]) ? "synthetic " + args[0] + " interrupted" : "synthetic signal error: " + ${JSON.stringify(hostileValue)});
-    if (!fixture.ignoreSignal) process.exit(0);
-  });
-  setInterval(() => {}, 1000);
-  writeFileSync("ready", String(process.pid));
-} else if (tool === "secretspec" && args[0] === "check") {
-  const scope = args[args.indexOf("--scope") + 1];
-  const scopes = Bun.TOML.parse(require("node:fs").readFileSync(process.env.SECRETSPEC_FILE ?? "secretspec.toml", "utf8")).scopes ?? {};
-  if (!Object.hasOwn(scopes, scope)) {
-    console.error("Invalid scope: '" + scope + "' is not defined in secretspec.toml. Available scopes: " + Object.keys(scopes).join(", "));
-    process.exit(1);
-  }
-  console.log(JSON.stringify({ schema_version: 1, scope, secrets: scopes[scope].secrets.filter(name => names.includes(name)).map(name => ({ name, status: "resolved" })) }));
-} else if (tool === "secretspec") console.log((args[0] === "schema" ? fixture.schemaOutput : fixture.exportOutput) ?? JSON.stringify(args[0] === "schema" ? fixture.schema : fixture.values));
-`,
+    `#!${process.execPath}\n${readFileSync(fakeToolSource, "utf8")}`,
     { mode: 0o755 },
   );
 }
@@ -191,6 +119,7 @@ export function deploymentEnv(project: string, options: WorkflowOptions) {
       blockStage: options.blockStage,
       ignoreSignal: options.ignoreSignal,
       spawnDescendant: options.spawnDescendant,
+      hostile: hostileValue,
     }),
     ...(options.realSecretSpec
       ? { REAL_SECRETSPEC: options.realSecretSpec }
@@ -202,18 +131,22 @@ export function deploymentEnv(project: string, options: WorkflowOptions) {
 let shared: { workspace: string; dir: string } | undefined;
 
 /**
- * A fake tool, written once per test workspace and linked into every project.
- * macOS scans a freshly written executable on its first exec, which costs about
- * 150ms, so a copy per project made that the bulk of every test's time.
+ * The fake tools, written once per test workspace and linked into every
+ * project. Both are the same source; each learns which tool it is from the
+ * name it was written under. macOS scans a freshly written executable on its
+ * first exec, which costs about 150ms, so a copy per project made that the
+ * bulk of every test's time. The link must be a symlink: runs fail at random
+ * when parallel projects exec hard links of one inode.
  */
 function sharedTool(tool: string) {
-  if (shared?.workspace !== cli.workspace)
+  if (shared?.workspace !== cli.workspace) {
     shared = {
       workspace: cli.workspace,
       dir: mkdtempSync(join(cli.workspace, "fake-tools-")),
     };
+  }
   const path = join(shared.dir, tool);
-  if (!existsSync(path)) writeTool(path, tool);
+  if (!existsSync(path)) writeTool(path);
   return path;
 }
 
