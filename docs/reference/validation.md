@@ -4,6 +4,16 @@ Recorded 2026-10-19. Public seams: the compiled CLI subprocess
 and observable validation-command output/status, confirmed by the user.
 No private-function tests or second native proof suite were introduced.
 
+## Doctor validates the schema — 2026-10-21
+
+`fence-rider doctor` runs `secretspec schema`, which carries no values, through
+the same schema rules `variables` applies when it resolves the profile. A name
+outside letters, digits and underscores, a name starting with a digit, or a
+declaration that is not a string or string-or-null fails doctor with a
+`Schema: SecretSpec schema failed` line and no SecretSpec stderr. A valid schema
+reports its declaration count. Unit tests cover valid, bad-name, bad-type and
+SecretSpec-failure schemas.
+
 ## Doctor reports the runtime scope — 2026-10-21
 
 `fence-rider doctor` runs the value-free

@@ -17,12 +17,15 @@ type Project = {
   manifest?: string;
 };
 
+const schemaScript = `if [ "$1" = schema ]; then echo '{"type":"object","properties":{"A":{"type":"string"}}}'; exit 0; fi\n`;
+
 const checkScript = (report: Project["report"]) =>
-  report === "fail"
+  schemaScript +
+  (report === "fail"
     ? 'if [ "$1" = check ]; then echo "Invalid scope" >&2; exit 1; fi\n'
     : report === undefined || report === "undefined"
       ? 'if [ "$1" = check ]; then echo "Scope \'manifest\' is not defined in secretspec.toml" >&2; exit 1; fi\n'
-      : `if [ "$1" = check ]; then echo '${JSON.stringify({ schema_version: 1, scope: "manifest", secrets: report.map((name) => ({ name, status: "resolved" })) })}'; exit 0; fi\n`;
+      : `if [ "$1" = check ]; then echo '${JSON.stringify({ schema_version: 1, scope: "manifest", secrets: report.map((name) => ({ name, status: "resolved" })) })}'; exit 0; fi\n`);
 
 /** Run `doctor` with fake tools whose `--version` prints the given text (null: tool absent). */
 async function runDoctor(

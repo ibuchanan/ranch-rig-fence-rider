@@ -12,6 +12,8 @@ type Project = {
   report?: string[] | "fail" | "undefined";
   /** Same, for `--scope runtime`; defaults to a scope no file defines. */
   runtime?: string[] | "undefined";
+  /** Printed by a fake `secretspec schema`; defaults to one valid string declaration. */
+  schema?: object | "fail";
   /** The manifest.yml in the project, when it has one. */
   manifest?: string;
 };
@@ -35,6 +37,16 @@ async function runDoctor(
       throw new Error(`ENOENT: no such file or directory, open '${path}'`);
     },
     capture: async (path, callArgs) => {
+      if (callArgs[0] === "schema") {
+        if (project.schema === "fail")
+          throw new CommandFailure("exit status 1", 1, "Invalid schema");
+        return JSON.stringify(
+          project.schema ?? {
+            type: "object",
+            properties: { A: { type: "string" } },
+          },
+        );
+      }
       if (callArgs[0] === "check") {
         const scope = callArgs.at(-1);
         const report =
@@ -279,4 +291,46 @@ test("doctor fails and names a local control in the runtime scope", async () => 
   expect(result.stdout).toContain(
     "Runtime: FORGE_SITE is a local control; variables refuses to upload it",
   );
+});
+
+const schemaOf = (properties: object) => ({ type: "object", properties });
+
+test("doctor reports a valid schema as ok", async () => {
+  const result = await runDoctor(ok, [], undefined, {
+    schema: schemaOf({
+      A: { type: "string" },
+      B_1: { type: ["string", "null"] },
+    }),
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain("Schema: 2 declarations ok");
+});
+
+test.each(["A-B", "1A", "A B"])(
+  "doctor fails a schema with the bad name %s",
+  async (name) => {
+    const result = await runDoctor(ok, [], undefined, {
+      schema: schemaOf({ [name]: { type: "string" } }),
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("Schema: SecretSpec schema failed");
+  },
+);
+
+test.each([{ type: "number" }, { type: ["string", "number"] }, {}])(
+  "doctor fails a schema declaring %p",
+  async (declaration) => {
+    const result = await runDoctor(ok, [], undefined, {
+      schema: schemaOf({ A: declaration }),
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("Schema: SecretSpec schema failed");
+  },
+);
+
+test("doctor reports a SecretSpec failure reading the schema without its stderr", async () => {
+  const result = await runDoctor(ok, [], undefined, { schema: "fail" });
+  expect(result.exitCode).toBe(1);
+  expect(result.stdout).toContain("Schema: SecretSpec schema failed");
+  expect(result.stdout + result.stderr).not.toContain("Invalid schema");
 });

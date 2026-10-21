@@ -69,12 +69,23 @@ function prerequisite(tool: string, state: Workflow) {
   return path;
 }
 
-/** SecretSpec reads SECRETSPEC_FILE, SECRETSPEC_PROFILE and the provider from the environment itself. */
-async function resolveProfile(tool: string, state: Workflow) {
+/** The SecretSpec schema, which never carries values. */
+async function readSchema(tool: string, state: Workflow) {
   state.stage = "SecretSpec schema";
   const schema: unknown = JSON.parse(
     await state.io.capture(tool, ["schema"], state.signal),
   );
+  return schema;
+}
+
+/** Names the schema declares, under the rules `variables` applies when it resolves the profile. */
+export async function schemaNames(tool: string, state: Workflow) {
+  return declaredNames(await readSchema(tool, state));
+}
+
+/** SecretSpec reads SECRETSPEC_FILE, SECRETSPEC_PROFILE and the provider from the environment itself. */
+async function resolveProfile(tool: string, state: Workflow) {
+  const schema = await readSchema(tool, state);
   state.stage = "SecretSpec resolution";
   const exported: unknown = JSON.parse(
     await state.io.capture(
@@ -115,12 +126,8 @@ export async function configure(state: Workflow) {
 /** Declared and runtime-scope names from SecretSpec, without resolving any value. */
 export async function runtimeNames(state: Workflow) {
   const secretspec = prerequisite("secretspec", state);
-  state.stage = "SecretSpec schema";
-  const schema: unknown = JSON.parse(
-    await state.io.capture(secretspec, ["schema"], state.signal),
-  );
   return {
-    declared: declaredNames(schema),
+    declared: await schemaNames(secretspec, state),
     runtime: await scopeMembers(secretspec, "runtime", state),
   };
 }

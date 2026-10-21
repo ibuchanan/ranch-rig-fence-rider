@@ -27,7 +27,10 @@ one is a failure.
 other than `manifest` and `runtime`, which Fence Rider ignores; a scope read by
 another tool is legitimate, so this is only a warning, and an unparsable file
 only skips that check. When the file declares a `manifest` scope and `secretspec`
-is on `PATH`, `doctor` also runs the value-free
+is on `PATH`, `doctor` also runs `secretspec schema`, which carries no values,
+and fails a name outside letters, digits and underscores (or starting with a
+digit) and a declaration that is not a string or string-or-null, the same rules
+`variables` applies. It then runs the value-free
 `secretspec check --json --scope manifest` and checks that `manifest.yml`
 declares each member, so it reads providers; a missing declaration fails. This
 is the manifest consistency check for lint, which no longer runs it. It likewise

@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { checkManifest, scopeMembers } from "./configured";
+import { checkManifest, schemaNames, scopeMembers } from "./configured";
 import type { Io } from "./io";
 import { isLocalControl } from "./policy";
 import { recognizedScopes, unrecognizedScopes } from "./resolution";
@@ -25,8 +25,8 @@ type Dependency = (typeof dependencies)[number];
 export const doctorUsage = [
   "Usage: fence-rider doctor",
   "Report the SecretSpec and Forge CLI versions on PATH against the lowest supported and highest tested versions.",
-  "Asks SecretSpec (value-free) for the manifest scope's members, including a scope inherited through project.extends, and checks that manifest.yml declares them. Likewise asks for the runtime scope's members and reports what variables would upload: an undefined or empty scope is a warning, a local control (FORGE_ENVIRONMENT, FORGE_SITE, FORGE_PRODUCT) among them is a failure. Also reads the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml) only to warn about scopes Fence Rider never reads.",
-  "Exits 1 when a tool is missing, unreadable or older than supported, a manifest scope member is not declared in manifest.yml, or a runtime scope member is a local control; a newer version, an unused scope or an empty runtime scope is only a warning.",
+  "Reads SecretSpec's declared schema, which carries no values, and applies the rules variables applies when it resolves the profile: every name is letters, digits and underscores and does not start with a digit, and every declaration is a string or string-or-null. Asks SecretSpec (value-free) for the manifest scope's members, including a scope inherited through project.extends, and checks that manifest.yml declares them. Likewise asks for the runtime scope's members and reports what variables would upload: an undefined or empty scope is a warning, a local control (FORGE_ENVIRONMENT, FORGE_SITE, FORGE_PRODUCT) among them is a failure. Also reads the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml) only to warn about scopes Fence Rider never reads.",
+  "Exits 1 when a tool is missing, unreadable or older than supported, the schema has an unsupported name or type, a manifest scope member is not declared in manifest.yml, or a runtime scope member is a local control; a newer version, an unused scope or an empty runtime scope is only a warning.",
   "Other commands never pre-check versions: a changed tool contract surfaces as that command's failure.",
 ].join("\n");
 
@@ -169,6 +169,26 @@ async function inspectRuntime(secretspec: string | undefined, io: Io) {
   }
 }
 
+/** Check that the schema's names and types are ones `variables` accepts; the schema carries no values. */
+async function inspectSchema(secretspec: string | undefined, io: Io) {
+  if (!secretspec)
+    return { failed: false, line: "Schema: SecretSpec missing; check skipped" };
+  const state = {
+    stage: "SecretSpec schema",
+    signal: new AbortController().signal,
+    io,
+  };
+  try {
+    const names = await schemaNames(secretspec, state);
+    return {
+      failed: false,
+      line: `Schema: ${names.length} declaration${names.length === 1 ? "" : "s"} ok`,
+    };
+  } catch {
+    return { failed: true, line: `Schema: ${state.stage} failed` };
+  }
+}
+
 /** The lines of one doctor run, and whether any of them is a failure. */
 async function inspectAll(io: Io) {
   const file = specificationFile(io);
@@ -178,6 +198,7 @@ async function inspectAll(io: Io) {
     ...(await Promise.all(
       dependencies.map((dependency) => inspect(dependency, io)),
     )),
+    await inspectSchema(secretspec, io),
     await inspectManifest(secretspec, io),
     await inspectRuntime(secretspec, io),
   ];
