@@ -10,6 +10,10 @@ import {
 
 useBuiltCli();
 
+// The uninstall script differs from install only in the command word, which
+// tests/unit/scripts.test.ts proves, so the real-SecretSpec tables run install.
+const installCommands = ["install"] as const;
+
 test.skipIf(!realSecretSpec).each([
   {
     name: "canonical",
@@ -203,7 +207,7 @@ test.skipIf(!realSecretSpec).each(
       pass: false,
     },
   ].flatMap((scenario) =>
-    (["install", "uninstall"] as const).map((command) => ({
+    installCommands.map((command) => ({
       ...scenario,
       command,
     })),
@@ -262,7 +266,7 @@ test.skipIf(!realSecretSpec).each(
 
 test.skipIf(!realSecretSpec).each(
   ["FORGE_SITE", "FORGE_PRODUCT", "SHARED", "LOCAL_ONLY"].flatMap((missing) =>
-    (["install", "uninstall"] as const).map((command) => ({
+    installCommands.map((command) => ({
       command,
       missing,
     })),

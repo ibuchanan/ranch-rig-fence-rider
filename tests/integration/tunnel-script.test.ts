@@ -116,7 +116,8 @@ test("a resolved optional runtime member is mapped, even when empty", async () =
   });
 });
 
-test.each(["", "-x", "--help"])(
+// Target refusal is shared code; scripts-run.test.ts runs every refused value.
+test.each(["-x"])(
   "the tunnel script refuses FORGE_ENVIRONMENT=%j without calling Forge",
   async (target) => {
     const result = await runScript({
@@ -153,7 +154,8 @@ test.each([
   },
 );
 
-test.each(["SHARED", "LOCAL_ONLY", "FORGE_ENVIRONMENT"])(
+// Missing SHARED and LOCAL_ONLY run against real SecretSpec in native-tunnel-install.test.ts.
+test.each(["FORGE_ENVIRONMENT"])(
   "the tunnel script requires whole-profile %s despite the target override",
   async (missing) => {
     const values: Record<string, string> = { ...deploymentValues };
@@ -169,7 +171,8 @@ test.each(["SHARED", "LOCAL_ONLY", "FORGE_ENVIRONMENT"])(
   },
 );
 
-test.each([2, 23, 127, 255])(
+// The exec that passes Forge's status through is shared; scripts-run.test.ts runs four statuses.
+test.each([23])(
   "the tunnel script exits with Forge's status %i",
   async (exitCode) => {
     const result = await runScript({
