@@ -3,26 +3,30 @@
 [![Atlassian license][license-badge]](LICENSE)
 [![PRs Welcome][prs-badge]](CONTRIBUTING.md)
 
-Fence Rider is a development-time CLI that resolves a SecretSpec profile,
-validates configuration, uploads only explicitly selected runtime variables
-with Forge encryption enabled, then delegates deployment to the same Forge
+Fence Rider is a development-time CLI that resolves a SecretSpec profile and
+hands it to Forge. Two independent steps mirror the Forge CLI: `variables`
+validates configuration and uploads only explicitly selected runtime variables
+with Forge encryption enabled, and `deploy` runs Forge deployment to the same
 environment. No vault SDK or Fence Rider code belongs in your deployed app.
 
-`lint`, `install` and `uninstall` do not run Forge themselves: they print a
-shell script that runs it under `secretspec run`, and a package script executes
-that script (see the [short scripts](docs/how-to/consumer-workflows.md)).
-`lint` supplies the resolved local inputs without runtime uploads; the others
-use configured targets and caller-owned interaction. **Uninstall changes remote
-installation state.** Forge output streams without redaction; see the
-[workflow contracts](docs/reference/reference.md#configured-uninstall).
+`lint`, `deploy`, `tunnel`, `install` and `uninstall` do not run Forge
+themselves: they print a shell script that runs it under `secretspec run`, and a
+package script executes that script (see the [short
+scripts](docs/how-to/consumer-workflows.md)). `deploy` uploads nothing; run
+`variables` when the runtime values change. `lint` supplies the resolved local
+inputs; `install` and `uninstall` use configured targets and caller-owned
+interaction. **Uninstall changes remote installation state.** Forge output
+streams without redaction; see the [workflow
+contracts](docs/reference/reference.md#configured-uninstall).
 
-**Status:** configured deployment, lint, installation, and uninstall are
-locally tested with Bun 1.4.3 and SecretSpec 0.21.1. Forge CLI 14.2.0 interfaces
-have been inspected; live Forge verification is **blocked pending authorization**,
-not certified. This private source project is not published as a package.
-Configured `tunnel` maps explicit runtime members to Forge's local mechanism
-for development environments only, without remote synchronization. Connected
-runtime receipt remains unverified; see the [tunnel contract][tunnel-contract].
+**Status:** configured variables, deployment, lint, installation, and uninstall
+are locally tested with Bun 1.4.3 and SecretSpec 0.21.1. Forge CLI 14.2.0
+interfaces have been inspected; live Forge verification is **blocked pending
+authorization**, not certified. This private source project is not published as
+a package. Configured `tunnel` prints a script mapping explicit runtime members
+to Forge's local mechanism for development environments only, without remote
+synchronization. Connected runtime receipt remains unverified; see the [tunnel
+contract][tunnel-contract].
 
 [tunnel-contract]: docs/reference/reference.md#configured-tunnel
 
@@ -48,10 +52,11 @@ remain separate. No workflow downloads tools or logs you in.
 From that app's directory, using the absolute path to the built binary:
 
 ```sh
-SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli deploy --environment development --non-interactive
+SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli variables --environment development
+cmd=$(SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli deploy --environment development --non-interactive) && SECRETSPEC_PROVIDER=dotenv:values.env sh -c "$cmd" sh
 ```
 
-**This deployment command changes remote state.** Set up and review the
+**These commands change remote state.** Set up and review the
 [local-provider deployment workflow](docs/how-to/how-to.md) first. It lets
 contributors supply their own values without access to a maintainer's vault.
 Only `runtime` scope members upload; other values stay local. Optional
@@ -61,14 +66,15 @@ Only `runtime` scope members upload; other values stay local. Optional
 
 Use the [development-dependency setup](docs/how-to/installation.md), then adopt
 [short configured scripts](docs/how-to/consumer-workflows.md) for deploy,
-lint, install/upgrade, uninstall, and development tunnel. No helper or duplicated
-key inventory is needed. Controls-only apps need no runtime scope or dummy secret.
-The [CW-01–CW-22 evidence map](docs/reference/consumer-workflows.md) distinguishes
-native tool delivery, controlled Forge behavior, and blocked live checks.
+variables, deploy, lint, install/upgrade, uninstall, and development tunnel. No
+helper or duplicated key inventory is needed. Controls-only apps need no runtime
+scope or dummy secret. The [CW-01–CW-22 evidence
+map](docs/reference/consumer-workflows.md) distinguishes native tool delivery,
+controlled Forge behavior, and blocked live checks.
 
 ## Documentation
 
-- [Deploy from development or CI](docs/how-to/how-to.md)
+- [Upload variables and deploy from development or CI](docs/how-to/how-to.md)
 - [Run configured Forge lint](docs/how-to/how-to.md#run-configured-lint)
 - [Install or upgrade the configured app](docs/how-to/how-to.md#install-or-upgrade-the-configured-app)
 - [Uninstall the configured app](docs/how-to/how-to.md#uninstall-the-configured-app)

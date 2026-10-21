@@ -1,6 +1,6 @@
 # Variable compatibility contract
 
-Status: configured deploy, lint, install/upgrade, uninstall and
+Status: configured variables, deploy, lint, install/upgrade, uninstall and
 development tunnel are implemented and locally verified as of 2026-10-20.
 The installed Bun package requires SecretSpec and Forge on `PATH`. Authorized live
 Forge verification is blocked. The [consumer evidence map](consumer-workflows.md)
@@ -8,10 +8,11 @@ and [deployment evidence](deployment.md) separate native SecretSpec delivery,
 controlled Forge behavior, and unverified upstream acceptance.
 
 This reference defines variable declarations, local availability, manifest
-checks, and runtime upload selection for deployment. Configured lint prints a
-script that runs under `secretspec run`, without uploads or injected
-target flags; its [output boundary](#configured-lint)
-differs from private deployment output.
+checks, and runtime upload selection for `variables`. `variables` is the only
+command that uploads, as `forge variables set` is separate from `forge deploy`.
+Configured lint, deploy and tunnel print a script that runs under
+`secretspec run`, without uploads; its [output boundary](#configured-lint)
+differs from the private `variables` output.
 The repository-owned `secretspec.toml` specifies and validates every variable.
 There is no separate Fence Rider variable inventory or provider schema.
 
@@ -313,16 +314,18 @@ cross-file specifications work as SecretSpec resolves them. It passes no
 
 The metadata boundary is:
 
-- Resolve the whole profile once for deploy and tunnel: `secretspec schema` for
+- Resolve the whole profile once for `variables`: `secretspec schema` for
   effective names and types, `secretspec export --scope "" --format json` for
   values.
-- Ask SecretSpec for the members of `manifest` (deploy, tunnel) and
-  `runtime` (deploy, tunnel) with `secretspec check --json --scope NAME`. The
-  report is value-free and includes optional declarations absent from exported
-  values, so the manifest check still covers them. Lint, install and uninstall
-  make no SecretSpec call at all: they print a script that runs under
-  `secretspec run`. `fence-rider doctor` asks for `manifest` when the file
-  declares that scope, so the manifest check for lint now lives there.
+- Ask SecretSpec for the members of `manifest` (`variables`) and
+  `runtime` (`variables`, and `tunnel` while printing) with
+  `secretspec check --json --scope NAME`. The report is value-free and includes
+  optional declarations absent from exported values, so the manifest check
+  still covers them. `tunnel` also reads `secretspec schema` for the declared
+  names, never values. Lint, deploy, install and uninstall make no SecretSpec
+  call at all: they print a script that runs under `secretspec run`.
+  `fence-rider doctor` asks for `manifest` when the file declares that scope,
+  so the manifest check for lint, deploy and tunnel lives there.
 - A scope the file does not define has no members, so a missing runtime scope
   means no uploads. SecretSpec reports this only as "is not defined in
   secretspec.toml" on stderr, which Fence Rider matches without printing it.
@@ -387,7 +390,7 @@ variables also need Forge's `environment.variables` declaration. This does
 not make them runtime environment entries. A manifest field may expose its
 value through app behavior, so local or manifest does not mean non-secret.
 
-Runtime updates take effect after deployment to the same app/environment.
+Runtime updates take effect after `variables` and then deployment to the same app/environment.
 Encryption occurs on Atlassian's servers after receipt, not as a guarantee
 of secrecy from the platform or local process inspection. Inspected CLI help
 accepts positional values; a non-interactive stdin interface is unverified.
@@ -396,15 +399,16 @@ Native tests preserve local empty strings and strings `"0"` and `"false"`;
 controlled tests preserve multiline and special characters as one argument.
 Forge server-side value acceptance remains unverified.
 
-SecretSpec validation or an applicable manifest metadata mismatch prevents
-all uploads. This does not establish that Forge's complete lint pipeline
-has run before uploads; broader Forge validation may still fail later.
-An upload failure stops later uploads and deployment; earlier uploads may
-already have changed remote state. There is no automatic rollback.
+SecretSpec validation or an applicable manifest metadata mismatch prevents all
+uploads. This does not establish that Forge's complete lint pipeline has run
+before uploads; broader Forge validation may still fail later. An upload failure
+stops later uploads, and a chained `deploy` script does not run; earlier uploads
+may already have changed remote state. There is no automatic rollback.
 
-Diagnostics omit resolved values, raw helper output, and secret-bearing
-command lines. Numeric deployment exit status is preserved; launch failure,
-signal termination, or interruption cannot become success.
+Diagnostics omit resolved values, raw helper output, and secret-bearing command
+lines. The deploy script preserves Forge's numeric exit status because it
+replaces the shell; in `variables`, launch failure, signal termination, or
+interruption cannot become success.
 
 ## Configured lint
 
@@ -447,23 +451,22 @@ suppress local delivery or Forge's substitution requirements.
 
 ### Output and input policy
 
-SecretSpec schema/export and encrypted-upload stdout remain private and stderr
-is not shown. Deployment retains its existing suppressed-output contract.
-Forge as run by the lint, installation, and uninstall scripts, and by tunnel,
-inherits stdin, stdout, and stderr:
+SecretSpec schema/export and encrypted-upload stdout of `variables` remain
+private and stderr is not shown. Forge as run by the lint, deploy, installation,
+uninstall and tunnel scripts inherits stdin, stdout, and stderr:
 output is live, without redaction, and on its original stream; input is available
 without wrapper prompts. Wrapper-owned diagnostics omit values and raw helper
 errors. **Forge output, exception details, application logs, echoed input, and
 terminal sessions may expose values**; Fence Rider provides no passthrough
 redaction or credential isolation. Existing ambient authentication is retained.
 
-This shared user-facing stdio mode serves lint, installation, uninstall, and
-tunnel; it does not certify terminal-specific prompt behavior.
-Ordinary pipe checks establish input and pre-exit streaming.
-For tunnel and deploy, POSIX interruption forwards SIGINT/SIGTERM to the active
-process group, escalates after one second, and kills remaining group members,
-including when the direct child exits first. Lint, install and uninstall have no
-Fence Rider process to interrupt: the terminal signals `secretspec run` and Forge
+This shared user-facing stdio mode serves lint, deploy, installation, uninstall,
+and tunnel; it does not certify terminal-specific prompt behavior. Ordinary pipe
+checks establish input and pre-exit streaming. For `variables`, POSIX
+interruption forwards SIGINT/SIGTERM to the active process group, escalates
+after one second, and kills remaining group members, including when the direct
+child exits first. Lint, deploy, tunnel, install and uninstall have no Fence
+Rider process to interrupt: the terminal signals `secretspec run` and Forge
 directly. Windows process-tree cleanup remains uncertified.
 
 Numeric Forge lint statuses are preserved because the script replaces the shell.
@@ -498,7 +501,7 @@ applies to the whole profile, and `--scope ""` keeps an ambient
 `SECRETSPEC_SCOPE` from narrowing it.
 
 Because SecretSpec, not Fence Rider, builds the environment, install, uninstall
-and lint differ from deploy and tunnel in three ways:
+and lint differ from `variables` in three ways:
 
 - Fence Rider does not validate the resolved values (string typing, NUL-free).
 - A stale ambient value for an unresolved optional declaration is **not**
@@ -611,15 +614,18 @@ cleanup remain unverified. See the [procedure][uninstall-guide] and
 
 ## Configured tunnel
 
-`fence-rider tunnel [Forge options]` resolves the whole active profile once,
-checks optional `manifest` declarations, and delegates one `forge tunnel`.
+`fence-rider tunnel [-e, --environment TARGET] [Forge options]` prints a script
+that runs one `forge tunnel` under `secretspec run`. While printing it asks
+SecretSpec, value-free, for the declared names and the `runtime` members; it
+does not check `manifest` declarations (`doctor` does).
 Required local, manifest, runtime, and control declarations still apply with
 explicit target overrides. Ordinary resolved values, process settings, and
 existing authentication remain available to Forge locally. No extra scope or
 second variable inventory is required.
 
 Only effective explicit `runtime` members are copied to
-`FORGE_USER_VAR_<name>` in the tunnel child environment. Forge strips that
+`FORGE_USER_VAR_<name>` by a shell prologue in the script, which names the
+members it maps when it is printed. Forge strips that
 prefix for local function runtime variables; ordinary local inheritance is
 not evidence of runtime delivery. Shared members use the same resolved value
 locally and in that mapping. Absent optionals are omitted. Empty strings,
@@ -627,11 +633,12 @@ leading-dash strings, multiline values, `"0"`, and `"false"` are supported by
 this environment mechanism, unlike deployment's positional upload contract.
 The four targeting controls cannot be runtime members.
 
-Ambient `FORGE_USER_VAR_` entries are removed before mapped members are added,
-including stale optional and unrelated entries. Active-profile declarations
-using that prefix are rejected, even if not runtime members: this avoids both
-an implicit runtime bypass and silently losing declared local values. Ordinary
-credentials/settings remain inherited; this is not credential isolation.
+Ambient `FORGE_USER_VAR_` entries (names of letters, digits and underscores) are
+removed before mapped members are added, including stale optional and unrelated
+entries. Active-profile declarations using that prefix are rejected, even if not
+runtime members: this avoids both an implicit runtime bypass and silently losing
+declared local values. Ordinary credentials/settings remain inherited; this is
+not credential isolation.
 
 Target selection and the development-only rule are in the
 [command help](command-help.md#tunnel). Empty, invalid, and duplicate explicit
@@ -645,13 +652,12 @@ only `--help` requests wrapper help.
 
 The [live stdio policy](#output-and-input-policy) applies without redaction,
 including tunnel/app logs. Numeric Forge status propagates. Private helper,
-launch, validation, and signal failures cannot become success. Operator
-SIGINT/SIGTERM returns 130/143 with bounded POSIX group/descendant cleanup,
-including ignoring helpers. Windows tree cleanup and terminal-specific
-behavior remain unverified. No upload, variable deletion, deploy, installation,
-retry, follow-up, or permanent secret file is added by wrapper orchestration.
-A connected tunnel itself contacts Forge and redirects development invocations;
-this is not a read-only or offline workflow.
+launch, validation, and signal failures cannot become success. The script
+replaces the shell, so the terminal signals `secretspec run` and Forge directly;
+terminal-specific behavior remains unverified. No upload, variable deletion,
+deploy, installation, retry, follow-up, or permanent secret file is added by
+wrapper orchestration. A connected tunnel itself contacts Forge and redirects
+development invocations; this is not a read-only or offline workflow.
 
 Observed 2026-10-20: installed Forge CLI 14.2.0 `tunnel --help` and published
 14.2.0 tunnel registration/environment/controller sources; `@forge/runtime`

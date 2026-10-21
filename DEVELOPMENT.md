@@ -80,14 +80,22 @@ Do not raise thresholds or suppress findings to make a gate pass.
 ## Repository layout
 
 - `src/index.ts`: CLI discovery and command dispatch.
-- `src/configured.ts`: native profile resolution for deploy and tunnel, scope
-  membership queries, manifest checks, child environments, stdio policy, and
-  process cleanup.
+- `src/configured.ts`: native profile resolution for `variables`, scope
+  membership queries, manifest checks, child environments, and the value-free
+  name queries the tunnel generator makes.
 - `src/shell.ts`: shell quoting and the `secretspec run` script that `lint`,
-  `install` and `uninstall` print; pure strings, so tests need no processes.
+  `deploy`, `tunnel`, `install` and `uninstall` print; pure strings, so tests
+  need no processes.
 - `src/doctor.ts`: tool version ranges, the unrecognized-scope warning and the
   manifest-scope check.
-- `src/deploy.ts`: target options and encrypted deployment lifecycle.
+- `src/deploy.ts`: prints the script that runs `forge deploy` under
+  `secretspec run`; it uploads nothing.
+- `src/variables.ts`, `src/variables-plan.ts`: the one Bun-supervised
+  workflow besides `doctor`; encrypts and uploads the runtime-scope values.
+- `src/tunnel.ts`, `src/tunnel-plan.ts`: prints the `forge tunnel` script with
+  a prologue mapping runtime members to `FORGE_USER_VAR_<name>`.
+- `src/target.ts`: the `-e, --environment` option shared by deploy and
+  variables.
 - `src/lint.ts`: prints the script that runs `forge lint` under
   `secretspec run`; Fence Rider supervises nothing.
 - `src/install.ts`: prints the install/uninstall script, with a fixed target

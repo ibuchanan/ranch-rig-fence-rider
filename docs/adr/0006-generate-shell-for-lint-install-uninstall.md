@@ -4,6 +4,11 @@ status: accepted
 
 # Print a shell script for lint, install and uninstall instead of running Forge
 
+> Partly superseded by
+> [ADR 0007](0007-split-variables-from-generated-forge-commands.md): deploy and
+> tunnel now print scripts too, once variable upload is a separate command.
+> Option 4 below is no longer deferred.
+
 After [ADR 0005](0005-install-and-lint-delegate-to-secretspec-run.md), `lint`,
 `install` and `uninstall` were only a thin Bun process that spawned
 `secretspec run` and supervised it: process groups, signal escalation, exit

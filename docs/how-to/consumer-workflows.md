@@ -10,7 +10,7 @@ Forge. The examples below are procedures, not live-service certification.
 Adapt [the synthetic declarations](../examples/secretspec.toml) to your app.
 They include canonical environment/site/product defaults, an implicit local input,
 a manifest input, an explicit runtime input and a shared manifest/runtime input.
-Names outside scopes remain local; only runtime members upload on deployment.
+Names outside scopes remain local; only runtime members upload, through `variables`.
 Merge the [manifest fragment](../examples/manifest.yml) into the existing app's
 manifest, retaining its registered app ID and modules. The empty `app` is a
 controlled fixture, not a deployable app. Use `${MANIFEST_INPUT}` and
@@ -29,18 +29,20 @@ The example has no helper, target expansion, or separate key inventory:
 
 ```json
 {
-  "deploy": "fence-rider deploy --non-interactive --approve MAJOR_VERSION_RULE",
-  "deploy:reviewed": "fence-rider deploy --non-interactive --approve REVIEWED_RULE_FROM_FORGE",
+  "variables": "fence-rider variables",
+  "deploy": "cmd=$(fence-rider deploy --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh",
+  "deploy:reviewed": "cmd=$(fence-rider deploy --non-interactive --approve REVIEWED_RULE_FROM_FORGE) && sh -c \"$cmd\" sh",
+  "release": "fence-rider variables && cmd=$(fence-rider deploy --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh",
   "install:forge": "cmd=$(fence-rider install --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
   "upgrade:forge": "cmd=$(fence-rider install --upgrade --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
   "uninstall:forge": "cmd=$(fence-rider uninstall) && sh -c \"$cmd\" sh",
   "lint:forge": "cmd=$(fence-rider lint) && sh -c \"$cmd\" sh",
-  "tunnel": "fence-rider tunnel"
+  "tunnel": "cmd=$(fence-rider tunnel) && sh -c \"$cmd\" sh"
 }
 ```
 
-Deploy and tunnel run Fence Rider directly. Lint, install and uninstall print a
-shell script, and the package script runs it:
+`variables` runs Fence Rider directly. Lint, deploy, tunnel, install and
+uninstall print a shell script, and the package script runs it:
 
 - The `&&` keeps the script from running when Fence Rider refuses. A refusal
   prints its reason on stderr and nothing on stdout. Without the guard,
@@ -67,20 +69,26 @@ Deployment approval does not grant install scope consent. Keep `--confirm-scopes
 - Run `bun run lint:forge` for whole-profile resolution under `secretspec run`
   and live Forge lint output. No targets or runtime uploads are injected, and the
   optional manifest check is `bun run fence-rider doctor`.
+- Run `bun run variables` when runtime values change. It validates the whole
+  profile, then encrypts and uploads each runtime member with
+  `forge variables set --encrypt`. Partial writes can remain after failure;
+  nothing is rolled back or remotely deleted. It accepts only `-e, --environment`.
 - Run `bun run deploy` or the distinct approval variant `bun run deploy:reviewed`
-  only after reviewing that policy. Deployment encrypts selected runtime values
-  before one deployment to the same environment. Partial writes can remain after
-  failure; nothing is rolled back or remotely deleted. Deployment activates
-  changed stored values under Forge's documented lifecycle.
+  only after reviewing that policy. Deployment uploads nothing, as `forge deploy`
+  does not; stored values activate under Forge's documented lifecycle. Run
+  `bun run release` to upload and then deploy; the `&&` stops before deploying
+  if the upload fails. Forgetting `variables` leaves the remote values stale.
 - Run `bun run install:forge` or `bun run upgrade:forge` for the configured
   installation. These do not deploy, upload, or activate runtime changes.
 - Run `bun run uninstall:forge` only with removal authorization. There is no
   injected confirmation/non-interactive/upgrade/consent policy and no guarantee
   of an additional prompt. Forge 14.2.0 has no uninstall `--non-interactive` flag.
 - Run `bun run tunnel` only for an already deployed/installed development app
-  and authorized local redirection. Runtime members map to `FORGE_USER_VAR_<name>`
-  without remote synchronization. Staging/production are rejected; named targets
-  must already be development environments. Stop with Ctrl-C.
+  and authorized local redirection. While printing the script, Fence Rider asks
+  SecretSpec (never for values) for the declared and runtime names; the script
+  maps runtime members to `FORGE_USER_VAR_<name>` without remote
+  synchronization. Staging/production are rejected; named targets must already
+  be development environments. Stop with Ctrl-C.
 
 Targets for install/uninstall come only from the profile; to aim elsewhere,
 select another profile, change the declaration, or export the variable when
@@ -94,7 +102,8 @@ bun run lint:forge --verbose
 Environment falls back to development for install/uninstall; site/product never
 do, and `--site`, `--product` and `--environment` are refused there. Supported
 product values are `jira`, `confluence`, `compass`, and `bitbucket`. Lint
-receives no injected target; deploy/tunnel receive environment only. Native
+receives no injected target; deploy/tunnel receive environment only (`-e,
+--environment`, else the resolved `FORGE_ENVIRONMENT`, else development). Native
 profile/file selection remains `SECRETSPEC_PROFILE`/`SECRETSPEC_FILE`, not a
 Forge environment switch. An explicit deploy or tunnel target never waives
 required values. See the [exact command grammar][contract].
@@ -114,20 +123,20 @@ FORGE_SITE = { description = "Site", default = "example.atlassian.net" }
 FORGE_PRODUCT = { description = "Product", default = "jira" }
 ```
 
-No scope or dummy credential is needed. Deployment performs no variable writes.
+No scope or dummy credential is needed. `variables` performs no writes.
 For legitimate absence use native optional declarations or a suitable profile;
 all commands still require every required declaration in the active profile.
 
 ## Handle output and limits
 
-Lint/install/uninstall/tunnel inherit input and stream output without redaction;
-never publish output on the assumption that values are hidden. Deployment and
-private resolution/upload helpers suppress raw output. OS process inspection can
-still expose positional upload values and child environments. For deploy and
-tunnel, SIGINT/SIGTERM stop later work and bound descendant cleanup on exercised
-POSIX systems; SIGKILL and untested platforms provide no cleanup guarantee.
-Lint, install and uninstall have no Fence Rider process to interrupt, so the
-terminal signals `secretspec run` and Forge directly.
+Lint/deploy/install/uninstall/tunnel inherit input and stream output without
+redaction; never publish output on the assumption that values are hidden. The
+private resolution and upload helpers of `variables` suppress raw output. OS
+process inspection can still expose positional upload values and child
+environments. For `variables`, SIGINT/SIGTERM stop later work and bound
+descendant cleanup on exercised POSIX systems; SIGKILL and untested platforms
+provide no cleanup guarantee. The script commands have no Fence Rider process to
+interrupt, so the terminal signals `secretspec run` and Forge directly.
 
 Use Forge directly for unsupported commands, app registration, login, variable
 listing/deletion, logs, and other administrative operations. Do not infer those

@@ -9,6 +9,14 @@ passing public checks and records final validation outcomes. **Live Forge
 verification remains blocked by explicit user choice**: no destination or
 remote changes were authorized. Local results are not final readiness proof.
 
+> **Superseded in part by [ADR 0007](../adr/0007-split-variables-from-generated-forge-commands.md).**
+> The evidence below was recorded when `fence-rider deploy` uploaded runtime
+> variables and then ran `forge deploy`. Uploading is now the separate
+> `fence-rider variables` command, and `deploy` and `tunnel` print shell scripts
+> like `lint`. Read "deploy uploads, then deploys" as `variables`, then a
+> generated deploy script, and treat the Bun interruption evidence for deploy
+> and tunnel as applying to `variables` only.
+
 ## Acceptance traceability
 
 The [criterion-by-criterion map](validation.md#acceptance-traceability) reuses
@@ -41,8 +49,9 @@ version remain side-effect-free.
 | Forge target | Explicit `-e` / `--environment`, resolved `FORGE_ENVIRONMENT`, then `development` |
 | Authentication | Existing tool configuration and process environment; no automatic login |
 
-For deploy and tunnel, both prerequisites must be executable on `PATH` before
-resolution starts. Lint, install and uninstall check nothing: they print a
+For `variables`, both prerequisites must be executable on `PATH` before
+resolution starts. Tunnel needs SecretSpec to print its script. Lint, deploy,
+install and uninstall check nothing: they print a
 script, and `fence-rider doctor` reports the tools.
 Fence Rider does not read or validate `secretspec.toml`: `project.extends`,
 profile inheritance, and scope rules are SecretSpec's. It passes no `--file` or
@@ -62,15 +71,15 @@ secretspec check --json --scope manifest
 secretspec check --json --scope runtime
 ```
 
-`manifest` and `runtime` are asked by deploy and tunnel. Lint, install and
-uninstall make none of these calls, and no `schema` or `export` call either: they
-print a script that runs Forge under `secretspec run --scope ''`, which resolves
-the profile itself. `fence-rider doctor` asks for `manifest` when the file
-declares it. A scope the
-file does not define has no members; that is recognized from SecretSpec's "is
-not defined in secretspec.toml" error text, the one contract on error text.
-Values come only from the single whole-profile export, so a run makes up to
-three SecretSpec resolutions but no scope check supplies a value.
+`manifest` and `runtime` are asked by `variables`; `runtime` is also asked by
+tunnel while printing. Lint, install and uninstall make none of these calls, and
+no `schema` or `export` call either: they print a script that runs Forge under
+`secretspec run --scope ''`, which resolves the profile itself. `fence-rider
+doctor` asks for `manifest` when the file declares it. A scope the file does not
+define has no members; that is recognized from SecretSpec's "is not defined in
+secretspec.toml" error text, the one contract on error text. Values come only
+from the single whole-profile export, so a run makes up to three SecretSpec
+resolutions but no scope check supplies a value.
 
 SecretSpec 0.21.1 schema output contains `properties` and `required` names,
 without resolved values or scope membership. Optional strings have the type
@@ -150,14 +159,15 @@ or validated by Fence Rider. Option arity follows the verified Forge version,
 not an extensible general-purpose parser.
 
 `--non-interactive`, `--tag`, `--major-version`, `--approve`, and other deploy
-options go only to `forge deploy`, never to `forge variables set`. In
-particular, `variables set` has no documented `--non-interactive` option.
-Help is wrapper-owned and is not delegated. SecretSpec file/profile selection
-remains environment-only; no additional wrapper flags are introduced.
-`FORGE_SITE` and `FORGE_PRODUCT` stay local and do not generate deployment
-flags or runtime uploads. Configured installation, uninstall and development
-tunneling are now supported at their documented local boundaries; see the
-[workflow contracts](reference.md#configured-installation).
+options go only to `forge deploy`, never to `forge variables set`; `fence-rider
+variables` accepts no Forge options. In particular, `variables set` has no
+documented `--non-interactive` option. Help is wrapper-owned and is not
+delegated. SecretSpec file/profile selection remains environment-only; no
+additional wrapper flags are introduced. `FORGE_SITE` and `FORGE_PRODUCT` stay
+local and do not generate deployment flags or runtime uploads. Configured
+installation, uninstall and development tunneling are now supported at their
+documented local boundaries; see the [workflow
+contracts](reference.md#configured-installation).
 
 Controlled CLI subprocess tests verify these boundaries and target precedence;
 no live app, variable write, or deployment is involved.

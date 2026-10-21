@@ -1,12 +1,12 @@
-# Deploy with your own SecretSpec provider
+# Upload variables and deploy with your own SecretSpec provider
 
-Use this guide to deploy an existing Forge app without access to a
-maintainer's vault. Follow the [package installation guide](installation.md)
-first, or use the [standalone development build](../../README.md) with SecretSpec
-0.21.1 on PATH. Forge CLI and existing authentication remain separate. Use an
-app and environment you are authorized to change.
-Live Forge compatibility is not yet certified; see the
-[version and evidence record](../reference/deployment.md).
+Use this guide to upload variables to and deploy an existing Forge app without
+access to a maintainer's vault. Follow the [package installation
+guide](installation.md) first, or use the [standalone development
+build](../../README.md) with SecretSpec 0.21.1 on PATH. Forge CLI and existing
+authentication remain separate. Use an app and environment you are authorized to
+change. Live Forge compatibility is not yet certified; see the [version and
+evidence record](../reference/deployment.md).
 
 ## Configure a local provider
 
@@ -41,11 +41,12 @@ Live Forge compatibility is not yet certified; see the
        - SERVICE_URL
    ```
 
-   Use `${SERVICE_URL}` only in a Forge-supported substitution field that
-   your app needs. The SecretSpec `manifest` scope is optional: omitting it
-   skips the consistency check, not local resolution or Forge substitution.
-   If the scope is present but a member lacks a Forge declaration, Fence Rider
-   fails before any upload. Forge still validates the whole manifest.
+   Use `${SERVICE_URL}` only in a Forge-supported substitution field that your app
+   needs. The SecretSpec `manifest` scope is optional: omitting it skips the
+   consistency check, not local resolution or Forge substitution. If the scope is
+   present but a member lacks a Forge declaration, Fence Rider fails `variables`
+   before any upload; `fence-rider doctor` runs the same check. Forge still
+   validates the whole manifest.
 
 4. Ignore `values.env` in the app's `.gitignore` before creating it. Supply
    your own values there. For a disposable development exercise only:
@@ -63,13 +64,17 @@ Live Forge compatibility is not yet certified; see the
 5. Invoke the binary from the app directory, replacing the executable path:
 
    ```sh
-   SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli deploy --environment development --non-interactive
+   SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli variables --environment development
+   cmd=$(SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli deploy --environment development --non-interactive) && SECRETSPEC_PROVIDER=dotenv:values.env sh -c "$cmd" sh
    ```
 
-   This writes encrypted `API_TOKEN` to the named app/environment, then
-   deploys there. `OPTIONAL` is not uploaded when absent; previous remote
-   values are not deleted. `SERVICE_URL` remains local for the manifest.
-   Progress prints names, targets, and stages, never values or helper output.
+   The first command writes encrypted `API_TOKEN` to the named app/environment;
+   run it only when runtime values change, as with `forge variables set`. The
+   second prints a script that runs `forge deploy` there under `secretspec run`
+   and a shell executes it. `OPTIONAL` is not uploaded when absent; previous
+   remote values are not deleted. `SERVICE_URL` remains local for the manifest.
+   The `variables` progress prints names, targets, and stages, never values or
+   helper output.
 
 ## Run configured lint
 
@@ -221,7 +226,7 @@ the app's prerequisites. Named targets must already be development environments.
    ```json
    {
      "scripts": {
-       "tunnel": "fence-rider tunnel"
+       "tunnel": "cmd=$(fence-rider tunnel) && sh -c \"$cmd\" sh"
      }
    }
    ```
@@ -235,12 +240,14 @@ the app's prerequisites. Named targets must already be development environments.
    **without redaction**.
    Stop the tunnel with Ctrl-C.
 
-The wrapper maps explicit runtime members to Forge's local mechanism; it does
-not upload/delete remote variables, deploy, or install. Empty runtime strings
-are allowed; absent optionals and stale ambient prefixed values are omitted.
-See the [exact mapping and restrictions][tunnel-contract]. This is a procedure,
-not live success evidence: connected runtime receipt remains blocked pending
-separate authorization in the [validation record](../reference/validation.md).
+Fence Rider asks SecretSpec for the declared and runtime names, never values,
+while printing the script. The script maps explicit runtime members to Forge's
+local mechanism; it does not upload/delete remote variables, deploy, or install.
+Empty runtime strings are allowed; absent optionals and stale ambient prefixed
+values are omitted. See the [exact mapping and restrictions][tunnel-contract].
+This is a procedure, not live success evidence: connected runtime receipt
+remains blocked pending separate authorization in the [validation
+record](../reference/validation.md).
 
 [tunnel-contract]: ../reference/reference.md#configured-tunnel
 
@@ -252,7 +259,7 @@ a profile declared within it. SecretSpec reads both itself; without
 directory:
 
 ```sh
-SECRETSPEC_FILE=config.toml SECRETSPEC_PROFILE=release SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli deploy -e development --non-interactive
+SECRETSPEC_FILE=config.toml SECRETSPEC_PROFILE=release SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli variables -e development
 ```
 
 Define `release` in that file first. Profile and cross-file inheritance,
@@ -261,10 +268,11 @@ guide assume the app's working directory.
 
 An explicit `-e TARGET` or `--environment TARGET` wins over the resolved
 `FORGE_ENVIRONMENT`, then `development`. Attached `-eTARGET` and
-`--environment=TARGET` are accepted; repeated or missing targets are errors.
-A profile named `release` does not select a Forge environment by its name.
-Other Forge options are forwarded to deployment only. `FORGE_SITE` and
-`FORGE_PRODUCT` remain local; they generate no deployment flags or uploads.
+`--environment=TARGET` are accepted; repeated or missing targets are errors. A
+profile named `release` does not select a Forge environment by its name.
+`variables` accepts no other options; `deploy` and `tunnel` forward the rest to
+Forge. `FORGE_SITE` and `FORGE_PRODUCT` remain local; they generate no
+deployment flags or uploads.
 
 The full active profile is resolved once for values, with no scope filter, even
 when `SECRETSPEC_SCOPE` is set. Unscoped required inputs must resolve too. All
@@ -285,21 +293,23 @@ state is not collected automatically.
 3. Supply your provider's existing authentication using SecretSpec's own
    configuration. For the exercised dotenv setup, securely provision an
    ignored `values.env` in the app directory; remove it after the job.
-4. Run the explicit target command above with `--non-interactive`. Disable
-   shell tracing. Fence Rider uses non-interactive SecretSpec export and
-   supplies both positional arguments to `forge variables set`; that command
-   has no documented `--non-interactive` flag. Only deployment receives it.
+4. Run `variables`, then the deploy script with `--non-interactive`, as one
+   chained package script. Disable shell tracing. `variables` uses
+   non-interactive SecretSpec export and supplies both positional arguments to
+   `forge variables set`; that command has no documented `--non-interactive`
+   flag. Only deployment receives it.
 5. Treat a nonzero exit as failure. Resolve missing values or configuration
    before retrying. Provider fallback and login remain SecretSpec concerns;
    Fence Rider does not download dependencies, prompt for values, or log in.
 
 ## Handle failures and unsupported workflows
 
-After any attempted upload, a failure can leave partial remote changes.
-There is no automatic rollback, retry, or deletion. Correct the cause and
-review the target before rerunning. Stored variables require deployment to
-the same environment to become active under Forge's documented lifecycle;
-that activation is not yet verified by an authorized live smoke test here.
+After any attempted upload by `variables`, a failure can leave partial remote
+changes. There is no automatic rollback, retry, or deletion. Correct the cause
+and review the target before rerunning. Stored variables require a later
+deployment to the same environment to become active under Forge's documented
+lifecycle; that activation is not yet verified by an authorized live smoke test
+here.
 
 Values are passed without a shell, but Forge's verified interface uses
 positional values. Operating-system process inspection may expose arguments;

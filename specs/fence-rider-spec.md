@@ -5,6 +5,13 @@ captures the broader wrapper product contract and the next implementation set.
 This document and its AC-01 through AC-18 remain the deployment baseline;
 completed evidence does not certify the newly planned workflows.
 
+Superseded 2026-10-21 by [ADR
+0007](../docs/adr/0007-split-variables-from-generated-forge-commands.md):
+`fence-rider deploy` no longer uploads variables or supervises Forge. Uploading
+is the separate `fence-rider variables` command, and `deploy` prints a shell
+script. Acceptance criteria below that describe upload-then-deploy in one
+command now apply to `variables` followed by that script.
+
 Superseded 2026-10-21: Fence Rider no longer reads `secretspec.toml`, rejects
 `project.extends`, or passes `--file`/`--profile`; scope membership is asked of
 SecretSpec (`check --json --scope`). The single-file statements below,

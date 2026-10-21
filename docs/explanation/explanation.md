@@ -36,12 +36,13 @@ profile into a local process environment. A variable outside Fence Rider's
 recognized scopes is still valid, validated local configuration, and the
 resolved application environment is available to delegated Forge tooling.
 
-Local values do not automatically become Forge runtime variables. Uploading
-all of them would confuse deployment controls with app configuration and
-could expose credentials that only a local tool needs. Conversely, declaring
-a local value does not mean Fence Rider supports every development command
-that might use it. Deployment, lint, install/upgrade, uninstall, and development
-tunnel are supported configured workflows, not a general-purpose command runner.
+Local values do not automatically become Forge runtime variables. Uploading all
+of them would confuse deployment controls with app configuration and could
+expose credentials that only a local tool needs. Conversely, declaring a local
+value does not mean Fence Rider supports every development command that might
+use it. Variable upload, deployment, lint, install/upgrade, uninstall, and
+development tunnel are supported configured workflows, not a general-purpose
+command runner.
 
 ## Manifest variables shape the deployed configuration
 
@@ -66,9 +67,9 @@ Without that scope, a resolved local value can still supply a substitution.
 Forge validates its own manifest declarations; it does not know whether a
 SecretSpec scope exists. Omitting the scope alone therefore does not cause
 Forge lint to fail. The optional check helps keep the two files consistent
-without replacing Forge's parser or SecretSpec's validation rules. Deploy and
-tunnel run it before touching Forge; lint prints a script and checks nothing
-itself, so `fence-rider doctor` is where that check lives for lint.
+without replacing Forge's parser or SecretSpec's validation rules. `variables`
+runs it before the first upload; the commands that print scripts check nothing
+themselves, so `fence-rider doctor` is where that check lives for them.
 
 A manifest input is not automatically a runtime variable. Its value can
 influence the deployed configuration without becoming an entry in the app's
@@ -82,10 +83,13 @@ credential needed by a backend function is a typical example. The developer
 workstation's environment is not the environment of that remote function.
 
 Forge provides a separate variable-setting mechanism for these values.
-Fence Rider's design uploads runtime-selected values with encryption enabled,
-then deploys the app to the same Forge environment. The deployment matters:
-changing a stored remote variable does not update the values used by an
-already deployed app until it is redeployed to that environment.
+Fence Rider's `variables` command uploads runtime-selected values with
+encryption enabled, and `deploy` is a separate step, as `forge variables set`
+and `forge deploy` are separate in Forge. Run `variables` only when values
+change. The deployment matters: changing a stored remote variable does not
+update the values used by an already deployed app until it is redeployed to that
+environment. A package script that chains the two keeps them together when you
+want both.
 
 Runtime variables belong to an app and a Forge environment. A value uploaded
 to development does not automatically appear in staging or production.
@@ -151,10 +155,11 @@ runtime value is present. Validating runtime values alone would allow remote
 uploads to succeed before a later manifest error stops deployment.
 
 Fence Rider's intended boundary therefore validates the complete deployment
-configuration before any upload. SecretSpec owns the supported declaration
-constraints and provider resolution; Fence Rider adds checks for routing,
-control values, and Forge's input restrictions. One specification covers all
-three categories without pretending that all three have the same consumer.
+configuration before any upload; `variables` does so before its first write.
+SecretSpec owns the supported declaration constraints and provider resolution;
+Fence Rider adds checks for routing, control values, and Forge's input
+restrictions. One specification covers all three categories without pretending
+that all three have the same consumer.
 
 This early boundary prevents avoidable partial changes caused by invalid
 inputs. It cannot make a sequence of remote writes atomic: an upload can
@@ -177,14 +182,17 @@ a missing or mismatched tool is visible before any remote change.
 
 The installed scripts expose policy while configuration supplies targets.
 Approvals, scope consent, upgrades, and non-interactive execution remain visible
-choices instead of consequences of declaring a variable. Lint, install and
-uninstall do not run Forge at all: they print a script that hands the job to
-`secretspec run`, which injects the resolved profile itself, so signals, exit
-status and interactive input belong to SecretSpec and Forge rather than to a
-Fence Rider process, and the generated text never contains a value.
-Tunnel uses Forge's local prefixed environment instead of changing the remote
-variable store. One resolution can serve these destinations without pretending
-they share a lifecycle. See [consumer workflow evidence](../reference/consumer-workflows.md).
+choices instead of consequences of declaring a variable. Lint, deploy, tunnel,
+install and uninstall do not run Forge at all: they print a script that hands
+the job to `secretspec run`, which injects the resolved profile itself, so
+signals, exit status and interactive input belong to SecretSpec and Forge rather
+than to a Fence Rider process, and the generated text never contains a value.
+Only `variables` handles values itself, because it must pass each one to Forge
+as an argument. Tunnel's script uses Forge's local prefixed environment instead
+of changing the remote variable store; printing it reads only names from
+SecretSpec. One resolution can serve these destinations without pretending they
+share a lifecycle. See [consumer workflow
+evidence](../reference/consumer-workflows.md).
 
 ## Related material
 

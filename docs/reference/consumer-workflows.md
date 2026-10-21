@@ -1,8 +1,12 @@
 # Configured consumer workflow acceptance
 
-Recorded 2026-10-20 for configured consumer acceptance. The [whole-concept planning spec][plan]
-defines CW-01–CW-22; the [implemented contract][contract] defines current behavior.
-The original deployment AC-01–AC-18 record remains in [validation](validation.md).
+Recorded 2026-10-20 for configured consumer acceptance. The [whole-concept
+planning spec][plan] defines CW-01–CW-22; the [implemented contract][contract]
+defines current behavior. The original deployment AC-01–AC-18 record remains in
+[validation](validation.md). That record and the rows below predate [ADR
+0007](../adr/0007-split-variables-from-generated-forge-commands.md): read deploy
+"upload then deploy" evidence as `variables` followed by the generated deploy
+script, and deploy/tunnel interruption evidence as applying to `variables` only.
 
 ## Evidence boundaries
 

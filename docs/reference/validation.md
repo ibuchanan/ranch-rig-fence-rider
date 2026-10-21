@@ -458,12 +458,12 @@ on repeat without weakening timeouts or checks. `bun run lint`,
 `bun run lint:docs`, `bun run build`, compiled tunnel help/alias/version,
 and `git diff --check` pass after removing temporary inspection downloads.
 
-The [procedure][tunnel-guide] supplies prerequisites and a short app script;
-the [contract](reference.md#configured-tunnel) specifies destination-specific
+The [procedure][tunnel-guide] supplies prerequisites and a short app script; the
+[contract](reference.md#configured-tunnel) specifies destination-specific
 empty-string support, reserved-prefix collision handling, and live Forge/app
-logs without redaction. Inspection archives are removed, not committed.
-Durable evidence is recorded here. Existing user specification edits remain excluded from the implementation
-commit.
+logs without redaction. Inspection archives are removed, not committed. Durable
+evidence is recorded here. Existing user specification edits remain excluded
+from the implementation commit.
 
 **Connected runtime receipt: blocked pending separate authorization.** No live
 tunnel, app/site invocation, registration, remote-variable mutation, deployment,

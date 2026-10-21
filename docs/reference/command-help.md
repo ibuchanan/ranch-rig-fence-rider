@@ -9,8 +9,22 @@ restating usage.
 
 ```text
 Usage: fence-rider deploy [-e, --environment TARGET] [Forge options]
+Prints a shell script that runs forge deploy under secretspec run, with the whole profile resolved into its environment. Run it from a package script:
+  cmd=$(fence-rider deploy) && sh -c "$cmd" sh
+Options given here are embedded in the script; options a script runner appends after `sh` are passed too.
+Target: explicit option, resolved FORGE_ENVIRONMENT, then development; it must not be empty or start with a dash.
+Deploy does not upload variables, as forge deploy does not; run fence-rider variables first when they change.
+Forge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.
+```
+
+## variables
+
+```text
+Usage: fence-rider variables [-e, --environment TARGET]
+Encrypts and uploads each runtime-scope value with forge variables set --encrypt, so run it when the variables change; deploy never uploads.
 Target: explicit option, resolved FORGE_ENVIRONMENT, then development.
-Conflicting resolved names fail even with an explicit target.
+Resolves the whole profile once and checks optional manifest declarations before the first upload. Local controls, empty values and values starting with a dash are refused.
+Forge options are not accepted. Uploads are not rolled back; a failure after the first may leave remote variables changed.
 SecretSpec and Forge must be installed on PATH and authenticated separately.
 ```
 
@@ -63,8 +77,11 @@ Forge input/output is inherited, live and unredacted. SecretSpec and Forge must 
 
 ```text
 Usage: fence-rider tunnel [-e, --environment TARGET] [Forge options]
+Prints a shell script that runs forge tunnel under secretspec run, with the whole profile resolved into its environment. Run it from a package script:
+  cmd=$(fence-rider tunnel) && sh -c "$cmd" sh
+Options given here are embedded in the script; options a script runner appends after `sh` are passed too.
 Target: explicit option, resolved FORGE_ENVIRONMENT, then development. Forge supports tunnels only for development environments.
-Resolve the whole profile once; check optional manifest declarations. Runtime members alone map to FORGE_USER_VAR_<name>; empty strings are supported. Ambient prefixed values are removed; declarations using that reserved prefix are rejected.
+Asks SecretSpec for the declared names and the runtime scope's members (never values) while printing. Runtime members alone map to FORGE_USER_VAR_<name>; empty strings are supported. Ambient prefixed values are removed; declarations using that reserved prefix are rejected.
 Forge input/output streams live and unredacted; app logs may expose values. -h is debug host, not help; use --help.
 No remote variable uploads/deletion, deployment or installation. SecretSpec and Forge must be installed on PATH and authenticated separately.
 ```
