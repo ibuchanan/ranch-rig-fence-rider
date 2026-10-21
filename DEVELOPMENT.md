@@ -36,16 +36,13 @@ needed. The acceptance map is in the
 
 ## Installed-package delivery checks
 
-The package executable requires Bun 1.4.3+ and explicit `fence-rider setup`;
-standalone compiled tests retain PATH-based tools. Packaging tests in
+The package executable requires Bun 1.4.3+, and both the packaged and compiled
+CLIs find SecretSpec and Forge on `PATH`. Packaging tests in
 `tests/packaged-consumer.test.ts` pack a local artifact, install it with
 lifecycle scripts blocked, and invoke its installed executable in isolated
-consumers. Native setup
-checks additionally require pinned release assets in `SECRETSPEC_TEST_ASSETS`;
-without them they skip, not pass. Provide `secretspec-installer.sh` and the host's
-native archive from SecretSpec 0.21.1. Tests serve those exact bytes over loopback,
-verify checksums, and remove consumer fixtures. They never publish or contact
-Forge.
+consumers with controlled tools. Native installed checks additionally require
+SecretSpec 0.21.1 on `PATH`; without it they skip, not pass. They remove
+consumer fixtures and never publish or contact Forge.
 See [delivery evidence and limits](docs/reference/installation.md). Installed
 consumer acceptance reads the checked-in `docs/examples` scripts/declarations
 rather than maintaining a second script specification; all seven workflows and

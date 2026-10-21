@@ -1,9 +1,9 @@
 # Install Fence Rider as development tooling
 
-Use Bun 1.4.3+ on macOS/Linux arm64/x64. Install the shell and archive tools listed
-in the [installation reference](../reference/installation.md), including
-`sha256sum`. Forge must be separately installed and authenticated. This project
-is private and unpublished; use a local package artifact, not a registry package.
+Use Bun 1.4.3+ on macOS/Linux arm64/x64. Install SecretSpec 0.21.1 and the Forge
+CLI separately so both are on `PATH`, and authenticate Forge. See the
+[installation reference](../reference/installation.md). This project is private
+and unpublished; use a local package artifact, not a registry package.
 
 ## Pack and install
 
@@ -18,13 +18,12 @@ From the consuming Forge app, substitute the absolute artifact path:
 ```sh
 bun add --dev /absolute/path/to/fence-rider.tgz --ignore-scripts
 bun run fence-rider --help
-bun run fence-rider setup
+secretspec --version
 ```
 
-Setup explicitly downloads pinned SecretSpec using the official installer. It
-requires no global SecretSpec, provider login, or app credentials. It does not
-contact Forge. If your network requires a pinned mirror, set the two mirror URLs
-described in the reference before running setup. Do not disable integrity checks.
+The second command should print `secretspec 0.21.1`. Fence Rider downloads
+nothing and installs nothing; it checks that version before each configured
+workflow.
 
 ## Run a short script
 
@@ -48,8 +47,7 @@ For local synthetic values, select `SECRETSPEC_PROVIDER=dotenv:values.env` in yo
 shell or CI configuration. Keep provider values out of scripts and Git. See the
 [configured workflow guide](how-to.md) for declaration and workflow examples.
 
-If a command reports missing setup or an incompatible binary, rerun
-`bun run fence-rider setup`. If setup fails, check connectivity, mirror contents,
-`sha256sum`, executable permissions, and shell/archive tools; no fallback global
-binary is used. Reinstalling the package requires setup again. No consumer helper
-or trusted dependency postinstall script is needed.
+If a command reports a missing `secretspec` prerequisite or an incompatible
+version, install SecretSpec 0.21.1 and make sure it is first on `PATH`. No
+fallback binary is used, and no consumer helper or dependency postinstall script
+is needed.

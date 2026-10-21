@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { version } from "../package.json";
 import { findCommand, unknownInvocation, workflowListing } from "./commands";
+import { secretSpecVersion } from "./secretspec";
 
 const topLevelHelp = `Fence Rider — SecretSpec-powered Forge development utility
 
@@ -17,10 +18,7 @@ Discovery:
   help, --help, -h       Show this help
   --version, -V          Show the version
 
-Package setup: fence-rider setup explicitly installs pinned SecretSpec CLI 0.21.1
-package-locally. Requires Bun 1.4.3+, macOS/Linux arm64/x64, shell tools and sha256sum.
-No downloads during ordinary workflows. Package commands never use global SecretSpec.
-Standalone compiled development builds use SecretSpec on PATH instead.
+SecretSpec CLI ${secretSpecVersion} must be installed on PATH; no downloads or installs.
 Forge CLI must be installed on PATH and authenticated separately; no automatic login.
 
 Install/uninstall targets: explicit options override resolved FORGE_SITE / FORGE_PRODUCT

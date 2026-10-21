@@ -57,11 +57,3 @@ Resolve the whole profile once; check optional manifest declarations. Runtime me
 Forge input/output streams live and unredacted; app logs may expose values. -h is debug host, not help; use --help.
 No remote variable uploads/deletion, deployment or installation. SecretSpec and Forge must be installed on PATH and authenticated separately.
 ```
-
-## setup
-
-```text
-Usage: fence-rider setup
-Explicitly install pinned SecretSpec CLI 0.21.1 package-locally. Requires Bun 1.4.3+, macOS/Linux arm64/x64, shell tools and sha256sum.
-No downloads during ordinary workflows. Package commands never use global SecretSpec.
-```

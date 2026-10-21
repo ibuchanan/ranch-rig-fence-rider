@@ -10,8 +10,8 @@ The original deployment AC-01–AC-18 record remains in [validation](validation.
   Observable arguments, child environment, output, input, status, write ordering,
   and process cleanup; no service contact.
 - **Native:** real SecretSpec 0.21.1 schema/export with synthetic dotenv/defaults
-  and same-file profile inheritance. Installed checks provision the actual native
-  executable via the verified official installer, not an ambient tool or fake.
+  and same-file profile inheritance. Installed checks run the actual native
+  executable found on `PATH`, not a fake.
 - **Interface:** Forge CLI 14.2.0 help, published source, and documentation.
   Interface inspection is not a passing server or runtime integration check.
 - **Live:** separately authorized Forge app/service observations. **Blocked** for
@@ -32,7 +32,7 @@ certify real Forge execution under Bun.
 | ID | Observable local evidence | Service/other evidence still missing |
 | --- | --- | --- |
 | CW-01 | Installed package discovery; documented installed consumer scripts run via Bun package scripts | Registry publication is not attempted or required |
-| CW-02 | Explicit setup runs real pinned upstream installer; native lint with no global binary; missing setup/version/checksum diagnostics | Direct anonymous GitHub setup blocked by HTTP 422; other platform execution unverified |
+| CW-02 | Installed consumer runs native lint against SecretSpec on `PATH`; missing and incompatible-version diagnostics before Forge runs | Only 0.21.1 is accepted; other platform execution unverified |
 | CW-03 | Required values fail before Forge in compiled native cases and installed controls-only uninstall | Other providers unverified |
 | CW-04 | Deployment shared-values test sees unchanged implicit local values and removes stale absent optional; compiled tests cover empty strings | Broader native providers unverified |
 | CW-05 | Shared value matches local upload args and tunnel prefix mapping from one export; native profile tests count one schema/export | Actual manifest substitution and connected runtime receipt blocked |
@@ -49,9 +49,9 @@ certify real Forge execution under Bun.
 | CW-16 | Native/controlled manifest mismatch and optional omission tests; installed shared manifest inputs arrive locally | Forge substitution into supported real manifest fields blocked |
 | CW-17 | Existing special-value, option payload and no-shell-injection tests; installed approval/verbose preservation | Remote acceptance of positional edge-case values unverified |
 | CW-18 | Existing inherited-input/streaming tests for all user-facing workflows; installed scripts preserve results/warnings; private helper secrecy tests | Terminal UI specifics unverified; user output is intentionally not redacted |
-| CW-19 | Existing SIGINT/SIGTERM process-tree/failure tests; installed setup signal cleanup/status; delegated exit preservation | Windows unsupported; SIGKILL cannot clean up; live tunnel interruption blocked |
+| CW-19 | Existing SIGINT/SIGTERM process-tree/failure tests; delegated exit preservation | Windows unsupported; SIGKILL cannot clean up; live tunnel interruption blocked |
 | CW-20 | Controlled partial upload failure stops later writes/deploy and warns without values or rollback claim | Actual partial server mutation blocked |
-| CW-21 | Installed help/version/unsupported commands need neither setup nor config/tools; compiled discovery tests | No service evidence needed for discovery |
+| CW-21 | Installed help/version/unsupported commands need neither config nor tools; compiled discovery tests | No service evidence needed for discovery |
 | CW-22 | All seven documented scripts run through installed artifact with real SecretSpec and controlled Forge; controls-only variant passes | End-to-end live compatibility/readiness remains blocked, not certified |
 
 ## Installed script checks
@@ -70,7 +70,7 @@ whole-profile requiredness without runtime scope or dummy credential.
 These are incremental acceptance checks on completed behavior slices. The script
 fixture was missing on the first failing run, then supplied and executed. No new
 Forge behavior or invented private API was needed. Native installed tests skip
-explicitly without `SECRETSPEC_TEST_ASSETS`; a skipped run is not native evidence.
+explicitly without SecretSpec on `PATH`; a skipped run is not native evidence.
 
 ## Safety, lifecycle, and support
 

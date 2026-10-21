@@ -1,7 +1,6 @@
 import { deploy, deployUsage } from "./deploy";
 import { install, installUsage } from "./install";
 import { lint, lintUsage } from "./lint";
-import { setup, setupUsage } from "./setup";
 import { tunnel, tunnelUsage } from "./tunnel";
 
 /** One top-level command: its help is defined here once and reused everywhere. */
@@ -53,10 +52,6 @@ const commands: Record<string, Command> = {
     summary: "Configured local runtime delivery; development environments only",
     usage: tunnelUsage,
     run: tunnel,
-  },
-  setup: {
-    usage: setupUsage,
-    run: async (args) => (args.length ? unknownInvocation() : setup()),
   },
 };
 

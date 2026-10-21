@@ -168,10 +168,9 @@ label, "environment variables."
 ## Tool delivery is not runtime delivery
 
 Installing the wrapper as development tooling supplies a command entrypoint,
-not app configuration. Its separate, explicit setup supplies pinned SecretSpec
-package-locally without application values, provider authentication, or Forge
-login. Keeping that network step outside ordinary workflows makes blocked
-setup visible rather than silently downloading during a deployment.
+not app configuration. SecretSpec itself is a separately installed prerequisite
+on `PATH`, like Forge, so no workflow downloads anything during a deployment and
+a missing or mismatched tool is visible before any remote change.
 
 The installed scripts expose policy while configuration supplies targets.
 Approvals, scope consent, upgrades, and non-interactive execution remain visible

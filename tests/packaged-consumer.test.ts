@@ -1,23 +1,17 @@
 import { expect, test } from "bun:test";
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { root, useBuiltCli } from "./support/cli.ts";
+import { packedConsumer } from "./support/consumer.ts";
 import {
-  packedConsumer,
-  secretSpecAssets,
-  setupConsumer,
-} from "./support/consumer.ts";
-import { deploymentEnv, type ToolCall } from "./support/fixtures.ts";
+  deploymentEnv,
+  realSecretSpec,
+  type ToolCall,
+} from "./support/fixtures.ts";
 
 useBuiltCli();
 
-test("installed package exposes discovery without setup, tools, or configuration", async () => {
+test("installed package exposes discovery without tools or configuration", async () => {
   const project = await packedConsumer();
   const bin = join(project, "node_modules", ".bin", "fence-rider");
   expect(existsSync(bin)).toBe(true);
@@ -48,8 +42,9 @@ test("installed package exposes discovery without setup, tools, or configuration
   }
 });
 
-test("installed configured invocation rejects missing setup despite an ambient SecretSpec", async () => {
+test("installed configured invocation rejects a missing SecretSpec before Forge runs", async () => {
   const project = await packedConsumer();
+  rmSync(join(project, "bin/secretspec"));
   const child = Bun.spawn([process.execPath, "run", "forge:lint"], {
     cwd: project,
     env: {
@@ -65,53 +60,41 @@ test("installed configured invocation rejects missing setup despite an ambient S
     new Response(child.stderr).text(),
   ]);
   expect(status).toBe(1);
-  expect(stdout + stderr).toContain("fence-rider setup");
+  expect(stdout + stderr).toContain("secretspec prerequisite");
   expect(existsSync(join(project, "tool-calls"))).toBe(false);
 });
 
-test("installed setup rejects unverified installer bytes without executing them", async () => {
+test("installed workflow rejects an incompatible SecretSpec on PATH before Forge runs", async () => {
   const project = await packedConsumer();
-  const server = Bun.serve({
-    port: 0,
-    fetch: () => new Response("echo UNVERIFIED_INSTALLER_EXECUTED"),
+  writeFileSync(
+    join(project, "bin/secretspec"),
+    '#!/bin/sh\necho "secretspec 0.1.0"\n',
+    { mode: 0o755 },
+  );
+  const child = Bun.spawn([process.execPath, "run", "forge:lint"], {
+    cwd: project,
+    env: {
+      ...deploymentEnv(project, {}),
+      PATH: `${join(project, "bin")}:${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}`,
+    },
+    stdout: "pipe",
+    stderr: "pipe",
   });
-  try {
-    const child = Bun.spawn(
-      [join(project, "node_modules/.bin/fence-rider"), "setup"],
-      {
-        cwd: project,
-        env: {
-          PATH: `${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}:/sbin:/usr/bin:/bin`,
-          HOME: project,
-          SECRETSPEC_INSTALLER_URL: server.url.href,
-        },
-        stdout: "pipe",
-        stderr: "pipe",
-      },
-    );
-    const [status, stdout, stderr] = await Promise.all([
-      child.exited,
-      new Response(child.stdout).text(),
-      new Response(child.stderr).text(),
-    ]);
-    expect(status).toBe(1);
-    expect(stdout + stderr).toContain("installer checksum mismatch");
-    expect(stdout + stderr).not.toContain("UNVERIFIED_INSTALLER_EXECUTED");
-    expect(
-      existsSync(
-        join(project, "node_modules/ranch-rig-fence-rider/.tools/secretspec"),
-      ),
-    ).toBe(false);
-  } finally {
-    server.stop(true);
-  }
+  const [status, stdout, stderr] = await Promise.all([
+    child.exited,
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+  ]);
+  expect(status).toBe(1);
+  expect(stdout + stderr).toContain("SecretSpec 0.21.1 required on PATH");
+  expect(stdout + stderr).not.toContain("0.1.0");
+  expect(existsSync(join(project, "tool-calls"))).toBe(false);
 });
 
-test.skipIf(!secretSpecAssets)(
-  "installed setup delivers native SecretSpec and configured lint without a global binary",
+test.skipIf(!realSecretSpec)(
+  "installed consumer runs configured lint against the native SecretSpec on PATH",
   async () => {
     const project = await packedConsumer();
-    await setupConsumer(project);
     writeFileSync(
       join(project, "secretspec.toml"),
       `[project]\nname = "consumer"\nrevision = "1.0"\n[profiles.default]\nFORGE_ENVIRONMENT = { description = "Target", default = "development" }\nFORGE_SITE = { description = "Site", default = "synthetic.atlassian.net" }\nFORGE_PRODUCT = { description = "Product", default = "jira" }\n`,
@@ -121,6 +104,7 @@ test.skipIf(!secretSpecAssets)(
       cwd: project,
       env: {
         ...deploymentEnv(project, {
+          realSecretSpec: realSecretSpec ?? "",
           schema: {
             properties: {
               FORGE_ENVIRONMENT: {},
@@ -149,7 +133,7 @@ test.skipIf(!secretSpecAssets)(
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line));
-    expect(calls).toEqual([
+    expect(calls.filter(({ tool }) => tool === "forge")).toEqual([
       {
         tool: "forge",
         args: ["lint"],
@@ -160,50 +144,16 @@ test.skipIf(!secretSpecAssets)(
         },
       },
     ]);
-    expect(
-      readdirSync(join(project, "node_modules/ranch-rig-fence-rider/.tools")),
-    ).toEqual(["secretspec"]);
-    expect(existsSync(join(project, ".cargo"))).toBe(false);
   },
 );
 
-test("installed workflow rejects an incompatible delivered binary before Forge runs", async () => {
-  const project = await packedConsumer();
-  const directory = join(project, "node_modules/ranch-rig-fence-rider/.tools");
-  mkdirSync(directory);
-  writeFileSync(
-    join(directory, "secretspec"),
-    '#!/bin/sh\necho "secretspec 0.1.0"\n',
-    { mode: 0o755 },
-  );
-  const child = Bun.spawn([process.execPath, "run", "forge:lint"], {
-    cwd: project,
-    env: {
-      ...deploymentEnv(project, {}),
-      PATH: `${join(project, "bin")}:${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}`,
-    },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [status, stdout, stderr] = await Promise.all([
-    child.exited,
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-  ]);
-  expect(status).toBe(1);
-  expect(stdout + stderr).toContain("SecretSpec 0.21.1 required");
-  expect(stdout + stderr).not.toContain("0.1.0");
-  expect(existsSync(join(project, "tool-calls"))).toBe(false);
-});
-
-test.skipIf(!secretSpecAssets)(
+test.skipIf(!realSecretSpec)(
   "documented installed consumer deploy script resolves shared values and preserves approval policy",
   async () => {
     const example = await Bun.file(
       join(root, "docs/examples/package.json"),
     ).json();
     const project = await packedConsumer();
-    await setupConsumer(project);
     writeFileSync(join(project, "package.json"), JSON.stringify(example));
     for (const name of ["secretspec.toml", "manifest.yml", "values.env"])
       writeFileSync(
@@ -227,7 +177,10 @@ test.skipIf(!secretSpecAssets)(
     const child = Bun.spawn([process.execPath, "run", "deploy"], {
       cwd: project,
       env: {
-        ...deploymentEnv(project, options),
+        ...deploymentEnv(project, {
+          ...options,
+          realSecretSpec: realSecretSpec ?? "",
+        }),
         PATH: `${join(project, "bin")}:${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}`,
         SECRETSPEC_PROVIDER: "dotenv:values.env",
         OPTIONAL: "stale",
@@ -246,7 +199,8 @@ test.skipIf(!secretSpecAssets)(
     )
       .trim()
       .split("\n")
-      .map((line) => JSON.parse(line));
+      .map((line) => JSON.parse(line))
+      .filter(({ tool }: ToolCall) => tool === "forge");
     expect(calls.map(({ args }) => args)).toEqual([
       [
         "variables",
@@ -290,14 +244,13 @@ test.skipIf(!secretSpecAssets)(
   },
 );
 
-test.skipIf(!secretSpecAssets)(
+test.skipIf(!realSecretSpec)(
   "documented installed consumer scripts preserve workflow-specific policy without unwanted writes",
   async () => {
     const example = await Bun.file(
       join(root, "docs/examples/package.json"),
     ).json();
     const project = await packedConsumer();
-    await setupConsumer(project);
     writeFileSync(join(project, "package.json"), JSON.stringify(example));
     for (const name of ["secretspec.toml", "manifest.yml", "values.env"])
       writeFileSync(
@@ -370,7 +323,7 @@ test.skipIf(!secretSpecAssets)(
       const child = Bun.spawn([process.execPath, "run", script], {
         cwd: project,
         env: {
-          ...deploymentEnv(project, {}),
+          ...deploymentEnv(project, { realSecretSpec: realSecretSpec ?? "" }),
           PATH: `${join(project, "bin")}:${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}`,
           SECRETSPEC_PROVIDER: "dotenv:values.env",
         },
@@ -389,7 +342,8 @@ test.skipIf(!secretSpecAssets)(
       const calls: ToolCall[] = (await Bun.file(callsFile).text())
         .trim()
         .split("\n")
-        .map((line) => JSON.parse(line));
+        .map((line) => JSON.parse(line))
+        .filter(({ tool }: ToolCall) => tool === "forge");
       expect(calls.at(-1)?.args).toEqual(expected);
       expect(calls.length).toBe(uploads ? 3 : 1);
       if (script === "tunnel")
@@ -401,11 +355,10 @@ test.skipIf(!secretSpecAssets)(
   },
 );
 
-test.skipIf(!secretSpecAssets)(
+test.skipIf(!realSecretSpec)(
   "installed controls-only consumer uses defaults, overrides and legacy controls without dummy credentials",
   async () => {
     const project = await packedConsumer();
-    await setupConsumer(project);
     const example = await Bun.file(
       join(root, "docs/examples/package.json"),
     ).json();
@@ -486,7 +439,9 @@ test.skipIf(!secretSpecAssets)(
         {
           cwd: project,
           env: {
-            ...deploymentEnv(project, {}),
+            ...deploymentEnv(project, {
+              realSecretSpec: realSecretSpec ?? "",
+            }),
             PATH: `${join(project, "bin")}:${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}`,
             SECRETSPEC_PROVIDER: "dotenv:values.env",
           },
@@ -505,6 +460,7 @@ test.skipIf(!secretSpecAssets)(
             .trim()
             .split("\n")
             .map((line) => JSON.parse(line))
+            .filter(({ tool }: ToolCall) => tool === "forge")
         : [];
       expect(calls.map(({ args }) => args)).toEqual(
         scenario.expected ? [scenario.expected] : [],

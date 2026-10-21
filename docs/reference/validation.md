@@ -22,7 +22,8 @@ No authorization for a named disposable app/site/environment or exact operations
 was supplied, so manifest substitution, encrypted storage/activation, real
 installation/upgrade, connected tunnel receipt, uninstall and cleanup remain
 **blocked**. Prior deployment live blockers are preserved. Direct anonymous
-GitHub setup and unexercised platforms retain the dependency delivery limitations.
+GitHub setup (since removed) and unexercised platforms retain the dependency
+delivery limitations.
 
 Validation resumed with explicit user permission after the temporary shell
 blocker. Fresh full suite: **405 pass / 2866 assertions / zero failures**, with
@@ -35,6 +36,17 @@ external URL availability is not certified. The final native-enabled forced
 `bun run check` passes (test and lint; size/pack hooks are no-ops because those
 scripts are absent). Real local tarball installation is exercised by the tests.
 Live claims above remain blocked.
+
+## Dependency delivery — 2026-10-21 (supersedes the entry below)
+
+The package no longer provisions SecretSpec: `fence-rider setup`, the pinned
+installer digest, the mirror variables, and the package-local `.tools`
+directory were removed in favor of a `secretspec` executable on `PATH` that
+must report exactly `secretspec 0.21.1` ([ADR 0001](../adr/0001-secretspec-cli-on-path.md)).
+Public tests cover a missing executable and an incompatible version failing
+before Forge runs. Installed-consumer checks against the native executable
+skip when SecretSpec is absent. The entry below records the superseded
+provisioning evidence.
 
 ## Dependency delivery — 2026-10-20
 

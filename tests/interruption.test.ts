@@ -1,58 +1,10 @@
 import { expect, test } from "bun:test";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { processRunning, useBuiltCli, waitUntil } from "./support/cli.ts";
-import { packedConsumer } from "./support/consumer.ts";
 import { runInstallation, runWorkflow } from "./support/fixtures.ts";
 
 useBuiltCli();
-
-test.skipIf(process.platform === "win32")(
-  "installed setup interruption removes private staging and returns the signal status",
-  async () => {
-    const project = await packedConsumer();
-    let requested = false;
-    // Hold the response open so interruption occurs while setup owns its staging directory.
-    const stalled = Bun.serve({
-      port: 0,
-      fetch: async () => {
-        requested = true;
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        return new Response("pending");
-      },
-    });
-    const child = Bun.spawn(
-      [join(project, "node_modules/.bin/fence-rider"), "setup"],
-      {
-        cwd: project,
-        env: {
-          PATH: `${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}:/sbin:/usr/bin:/bin`,
-          HOME: project,
-          SECRETSPEC_INSTALLER_URL: stalled.url.href,
-        },
-        stdout: "pipe",
-        stderr: "pipe",
-      },
-    );
-    try {
-      await waitUntil(() => requested, "setup download request");
-      child.kill("SIGTERM");
-      const [status] = await Promise.all([
-        child.exited,
-        new Response(child.stdout).text(),
-        new Response(child.stderr).text(),
-      ]);
-      expect(status).toBe(143);
-      expect(
-        readdirSync(join(project, "node_modules/ranch-rig-fence-rider/.tools")),
-      ).toEqual([]);
-    } finally {
-      child.kill("SIGKILL");
-      await child.exited;
-      stalled.stop(true);
-    }
-  },
-);
 
 test.skipIf(process.platform === "win32").each([
   { blockStage: "schema", signal: "SIGINT", ignoreSignal: false },

@@ -36,12 +36,12 @@ bun run build
 ```
 
 Help and version need no configuration, vault, network, or Forge login.
-The compiled development binary requires separately installed SecretSpec and
-Forge CLIs on `PATH`. For dependency-based usage, follow the
+Configured workflows require separately installed SecretSpec 0.21.1 and Forge
+CLIs on `PATH`, for the compiled binary and the dependency-based package alike.
+For dependency-based usage, follow the
 [consumer installation guide](docs/how-to/installation.md): the package requires
-Bun and explicit `fence-rider setup` to deliver pinned SecretSpec package-locally.
-Forge installation/authentication, provider access, and app registration remain
-separate. No ordinary workflow downloads tools or logs you in.
+Bun. Forge installation/authentication, provider access, and app registration
+remain separate. No workflow downloads tools or logs you in.
 
 From that app's directory, using the absolute path to the built binary:
 

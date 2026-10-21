@@ -88,8 +88,8 @@ and add this entry to the app's existing `scripts` object:
 
 Run `bun run lint:forge`, or append explicit Forge options such as `--verbose`.
 No target-variable expansion, Bash helper, or second variable inventory is
-needed. The [installed package](installation.md) supplies the executable and,
-after explicit setup, SecretSpec; Forge remains separately available.
+needed. The [installed package](installation.md) supplies the executable; SecretSpec
+and Forge remain separately installed on `PATH`.
 
 Resolve every required profile declaration, including runtime credentials,
 before lint. Use native optional declarations or a suitable profile for
@@ -189,9 +189,9 @@ has run. See the [uninstall reference][uninstall].
 
 Use an already registered, deployed, and installed disposable Forge development
 app, with authorization to redirect its invocations. Install and authenticate
-Forge separately on PATH and complete [package setup](installation.md) for
-SecretSpec. The wrapper does not deploy or install the app's prerequisites.
-Named targets must already be development environments.
+Forge separately on PATH, along with SecretSpec per the
+[installation guide](installation.md). The wrapper does not deploy or install
+the app's prerequisites. Named targets must already be development environments.
 
 1. Declare all required values in `secretspec.toml`. Add only intended function
    runtime names to `[scopes.runtime].secrets`; keep targeting controls out.

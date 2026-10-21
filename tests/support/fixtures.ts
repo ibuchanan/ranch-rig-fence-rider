@@ -1,6 +1,7 @@
 import { expect } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { versionBanner } from "../../src/secretspec.ts";
 import { cli } from "./cli.ts";
 
 export const sharedValue =
@@ -80,6 +81,15 @@ export const { appendFileSync, writeFileSync } = require("node:fs");
 export const args = process.argv.slice(2);
 export const tool = ${JSON.stringify(tool)};
 export const fixture = JSON.parse(process.env.FIXTURE);
+if (tool === "secretspec" && args[0] === "--version") {
+  if (process.env.REAL_SECRETSPEC) {
+    const real = Bun.spawnSync([process.env.REAL_SECRETSPEC, "--version"], { stdout: "pipe", stderr: "pipe" });
+    process.stdout.write(real.stdout);
+    process.exit(real.exitCode);
+  }
+  console.log(${JSON.stringify(versionBanner)});
+  process.exit(0);
+}
 export const names = Object.keys(fixture.schema?.properties ?? {});
 appendFileSync(process.env.TOOL_CALL_LOG, JSON.stringify({
   tool, args,

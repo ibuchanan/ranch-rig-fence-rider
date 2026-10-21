@@ -1,4 +1,3 @@
-import { accessSync, constants } from "node:fs";
 import { resolve } from "node:path";
 import { capture } from "./process";
 import {
@@ -10,20 +9,8 @@ import {
   parseScopes,
   type Specification,
 } from "./resolution";
-import {
-  isCompiledBuild,
-  locateSecretSpec,
-  secretSpecVersion,
-  versionBanner,
-} from "./secretspec";
+import { secretSpecVersion, versionBanner } from "./secretspec";
 import type { Workflow } from "./workflow";
-
-function deliveredSecretSpec(path: string, state: Workflow) {
-  state.stage =
-    "SecretSpec prerequisite (run fence-rider setup; no global fallback)";
-  accessSync(path, constants.X_OK);
-  return path;
-}
 
 /**
  * Names declared in manifest.yml, read from the working directory (the Forge
@@ -100,19 +87,11 @@ function forgeEnvironment(
 }
 
 export async function configure(state: Workflow) {
-  const located = locateSecretSpec({
-    compiled: isCompiledBuild(),
-    sourceDir: import.meta.dir,
-  });
-  const secretspec = located.path
-    ? deliveredSecretSpec(located.path, state)
-    : prerequisite("secretspec", state);
-  if (located.verifyVersion) {
-    state.stage = `SecretSpec ${secretSpecVersion} required (rerun fence-rider setup)`;
-    const version = await capture(secretspec, ["--version"], state.signal);
-    if (version.trim() !== versionBanner)
-      throw new Error("Incompatible executable");
-  }
+  const secretspec = prerequisite("secretspec", state);
+  state.stage = `SecretSpec ${secretSpecVersion} required on PATH (install or switch to that version)`;
+  const version = await capture(secretspec, ["--version"], state.signal);
+  if (version.trim() !== versionBanner)
+    throw new Error("Incompatible executable");
   const forge = prerequisite("forge", state);
   const { config, nativeArgs } = await readConfiguration(state);
   const { properties, values } = await resolveProfile(

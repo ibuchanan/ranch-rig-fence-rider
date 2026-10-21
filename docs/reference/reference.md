@@ -2,7 +2,7 @@
 
 Status: single-file configured deploy, lint, install/upgrade, uninstall and
 development tunnel are implemented and locally verified as of 2026-10-20.
-The installed Bun package requires explicit native tool setup. Authorized live
+The installed Bun package requires SecretSpec and Forge on `PATH`. Authorized live
 Forge verification is blocked. The [consumer evidence map](consumer-workflows.md)
 and [deployment evidence](deployment.md) separate native SecretSpec delivery,
 controlled Forge behavior, and unverified upstream acceptance.
@@ -38,11 +38,10 @@ to record live verification as blocked rather than authorize a destination.
 ## Installed tool delivery
 
 The private local package exposes `fence-rider` under Bun 1.4.3+. Explicit
-`fence-rider setup` delivers pinned SecretSpec 0.21.1 inside the package; ordinary
-commands never download or fall back to global SecretSpec. The compiled
-standalone development binary instead uses tools on PATH. Forge and provider
-authentication remain separate. See [installation evidence](installation.md)
-for platforms, integrity, mirrors, install-script policy, and unverified paths.
+SecretSpec 0.21.1 and Forge are separate prerequisites on `PATH`, for the package
+and the compiled binary alike; no command downloads or installs tools. Forge and
+provider authentication remain separate. See [installation reference](installation.md)
+for the version check, platforms, and install-script policy.
 
 ## Declaration ownership
 

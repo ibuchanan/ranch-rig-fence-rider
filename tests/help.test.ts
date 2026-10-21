@@ -23,13 +23,6 @@ test.each(["deploy", "lint", "install", "uninstall", "tunnel"])(
   },
 );
 
-test("help setup describes the setup command", async () => {
-  const result = await runCli(["help", "setup"], true);
-  expect(result.exitCode).toBe(0);
-  expect(result.stdout).toStartWith("Usage: fence-rider setup");
-  expect(result.stderr).toBe("");
-});
-
 test("top-level help lists every supported workflow", async () => {
   const result = await runCli(["--help"]);
   for (const command of ["deploy", "lint", "install", "uninstall", "tunnel"])
