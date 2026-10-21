@@ -67,8 +67,8 @@ Deployment approval does not grant install scope consent. Keep `--confirm-scopes
   must already be development environments. Stop with Ctrl-C.
 
 Targets for install/uninstall come only from the profile; to aim elsewhere,
-select another profile or change the declaration. Extra Forge options are
-forwarded:
+select another profile, change the declaration, or export the variable when
+the profile leaves it unresolved. Extra Forge options are forwarded:
 
 ```sh
 bun run lint:forge --verbose

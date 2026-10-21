@@ -80,7 +80,8 @@ once for values, asks SecretSpec for scope members by name, removes stale
 ambient declarations, and delivers all resolved values locally. Optional manifest
 scope only cross-checks applicable native manifest declarations. Explicit runtime
 scope authorizes deployment uploads or tunnel-local injection, not synchronization
-on lint/install/uninstall. A shared value reuses the same export result.
+on lint. Install/uninstall make no scope or export call: `secretspec run`
+resolves the profile. A shared value reuses the same export result.
 
 Deployment validates all selected values before encrypted writes; the following
 deployment activates them under documented Forge lifecycle. Failed writes can

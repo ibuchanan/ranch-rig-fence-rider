@@ -137,13 +137,16 @@ site/product fails rather than opening a target picker. `--site`, `--product`
 and `--environment` (and their short forms) are not accepted. SecretSpec profile
 names never select Forge environments. To target something the profile does not
 declare, run `secretspec` and `forge` directly, for example
-`secretspec run -- forge install --environment … --site … --product …`; note
-that `secretspec run` does not clear stale ambient values for unresolved
-optional declarations.
+`secretspec run -- forge install --environment … --site … --product …`, which
+is nearly what `fence-rider install` itself runs. An exported `FORGE_SITE`,
+`FORGE_PRODUCT` or `FORGE_ENVIRONMENT` that the profile does not resolve is used
+as a fallback.
 
 Installation and upgrade do not upload, delete, or activate changed runtime
 values, deploy code, or apply Fence Rider's optional manifest declaration check.
-They resolve the whole profile and run only one `forge install`. Output and input
+They run only one `forge install` under `secretspec run`, which resolves the
+whole profile; a stale ambient value for an unresolved optional declaration is
+not cleared here. Output and input
 are live and not redacted. See the [installation reference][installation] for
 verified grammar, products, and the separate live-verification blocker.
 

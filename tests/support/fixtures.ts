@@ -1,5 +1,11 @@
 import { expect } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { cli } from "./cli.ts";
 
@@ -92,6 +98,17 @@ if (tool === "secretspec" && process.env.REAL_SECRETSPEC) {
   process.stderr.write(result.stderr);
   process.exit(result.exitCode);
 }
+if (tool === "secretspec" && args[0] === "run") {
+  if (fixture.failStage === "run") process.exit(fixture.exitCode ?? 23);
+  const missing = (fixture.schema?.required ?? []).find(name => !Object.hasOwn(fixture.values ?? {}, name));
+  if (missing !== undefined) {
+    console.error("Secret '" + missing + "' is required but not set");
+    process.exit(1);
+  }
+  const child = Bun.spawnSync(args.slice(args.indexOf("--") + 1), { env: { ...process.env, ...fixture.values }, stdin: "inherit", stdout: "inherit", stderr: "inherit" });
+  if (child.signalCode) process.kill(process.pid, child.signalCode);
+  process.exit(child.exitCode ?? 1);
+}
 if (["lint", "install", "uninstall", "tunnel"].includes(args[0])) {
   console.log("synthetic " + args[0] + " result");
   console.error("synthetic " + args[0] + " warning");
@@ -136,6 +153,8 @@ export function deploymentEnv(project: string, options: WorkflowOptions) {
     HOME: project,
     XDG_CONFIG_HOME: join(project, "config"),
     XDG_CACHE_HOME: join(project, "cache"),
+    // The fake tools are Bun scripts; keep their transpiler cache out of the project.
+    BUN_RUNTIME_TRANSPILER_CACHE_PATH: "0",
     XDG_STATE_HOME: join(project, "state"),
     TMPDIR: project,
     TOOL_CALL_LOG: join(project, "tool-calls"),
@@ -166,6 +185,8 @@ export function deploymentEnv(project: string, options: WorkflowOptions) {
 function prepareTools(project: string, options: WorkflowOptions) {
   const bin = join(project, "bin");
   mkdirSync(bin);
+  // `secretspec run` starts the install script with `sh`, found on this PATH alone.
+  symlinkSync("/bin/sh", join(bin, "sh"));
   for (const tool of ["secretspec", "forge"]) {
     if (options.missingTool === tool) continue;
     writeTool(join(bin, tool), tool);

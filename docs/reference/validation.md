@@ -4,6 +4,19 @@ Recorded 2026-10-19. Public seams: the compiled CLI subprocess
 and observable validation-command output/status, confirmed by the user.
 No private-function tests or second native proof suite were introduced.
 
+## Install and uninstall under `secretspec run` — 2026-10-21
+
+`fence-rider install` and `uninstall` now run Forge through
+`secretspec run --scope "" -- sh -c SCRIPT`, so SecretSpec resolves the whole
+profile and a fixed script derives the three targets
+([ADR 0005](../adr/0005-install-delegates-to-secretspec-run.md)). They make no
+`schema`, `export` or scope `check` call, do not clear stale ambient values for
+unresolved optional declarations, and do not validate resolved values.
+Observed against SecretSpec 0.21.1: `run` lets resolved values override ambient
+ones, leaves an undeclared exported variable in place, and `--scope ""` ignores
+an ambient `SECRETSPEC_SCOPE`. Earlier entries below record the previous
+TypeScript-built environment.
+
 ## Configured consumer acceptance — 2026-10-20
 
 Consumer acceptance integrates the installed package from dependency delivery,

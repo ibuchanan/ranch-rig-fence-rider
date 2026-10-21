@@ -1,9 +1,5 @@
-import { configure } from "./configured";
-import {
-  type InstallCommand,
-  parseInstallOptions,
-  planInstall,
-} from "./install-plan";
+import { prerequisite } from "./configured";
+import { type InstallCommand, parseInstallOptions } from "./install-plan";
 import { checkInterruption, passthrough } from "./process";
 import { runWorkflow } from "./workflow";
 
@@ -17,15 +13,35 @@ const installPolicy = {
 export function installUsage(command: InstallCommand) {
   return [
     `Usage: fence-rider ${command} [Forge options]`,
-    "Targets come from the resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT. Only environment falls back to development.",
-    "Site and product are required; Forge validates their values.",
+    "Runs forge under secretspec run, with the whole profile resolved into its environment. Targets come from FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT; only environment falls back to development.",
+    "Site and product are required, and no target may be empty or start with a dash; Forge validates their values.",
     "The wrapper's own target options (-e/--environment, -s/--site, -p/--product) are not accepted; for other targets run secretspec and forge directly.",
-    "The whole profile must resolve.",
+    "Unlike lint and deploy, values are not validated by Fence Rider, and an exported variable the profile does not resolve (or declare) stays visible to Forge.",
     installPolicy[command],
     "No runtime uploads, variable deletion or deployment.",
     "Forge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.",
   ].join("\n");
 }
+
+/**
+ * Runs inside `secretspec run`, which has put the resolved profile in the
+ * environment. The command and forwarded arguments arrive as positional
+ * parameters, so no caller-supplied text is ever interpolated into the script.
+ */
+const targetScript = `
+command=$1; shift
+environment=\${FORGE_ENVIRONMENT-development}
+site=\${FORGE_SITE-}
+product=\${FORGE_PRODUCT-}
+for target in "$environment" "$site" "$product"; do
+  case $target in
+    ''|-*)
+      echo "Fence Rider: the environment, site or product target is missing or invalid; set FORGE_SITE and FORGE_PRODUCT (FORGE_ENVIRONMENT defaults to development), none empty or starting with a dash" >&2
+      exit 1 ;;
+  esac
+done
+exec forge "$command" --environment "$environment" --site "$site" --product "$product" "$@"
+`;
 
 /** Run one installation lifecycle command without deployment or runtime synchronization. */
 export async function install(
@@ -40,16 +56,25 @@ export async function install(
       console.log(installUsage(command));
       return;
     }
-    const { forge, env, values, environment } = await configure(workflow);
-    workflow.stage = `${operation} target validation (environment, site and product required)`;
-    const forgeArgs = planInstall({
-      command,
-      values,
-      environment,
-      forwarded,
-    });
+    const secretspec = prerequisite("secretspec", workflow);
+    prerequisite("forge", workflow);
     workflow.stage = operation;
-    await passthrough(forge, forgeArgs, workflow.signal, env);
+    await passthrough(
+      secretspec,
+      [
+        "run",
+        "--scope",
+        "",
+        "--",
+        "sh",
+        "-c",
+        targetScript,
+        "sh",
+        command,
+        ...forwarded,
+      ],
+      workflow.signal,
+    );
     checkInterruption(workflow.signal);
   });
 }

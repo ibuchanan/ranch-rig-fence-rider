@@ -28,10 +28,10 @@ SecretSpec and Forge must be installed on PATH and authenticated separately.
 
 ```text
 Usage: fence-rider install [Forge options]
-Targets come from the resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT. Only environment falls back to development.
-Site and product are required; Forge validates their values.
+Runs forge under secretspec run, with the whole profile resolved into its environment. Targets come from FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT; only environment falls back to development.
+Site and product are required, and no target may be empty or start with a dash; Forge validates their values.
 The wrapper's own target options (-e/--environment, -s/--site, -p/--product) are not accepted; for other targets run secretspec and forge directly.
-The whole profile must resolve.
+Unlike lint and deploy, values are not validated by Fence Rider, and an exported variable the profile does not resolve (or declare) stays visible to Forge.
 Use --upgrade [all|code], --confirm-scopes and --non-interactive only when intended.
 No runtime uploads, variable deletion or deployment.
 Forge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.
@@ -41,10 +41,10 @@ Forge input/output is inherited, live and unredacted. SecretSpec and Forge must 
 
 ```text
 Usage: fence-rider uninstall [Forge options]
-Targets come from the resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT. Only environment falls back to development.
-Site and product are required; Forge validates their values.
+Runs forge under secretspec run, with the whole profile resolved into its environment. Targets come from FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT; only environment falls back to development.
+Site and product are required, and no target may be empty or start with a dash; Forge validates their values.
 The wrapper's own target options (-e/--environment, -s/--site, -p/--product) are not accepted; for other targets run secretspec and forge directly.
-The whole profile must resolve.
+Unlike lint and deploy, values are not validated by Fence Rider, and an exported variable the profile does not resolve (or declare) stays visible to Forge.
 Uninstall changes remote installation state; Forge owns remaining interaction. Forge 14.2.0 does not support --non-interactive. No upgrade, consent, approval or confirmation switches are injected.
 No runtime uploads, variable deletion or deployment.
 Forge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.

@@ -319,7 +319,8 @@ The metadata boundary is:
   `runtime` (deploy, tunnel) with `secretspec check --json --scope NAME`. The
   report is value-free and includes optional declarations absent from exported
   values, so the manifest check still covers them. Install and uninstall ask
-  for neither.
+  for neither, and make no `schema` or `export` call either: they run under
+  `secretspec run`.
 - A scope the file does not define has no members, so a missing runtime scope
   means no uploads. SecretSpec reports this only as "is not defined in
   secretspec.toml" on stderr, which Fence Rider matches without printing it.
@@ -454,18 +455,34 @@ No live app was contacted. See the [validation record](validation.md).
 
 ## Configured installation
 
-`fence-rider install [Forge options]` resolves the whole active profile once
-and delegates exactly one installation with inherited application values,
-ordinary settings, and existing authentication. It performs no runtime upload,
-remote deletion, deployment, or optional manifest declaration cross-check.
-Controls-only profiles work. Installation does not activate changed runtime
-values. SecretSpec requiredness applies to the whole profile.
+`fence-rider install [Forge options]` delegates exactly one installation to
+SecretSpec itself: it runs `secretspec run --scope "" -- sh -c SCRIPT sh install
+ARGS…`, so SecretSpec resolves the whole active profile into the child
+environment and the script `exec`s Forge with inherited application values,
+ordinary settings, and existing authentication. The script is a fixed string;
+the command and forwarded arguments arrive as positional parameters, never
+interpolated. The command needs `sh`. Fence Rider performs no `schema` or
+`export` call, no scope lookup, no runtime upload, remote deletion, deployment,
+or optional manifest declaration cross-check. Controls-only profiles work.
+Installation does not activate changed runtime values. SecretSpec requiredness
+applies to the whole profile, and `--scope ""` keeps an ambient
+`SECRETSPEC_SCOPE` from narrowing it.
 
-| Target | Source | Validation by Fence Rider |
+Because SecretSpec, not Fence Rider, builds the environment, install and
+uninstall differ from lint, deploy and tunnel in three ways:
+
+- Fence Rider does not validate the resolved values (string typing, NUL-free).
+- A stale ambient value for an unresolved optional declaration is **not**
+  cleared, because `secretspec run` leaves it in place.
+- An exported variable that the profile neither declares nor resolves stays
+  visible to Forge and is used by the script, so an exported `FORGE_SITE` fills
+  a gap in the profile. A resolved value overrides an exported one.
+
+| Target | Source (in the script) | Validation by the script |
 | --- | --- | --- |
-| Environment | Resolved `FORGE_ENVIRONMENT`, else `development` | Nonempty, not starting with `-` |
-| Site | Resolved `FORGE_SITE`; no fallback | Nonempty, not starting with `-` |
-| Product | Resolved `FORGE_PRODUCT`; no fallback | Nonempty, not starting with `-` |
+| Environment | `FORGE_ENVIRONMENT` in the child environment, else `development` | Nonempty, not starting with `-` |
+| Site | `FORGE_SITE`; no fallback | Nonempty, not starting with `-` |
+| Product | `FORGE_PRODUCT`; no fallback | Nonempty, not starting with `-` |
 
 Forge is invoked as `forge install --environment E --site S --product P`
 followed by the forwarded arguments, and Forge validates what the values mean.
@@ -475,10 +492,10 @@ called, because forwarding one would give Forge a second copy of an option the
 wrapper injects. A missing or invalid target also fails before Forge, and Forge's
 target prompts never open. Someone who needs explicit control writes the command
 with `secretspec` and `forge` directly, for example
-`secretspec run -- forge install --environment … --site … --product …`. That
-route differs from Fence Rider in one respect: `secretspec run` does not clear a
-stale ambient value for an unresolved optional declaration. See
-[ADR 0004](../adr/0004-install-targets-from-profile-only.md).
+`secretspec run -- forge install --environment … --site … --product …`, which is
+now almost what the wrapper does itself. See
+[ADR 0004](../adr/0004-install-targets-from-profile-only.md) and
+[ADR 0005](../adr/0005-install-delegates-to-secretspec-run.md).
 Bitbucket uses a workspace URL such as `https://bitbucket.org/workspace/`.
 `--demo-site` / `-d` is forwarded to Forge unchecked, alongside the injected
 `--site`; Fence Rider does not reconcile them. Feature-gated Teamwork Graph
@@ -513,11 +530,11 @@ registration, or cleanup was authorized or executed. See the
 
 ## Configured uninstall
 
-`fence-rider uninstall [Forge options]` resolves the full active profile once
-and delegates exactly one `forge uninstall` with all resolved local values,
-ordinary settings, and existing authentication. Declared absent optionals are
-removed from the inherited environment. Missing required app credentials or
-controls block execution. Controls-only
+`fence-rider uninstall [Forge options]` delegates exactly one `forge uninstall`
+through `secretspec run --scope ""`, as described for installation, with all
+resolved local values, ordinary settings, and existing authentication. Stale
+ambient values for unresolved optional declarations are not cleared. Missing
+required app credentials or controls block execution. Controls-only
 profiles work without runtime scope or dummy secrets. The optional manifest
 cross-check and deployment-only runtime checks do not apply.
 

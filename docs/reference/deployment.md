@@ -60,12 +60,13 @@ secretspec check --json --scope manifest
 secretspec check --json --scope runtime
 ```
 
-`manifest` is asked by lint, deploy, and tunnel; `runtime` by deploy and tunnel;
-install and uninstall ask neither. A scope the file does not define has no
-members; that is recognized from SecretSpec's "is not defined in
-secretspec.toml" error text, the one contract on error text. Values come only
-from the single whole-profile export, so a run makes up to three SecretSpec
-resolutions but no scope check supplies a value.
+`manifest` is asked by lint, deploy, and tunnel; `runtime` by deploy and tunnel.
+Install and uninstall make none of these calls: they run Forge under
+`secretspec run --scope ""`, which resolves the profile itself. A scope the
+file does not define has no members; that is recognized from SecretSpec's "is
+not defined in secretspec.toml" error text, the one contract on error text.
+Values come only from the single whole-profile export, so a run makes up to
+three SecretSpec resolutions but no scope check supplies a value.
 
 SecretSpec 0.21.1 schema output contains `properties` and `required` names,
 without resolved values or scope membership. Optional strings have the type

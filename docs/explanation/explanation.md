@@ -175,11 +175,12 @@ a missing or mismatched tool is visible before any remote change.
 
 The installed scripts expose policy while configuration supplies targets.
 Approvals, scope consent, upgrades, and non-interactive execution remain visible
-choices instead of consequences of declaring a variable. Install/uninstall/lint
-reuse validated local values without acquiring deployment's writes. Tunnel uses
-Forge's local prefixed environment instead of changing the remote variable store.
-One resolution can serve these destinations without pretending they share a
-lifecycle. See [consumer workflow evidence](../reference/consumer-workflows.md).
+choices instead of consequences of declaring a variable. Lint reuses validated
+local values without acquiring deployment's writes, and install/uninstall hand
+the same job to `secretspec run`, which injects the resolved profile itself.
+Tunnel uses Forge's local prefixed environment instead of changing the remote
+variable store. One resolution can serve these destinations without pretending
+they share a lifecycle. See [consumer workflow evidence](../reference/consumer-workflows.md).
 
 ## Related material
 

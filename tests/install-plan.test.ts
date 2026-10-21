@@ -1,49 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import {
-  type InstallCommand,
-  parseInstallOptions,
-  planInstall,
-} from "../src/install-plan.ts";
+import { parseInstallOptions } from "../src/install-plan.ts";
 
-const values = {
-  FORGE_SITE: "synthetic.atlassian.net",
-  FORGE_PRODUCT: "jira",
-};
-
-function plan(
-  command: InstallCommand,
-  args: readonly string[],
-  overrides: {
-    values?: Record<string, string>;
-    environment?: string | undefined;
-  } = {},
-) {
-  const { forwarded } = parseInstallOptions([...args]);
-  return planInstall({
-    command,
-    values: overrides.values ?? values,
-    environment: "environment" in overrides ? overrides.environment : "staging",
-    forwarded,
-  });
-}
-
-describe.each(["install", "uninstall"] as const)("%s", (command) => {
-  test("resolved values supply the target and environment defaults to development", () => {
-    expect(plan(command, [])).toEqual([
-      command,
-      "--environment",
-      "staging",
-      "--site",
-      "synthetic.atlassian.net",
-      "--product",
-      "jira",
-    ]);
-    expect(plan(command, [], { environment: undefined }).slice(1, 3)).toEqual([
-      "--environment",
-      "development",
-    ]);
-  });
-
+describe("install and uninstall options", () => {
   test.each([
     { args: ["--site", "x"] },
     { args: ["--site=x"] },
@@ -97,7 +55,7 @@ describe.each(["install", "uninstall"] as const)("%s", (command) => {
   ])(
     "target-like and policy options $args are forwarded untouched",
     ({ args }) => {
-      expect(plan(command, args).slice(7)).toEqual([...args]);
+      expect(parseInstallOptions([...args]).forwarded).toEqual([...args]);
     },
   );
 
@@ -117,14 +75,4 @@ describe.each(["install", "uninstall"] as const)("%s", (command) => {
   ])("malformed or duplicate target option $args is rejected", ({ args }) => {
     expect(() => parseInstallOptions([...args])).toThrow();
   });
-
-  test.each(["FORGE_SITE", "FORGE_PRODUCT"])(
-    "absent effective %s is rejected",
-    (missing) => {
-      const { [missing]: _omitted, ...rest } = values as Record<string, string>;
-      expect(() => plan(command, [], { values: rest })).toThrow(
-        "installation target",
-      );
-    },
-  );
 });

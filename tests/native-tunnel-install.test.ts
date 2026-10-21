@@ -189,9 +189,9 @@ test.skipIf(!realSecretSpec).each(
       pass: true,
     },
     {
-      name: "absent optional environment",
+      name: "unresolved optional environment keeps the exported value",
       declarations: "FORGE_ENVIRONMENT = { required = false }",
-      target: "development",
+      target: "stale",
       args: [],
       pass: true,
     },
@@ -256,7 +256,7 @@ test.skipIf(!realSecretSpec).each(
         result.interactions
           .filter(({ tool }) => tool === "secretspec")
           .map(({ args }) => args[0]),
-      ).toEqual(["schema", "export"]);
+      ).toEqual(["run"]);
   },
 );
 
@@ -296,6 +296,9 @@ test.skipIf(!realSecretSpec).each(
     expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
       [],
     );
-    expect(result.stderr).toContain("SecretSpec resolution");
+    expect(result.stderr).toContain(missing);
+    expect(result.stderr).toContain(
+      `${command === "install" ? "installation" : "uninstallation"} failed`,
+    );
   },
 );

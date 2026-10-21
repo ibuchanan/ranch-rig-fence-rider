@@ -9,9 +9,11 @@ status: accepted
 `FORGE_ENVIRONMENT`, `FORGE_SITE` and `FORGE_PRODUCT`. They now take the three
 targets from the resolved profile alone and refuse those options before any tool
 is called. Someone who needs explicit control writes the command with
-`secretspec` and `forge` directly. This keeps option parsing, precedence and
-validation out of Fence Rider for the two workflows that need nothing else from
-the command line.
+`secretspec` and `forge` directly. This keeps option parsing and precedence out
+of Fence Rider for the two workflows that need nothing else from the command
+line. The commands are implemented by running Forge under `secretspec run` with
+a fixed shell script that derives the three targets from the child environment
+([ADR 0005](0005-install-delegates-to-secretspec-run.md)).
 
 ## Considered options
 
@@ -36,9 +38,8 @@ forwarded copy would reach Forge as a duplicate option with unclear precedence.
 - Ad-hoc overrides are gone. To aim elsewhere, use another profile or edit the
   declaration, or run the command directly, for example
   `secretspec run -- forge install --environment … --site … --product …`.
-- The direct route is not equivalent: `secretspec run` does not clear a stale
-  ambient value for an unresolved optional declaration, while Fence Rider
-  removes every declared name from the inherited environment before applying
-  resolved values.
-- Fence Rider still validates that each of the three targets is nonempty and does
-  not start with `-`; Forge validates what the values mean.
+- The direct route is now almost what the wrapper itself runs. The remaining
+  difference is the target script: the wrapper's refuses an empty or
+  dash-leading target and defaults only the environment.
+- The fixed script, not TypeScript, checks that each of the three targets is
+  nonempty and does not start with `-`; Forge validates what the values mean.

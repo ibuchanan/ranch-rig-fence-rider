@@ -85,8 +85,9 @@ Do not raise thresholds or suppress findings to make a gate pass.
 - `src/deploy.ts`: target options and encrypted deployment lifecycle.
 - `src/lint.ts`: configured lint with live output without redaction and
   inherited input.
-- `src/install.ts`: shared install/uninstall targets and execution, with
-  command-specific option grammar and no automatic synchronization.
+- `src/install.ts`: install/uninstall through `secretspec run`, with a fixed
+  target script, command-specific option grammar and no automatic
+  synchronization.
 - `tests/`: compiled CLI and validation-command behavior.
 - `docs/`: task guides, reference, and architectural explanation.
 - `specs/fence-rider-spec.md`: product contract and AC-01 through AC-18.

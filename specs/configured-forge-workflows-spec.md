@@ -190,8 +190,11 @@ credentials and app registration are never supplied automatically.
   can block uninstall; this is repository readiness, not command-scoped
   requiredness. Native optional declarations and profiles remain available.
 - (Superseded 2026-10-21 for `install` and `uninstall`: the wrapper no longer
-  accepts target options; targets come only from the resolved profile. See
-  `docs/adr/0004-install-targets-from-profile-only.md`.)
+  accepts target options; targets come only from the resolved profile, and
+  both commands now run under `secretspec run`, so they make no `schema`,
+  `export` or scope call and do not clear stale ambient values. See
+  `docs/adr/0004-install-targets-from-profile-only.md` and
+  `docs/adr/0005-install-delegates-to-secretspec-run.md`.)
 - Explicit target arguments override target selection, not SecretSpec
   requiredness. Missing required declarations still fail even if a command
   option could otherwise supply that target.
