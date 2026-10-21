@@ -180,6 +180,27 @@ provider is exercised. Native tests skip when SecretSpec is unavailable;
 POSIX interruption tests skip on Windows. Controlled Forge executables do
 not establish server acceptance, encryption at rest, or runtime activation.
 
+## SecretSpec 0.21.1 source findings
+
+Source inspection of the published `secretspec@0.21.1` package, its
+configuration loader and its regression tests; the upstream tests were not
+executed, and no SDK dependency was added.
+
+| Finding | Detail |
+| --- | --- |
+| SDK scope metadata | `Builder`, `Resolved` and `Report` expose only the selected scope, never scope lists or merged declarations, so the SDK cannot supply membership |
+| SDK `withNoValues()` | Omits values but does not guarantee avoiding provider I/O |
+| SDK `setAsEnv()` | Skips null values without clearing existing environment entries |
+| SDK `as_path` values | Secret-bearing temporary files with caller-owned disposal |
+| SDK runtime | Embeds a native addon; Bun compatibility not shown |
+| Resolver protocol | `secretspec.resolver/1` resolves exact names only; no whole-profile or manifest queries |
+| JSON export and schema | Export returns values without membership; schema returns names, types and requiredness without scope lists |
+| `project.extends` order | Depth-first in listed order; ancestors first, then overlays least to most specific, root last; shared ancestors once by canonical path; a cycle fails |
+| `extends` paths | `.toml` entries are files, others are directories holding `secretspec.toml`; relative paths resolve from the referring file's lexical location; missing files and unsupported revisions fail |
+| Scope removal | No disable or delete marker found in scope overlays |
+| `secretspec load` | Not a command in 0.21.1 |
+| `secretspec check` | May prompt or set missing values; a check followed by an export is not one coherent resolution |
+
 ## Acceptance traceability
 
 All named checks below are in [the public suite](../../tests/). The

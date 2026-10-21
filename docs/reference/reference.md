@@ -1,162 +1,71 @@
 # Variable compatibility contract
 
-Status: configured variables, deploy, lint, install/upgrade, uninstall and
-development tunnel are implemented and locally verified as of 2026-10-20.
-The installed Bun package requires SecretSpec and Forge on `PATH`. Authorized live
-Forge verification is blocked. The [consumer evidence map](consumer-workflows.md)
-and [deployment evidence](deployment.md) separate native SecretSpec delivery,
-controlled Forge behavior, and unverified upstream acceptance.
+This reference defines variable declarations, scope semantics, target
+precedence, per-command behavior and the failure boundary for Fence Rider.
+Tested versions and evidence levels are in the
+[version baseline](validation.md#evidence-levels); procedures are in the
+[how-to guides](../how-to/installation.md); the reasoning is in
+[Why Forge has three kinds of environment variables][explanation]. Usage text
+for each command lives only in the [command help](command-help.md).
 
-This reference defines variable declarations, local availability, manifest
-checks, and runtime upload selection for `variables`. `variables` is the only
-command that uploads, as `forge variables set` is separate from `forge deploy`.
-Configured lint, deploy and tunnel print a script that runs under
-`secretspec run`, without uploads; its [output boundary](#configured-lint)
-differs from the private `variables` output.
 The repository-owned `secretspec.toml` specifies and validates every variable.
 There is no separate Fence Rider variable inventory or provider schema.
+Fence Rider reads no `secretspec.toml` itself and passes no `--file` or
+`--profile`; SecretSpec reads `SECRETSPEC_FILE` and `SECRETSPEC_PROFILE` from
+the inherited environment.
 
-Usage text for each command lives only in the [command help](command-help.md),
-which embeds the CLI output.
-
-The conceptual distinction between these destinations is covered in
-[Why Forge has three kinds of environment variables][explanation].
-
-## Evidence status
-
-| Boundary | Baseline | Evidence | Remaining verification |
+| Command | Prints a script | Calls SecretSpec while running | Uploads |
 | --- | --- | --- | --- |
-| SecretSpec | 0.21.1 | Native schema/full dotenv export through compiled CLI, profile inheritance, optional/empty values, validation failures | Other providers, versions, and cross-file specifications |
-| Forge CLI | 14.2.0 | Previously inspected help/source and official reference; controlled subprocess delegation | Live encryption, server-side value acceptance, target identity, deployment activation |
-| Project tooling | Bun 1.4.3 on macOS | Compiled CLI, TOML/YAML parsing, public tests, POSIX interruption | Other runtimes and operating systems |
+| `variables` | No | `schema`, `export`, `check --scope` | Yes, `runtime` members |
+| `deploy` | Yes | No | No |
+| `lint` | Yes | No | No |
+| `install`, `uninstall` | Yes | No | No |
+| `tunnel` | Yes | `schema`, `check --scope runtime` while printing | No |
+| `doctor` | No | `check --scope manifest`; `--resolve` adds full resolution | No |
 
-These are exact evidence baselines, not a tested version range. Native
-SecretSpec checks ran with synthetic values and dotenv only. Controlled
-Forge executables establish wrapper behavior, not upstream compatibility.
-No live Forge variables or deployments have been changed. The user chose
-to record live verification as blocked rather than authorize a destination.
-
-## Installed tool delivery
-
-The private local package exposes `fence-rider` under Bun 1.4.3+. Explicit
-SecretSpec and Forge are separate prerequisites on `PATH`, for the package
-and the compiled binary alike; no command downloads or installs tools. Forge and
-provider authentication remain separate. See [installation reference](installation.md)
-for `fence-rider doctor`, platforms, and install-script policy.
+Every printed script runs under `secretspec run --scope ''`, which resolves the
+whole active profile. `variables` is the only command that uploads, because
+`forge variables set` is separate from `forge deploy`.
 
 ## Declaration ownership
 
 | Concern | Authority |
 | --- | --- |
-| Variable names, descriptions, requirements, and defaults | Native SecretSpec profile declarations |
+| Variable names, descriptions, requirements, defaults | SecretSpec profile declarations |
 | Active profile and provider resolution | SecretSpec configuration and CLI |
 | Provider authentication and fallback | SecretSpec and the selected provider |
 | Local availability | Full active-profile resolution; no named scope required |
-| Optional manifest consistency check | Native SecretSpec `manifest` scope compared with Forge declarations |
-| Remote upload selection | Native SecretSpec `runtime` scope |
+| Optional manifest consistency check | SecretSpec `manifest` scope compared with Forge declarations |
+| Remote upload selection | SecretSpec `runtime` scope |
 | Control-value checks and orchestration | Fence Rider |
 | Manifest substitution and its validation | Forge CLI |
 | Encrypted remote storage and runtime activation | Forge |
 
-All three variable categories use SecretSpec declarations and validation.
-A local control or manifest input is not exempt because it is not uploaded.
-A public repository declaration contains no secret values; non-sensitive
-literal defaults may be declared using native SecretSpec syntax.
+All three variable categories use SecretSpec declarations and validation. A
+public declaration contains no secret values; non-sensitive literal defaults
+use native SecretSpec syntax. Provider credentials stay under SecretSpec's
+provider configuration and are not application variables unless explicitly
+declared.
 
-Provider credentials remain under SecretSpec's provider configuration and
-existing authentication. They are not exported application variables merely
-because SecretSpec uses them during resolution. A credential explicitly
-declared as an application variable receives ordinary declaration treatment.
+## Scopes
 
-## Local availability and scope policy
-
-| Selection | Local behavior | Additional Fence Rider behavior |
+| Selection | Local behavior | Fence Rider behavior |
 | --- | --- | --- |
-| No named scope membership | Resolved and validated with the full active profile; available to local tooling | No upload authorization; no manifest cross-check membership |
-| `manifest` membership | Same local availability | Checks that the member is declared in Forge's `environment.variables` |
-| `runtime` membership | Same local availability | Uploads the member encrypted to the selected Forge environment |
-| Membership in both scopes | One resolved value available locally | Manifest declaration check and encrypted runtime upload |
+| No named scope | Resolved and validated with the full active profile | No upload; no manifest cross-check |
+| `manifest` member | Same local availability | Checked against Forge's `environment.variables` |
+| `runtime` member | Same local availability | Uploaded encrypted to the selected Forge environment |
+| Both scopes | One resolved value | Manifest check and encrypted upload |
 
-Local availability is implicit. Fence Rider does not require a `local`
-scope, and unscoped declarations are valid local configuration. Other native
-scopes may exist for other tools; membership in them has no special meaning
-for Fence Rider's upload or manifest checks.
-
-The full resolved application environment is available to the delegated
-Forge processes. The `manifest` scope is not an environment injection
-allowlist, and runtime membership does not remove a value from local use.
-Local availability does not imply that a value becomes an app runtime
-variable. Only explicit `runtime` membership authorizes that upload.
-
-A variable outside both recognized scopes is local-only under Fence Rider's
-routing policy. It may still be consumed by a Forge manifest substitution
-when Forge's own declaration permits it; the optional SecretSpec metadata
-check does not control what the Forge parser can read.
-
-The `runtime` name replaces the exploration's logical `forge_upload` name.
-Upload selection is never inferred from a prefix, an environment file,
-process environment contents, or the Forge manifest. Omitting a variable
-from `runtime` means Fence Rider does not upload it. It does not remove any
-value already stored remotely.
-
-### Optional manifest check
-
-When a `manifest` scope is present, its effective active-profile members
-must appear in the Forge manifest's `environment.variables`. Both native
-string entries and objects with a `key` are declarations for this check.
-A missing declaration fails before remote writes. The check does not demand
-that every Forge manifest variable also appear in the SecretSpec scope,
-and it does not require every scope member to be used in a substitution.
-
-An omitted `manifest` scope skips this additional cross-check. It does not
-skip SecretSpec validation, remove local values, or prevent substitution.
-Forge remains responsible for validating actual substitutions and its own
-manifest declarations. Forge lint does not know about SecretSpec scopes:
-a missing SecretSpec `manifest` scope alone is not a Forge lint failure.
-A manifest default or a supplied local value may make substitution valid.
-
-This metadata check is not a second definition of requiredness or a custom
-replacement for Forge lint. Fence Rider does not silently rewrite the
-manifest or claim that this check proves the whole manifest valid.
-
-### No runtime uploads
-
-A `runtime` scope absent from the effective merged specification means no
-uploads. Root-file omission does not erase an inherited scope. A valid scope
-whose intersection with the active profile has no members also means no
-uploads.
-The deployment can continue after full-profile validation and any applicable
-manifest check. Neither case deletes or resets existing remote variables.
-
-The literal native declaration `secrets = []` is invalid under the documented
-SecretSpec schema. A project with no runtime variables omits that scope; it
-does not need a dummy variable or another configuration file. Unknown scopes
-explicitly requested from SecretSpec remain errors, not upload-all fallbacks.
-
-### Native scope semantics
-
-SecretSpec documents the following behavior:
-
-- Scopes are top-level named tables containing a `secrets` allowlist.
-- A scope contains at least one name, with no blank or repeated entries.
-- Every member is declared in at least one profile. Membership need not
-  exist in every active profile.
-- The selected set is the intersection of the scope and merged active
-  profile. A valid scope may have an empty intersection with that profile.
-- Profiles retain ownership of requirements, defaults, provider resolution,
-  and storage addresses. A scope does not create another copy of a value.
-- A required declaration outside a selected scope does not block that scoped
-  resolution. Fence Rider therefore must not use a runtime-only resolution
-  as validation of the full deployment configuration.
-- An explicitly blank CLI scope clears an inherited scope; it does not mean
-  an empty selection. Ambient scope settings must not narrow Fence Rider's
-  full-profile validation or local environment.
+- Local availability is implicit; no `local` scope exists. Other native scopes
+  have no meaning for Fence Rider.
+- The full resolved environment reaches the delegated Forge processes.
+  `manifest` is not an injection allowlist, and `runtime` does not remove a
+  value from local use.
+- Upload selection is never inferred from a prefix, environment file, process
+  environment or the Forge manifest. Omitting a variable from `runtime` does
+  not delete a value already stored remotely.
 
 ### Declaration shape
-
-The following excerpt illustrates implicit local configuration and optional
-scope metadata. It is not an executed compatibility fixture and contains no
-provider configuration or secret values.
 
 ```toml
 [project]
@@ -175,537 +84,269 @@ secrets = ["SERVICE_URL"]
 secrets = ["SERVICE_URL", "API_KEY"]
 ```
 
-`FORGE_ENVIRONMENT` needs no scope. `SERVICE_URL` is both a checked manifest input
-and a remote runtime variable. `API_KEY` is also locally available, but only
-runtime membership authorizes its upload. Omitting `manifest` would not
-prevent the local `SERVICE_URL` from supplying a Forge substitution.
+### Optional manifest check
+
+| Condition | Result |
+| --- | --- |
+| `manifest` scope has members | Each member must appear in `environment.variables`, as a string or an object with `key`; a miss fails before remote writes |
+| `manifest` scope absent | The cross-check is skipped; SecretSpec validation, local values and substitution are unaffected |
+| Forge declaration not in the scope | Not an error |
+| Scope member unused in a substitution | Not an error |
+
+The check is metadata only: it does not define requiredness, replace Forge
+lint, or rewrite the manifest. `manifest.yml` is read only when the scope has
+members.
+
+### No runtime uploads
+
+| Condition | Result |
+| --- | --- |
+| `runtime` scope absent from the effective merged specification | No uploads |
+| Valid scope with no members in the active profile | No uploads |
+| Root file omits an inherited `runtime` scope | Inherited scope stays in effect |
+| `secrets = []` | Invalid in SecretSpec; omit the scope instead |
+| Unknown scope requested from SecretSpec | Error, never upload-all |
+
+Deployment continues after validation and any manifest check; existing remote
+variables are not deleted or reset.
+
+### Native scope semantics
+
+| Rule | Behavior |
+| --- | --- |
+| Placement | Top-level named tables with a `secrets` allowlist |
+| Members | At least one; no blank or repeated names; each declared in some profile |
+| Selected set | Intersection of the scope and the merged active profile; may be empty |
+| Ownership | Profiles keep requirements, defaults, providers and addresses |
+| Scoped resolution | Required declarations outside the scope do not block it, so it never validates the full profile |
+| Blank CLI scope | Clears an inherited scope; ambient scope must not narrow full-profile validation |
+| Conflict across `extends` | A later document replaces the whole same-named scope; lists are not merged |
 
 ## Profiles and Forge targets
 
-A SecretSpec profile and a Forge environment are distinct identifiers.
-Selecting a profile does not automatically select a same-named environment.
+A SecretSpec profile and a Forge environment are distinct; selecting a profile
+does not select a same-named environment.
 
-| Local control | Meaning | Deployment treatment |
+| Control | Meaning | Treatment |
 | --- | --- | --- |
-| `FORGE_ENVIRONMENT` | Configured Forge environment | Used after an explicit CLI environment option and before the `development` fallback |
-| `FORGE_SITE` | Site default for install/uninstall | Validated when declared; not injected as an unsupported deployment option |
-| `FORGE_PRODUCT` | Product default for install/uninstall | Validated when declared; not injected as an unsupported deployment option |
+| `FORGE_ENVIRONMENT` | Configured Forge environment (the only environment control) | Used after an explicit CLI option and before the `development` fallback |
+| `FORGE_SITE` | Site for install and uninstall | Validated when declared; never injected into deployment |
+| `FORGE_PRODUCT` | Product for install and uninstall | Validated when declared; never injected into deployment |
 
-These controls need no named scope. Selecting any of them for runtime upload
-fails before the first write. Defaults are
-native SecretSpec declaration fields, not a second configuration format.
-
-`FORGE_ENVIRONMENT` is the only environment control; there is no alias.
-Absent optional controls do not retain stale inherited values.
-
-Validation covers the whole active profile, not only the command's selected
-values. Required declarations remain subject to SecretSpec validation even
-when a CLI option supplies the final target; an optional declaration or native
-default represents legitimate absence. SecretSpec 0.21.1 synthetic dotenv checks
-confirm that a missing required `FORGE_ENVIRONMENT` still blocks an explicit
-`-e production` invocation before Forge execution.
-
-Uploads and deployment use one resolved Forge target explicitly. Site and
-product defaults do not make installation a supported Fence Rider command.
+- Controls need no named scope; selecting one for runtime upload fails before
+  the first write.
+- Validation covers the whole active profile. A missing required
+  `FORGE_ENVIRONMENT` blocks an explicit `-e production` before Forge runs.
+- Absent optional controls do not keep stale inherited values.
 
 ## Resolution and validation boundary
 
-The deployment boundary has these invariants:
+- The whole active profile is resolved and validated before any upload;
+  unscoped requirements participate.
+- `variables` reads each value once, from the full export, and reuses it for the
+  local environment and any upload. Scope queries use names only. A run makes up
+  to three SecretSpec resolutions, none a vault-wide snapshot.
+- Fence Rider checks control values, applicable manifest declarations,
+  process-safe input and Forge runtime naming and value restrictions.
+- An absent optional value is omitted. An empty string stays distinct from
+  absence. Structured values are not stringified; `"0"` and `"false"` are kept.
+- No resolved value is printed or persisted in a cache or temporary file.
+- Declared names are removed from the child environment before resolved values
+  are assigned, so absent optionals keep no stale ambient value. Other
+  ambient settings and authentication are inherited, not isolated.
 
-- All application variables are resolved and validated from the full merged
-  active profile before any upload. Unscoped requirements participate, even
-  when both recognized scopes are omitted.
-- Each declared value is read once, by the whole-profile export, and reused in
-  the local process environment and any runtime upload. Scope membership
-  queries use names only and never supply values, so copies cannot diverge.
-  A run makes up to three SecretSpec resolutions; none is a vault-wide atomic
-  snapshot.
-- Native SecretSpec checks handle supported declaration constraints.
-  Fence Rider checks control values, applicable manifest declarations,
-  process-safe input, and verified Forge runtime naming/value restrictions.
-- An absent optional value is omitted. An explicit empty string remains
-  distinct from absence; its acceptance requires verified destination
-  behavior. Structured values are not silently stringified, and string
-  values such as `"0"` and `"false"` are not discarded by truthiness checks.
-- No SecretSpec-resolved values are printed or persisted in a Fence Rider
-  cache or temporary file. Local availability includes delegated tooling,
-  not logs or automatically generated artifacts.
-
-The implemented boundary uses native profile schema, one full export, and
-value-free scope membership queries, as specified below. Native
-SecretSpec 0.21.1 integration checks verify this combined flow. JSON export
-returns values, not membership; schema returns effective names, types, and
-requiredness, not scope lists. Fence Rider intersects the file's scope lists
-with those native names without resolving a second time.
-
-The documented `secretspec.resolver/1` protocol resolves exact names through
-`resolver.get`. It explicitly excludes whole-profile resolution and arbitrary
-manifest queries. It is not a verified solution for obtaining memberships
-alongside a full-profile result.
-
-### JavaScript SDK surface
-
-The published `secretspec@0.21.1` package's complete `index.d.ts` and
-JavaScript wrapper were inspected without installation or execution.
-
-| Public surface | Available information | Missing information |
-| --- | --- | --- |
-| `Builder.withScope(name)` | Chooses one scope for resolution | Available scopes and membership |
-| `Builder.load()` / `loadAsync()` | Resolved fields, active profile, selected scope, missing optional names | Effective configuration and scope memberships |
-| `Builder.report()` / `reportAsync()` | Resolution statuses, requiredness, provenance, selected scope | Scope enumeration or a configuration-only report |
-| `Builder.withNoValues()` | Omits usable values from resolution results | No guarantee of avoiding provider I/O; not a metadata reader |
-| `Builder.withInlineSpec()` | Accepts a caller-supplied specification | Does not read or expose effective TOML configuration |
-
-`Resolved` and `Report` retain only the selected `scope` string or null.
-Their constructors do not expose a map of scopes or merged declarations.
-The public exports contain no effective-configuration or scope-list method.
-The builder dispatches native resolution/report operations; its public
-surface does not close the scope metadata gap.
-
-The SDK embeds a platform-specific native addon rather than wrapping the
-installed CLI. Its source confirms that `setAsEnv()` skips null values but
-does not clear pre-existing environment entries. `as_path` values refer to
-secret-bearing temporary files with caller-owned disposal. Those behaviors
-require separate compatibility decisions if the SDK is adopted; this source
-inspection does not prove Bun/native-addon runtime compatibility.
-
-No dependency was added and no SDK resolution was executed. These findings
-apply to 0.21.1, not every later SDK version.
-
-### Source-backed scope composition
-
-The SecretSpec 0.21.1 configuration loader and regression tests establish
-these rules. This is source inspection, not execution of the upstream tests.
-
-| Concern | Upstream behavior |
+| Metadata need | Source |
 | --- | --- |
-| Scope placement | Top-level global name lists, not per-profile settings |
-| Scope conflict | A later document replaces the whole same-named scope; lists are not concatenated |
-| Scope omission | Earlier inherited definitions remain in effect |
-| Effective membership | Merged scope names intersect with the effective active profile's declarations |
-| Validation | Members must exist in at least one compiled profile; empty, duplicate, and blank members are rejected |
-| Default profile inheritance | Changes profile declarations, not scope lists; SecretSpec owns this behavior |
+| Effective names, types, requiredness | `secretspec schema` |
+| Values | `secretspec export --scope "" --format json` |
+| Scope members | `secretspec check --json --scope NAME`, value-free, includes optional declarations absent from the export |
+| Undefined scope | No members; SecretSpec's "is not defined in secretspec.toml" stderr is matched, not printed |
 
-`project.extends` is traversed depth-first in listed order. Each document is
-emitted after its ancestors; overlays then run from least to most specific,
-with the root last. Shared ancestors are emitted once by canonical path.
-A path on the active traversal stack is a cycle and fails. Later parent
-branches therefore override earlier emitted definitions, and the root wins
-same-name conflicts.
-
-Paths ending in `.toml` designate files; other entries designate directories
-containing `secretspec.toml`. Relative paths are resolved from the referring
-file's lexical location, including a symlink's location. Canonical paths
-are used for cycle detection and deduplication, not as the relative-path
-base. Missing files and unsupported revisions fail rather than disappear.
-
-Consequently, an omitted runtime scope means no uploads only when it is
-absent from the effective merged specification. Omitting it from the root
-alone does not disable an inherited runtime scope. No disable/delete marker
-was found in the inspected scope overlay implementation.
-
-### Scope membership is delegated to SecretSpec
-
-Fence Rider does not read `secretspec.toml`. `project.extends`, profile
-inheritance, scope placement, and scope validation are SecretSpec's, so
-cross-file specifications work as SecretSpec resolves them. It passes no
-`--file` or `--profile`; SecretSpec reads `SECRETSPEC_FILE` and
-`SECRETSPEC_PROFILE` from the inherited environment and auto-detects the file.
-
-The metadata boundary is:
-
-- Resolve the whole profile once for `variables`: `secretspec schema` for
-  effective names and types, `secretspec export --scope "" --format json` for
-  values.
-- Ask SecretSpec for the members of `manifest` (`variables`) and
-  `runtime` (`variables`, and `tunnel` while printing) with
-  `secretspec check --json --scope NAME`. The report is value-free and includes
-  optional declarations absent from exported values, so the manifest check
-  still covers them. `tunnel` also reads `secretspec schema` for the declared
-  names, never values. Lint, deploy, install and uninstall make no SecretSpec
-  call at all: they print a script that runs under `secretspec run`.
-  `fence-rider doctor` asks for `manifest` when the file declares that scope,
-  so the manifest check for lint, deploy and tunnel lives there.
-- A scope the file does not define has no members, so a missing runtime scope
-  means no uploads. SecretSpec reports this only as "is not defined in
-  secretspec.toml" on stderr, which Fence Rider matches without printing it.
-- `manifest.yml` is read only when the manifest scope has members.
-
-Required checks cover an undefined scope, an optional member absent from
-exported values, and native default-profile inheritance and its opt-out.
-These checks pass through the compiled CLI, including native SecretSpec
-integration. Decision record:
-[ADR 0002](../adr/0002-delegate-scope-membership-to-secretspec.md).
-
-The child environment retains ordinary process settings and existing
-authentication. Declared names are first removed from the inherited
-environment, then resolved values are assigned. Native tests confirm absent
-optionals cannot retain stale ambient values. Provider-private state is not
-gathered or exported automatically; ambient credentials remain inherited,
-not isolated. Required-resolution failures stop before Forge runs.
+Scope membership, `project.extends`, profile inheritance and scope validation
+are SecretSpec's. See [ADR 0002](../adr/0002-delegate-scope-membership-to-secretspec.md).
 
 ## Upstream command interfaces
 
-| Interface | Observed or documented behavior |
+| Interface | Behavior relied on |
 | --- | --- |
-| `secretspec export --format json` | Resolves values as a name-to-value JSON object; documented as non-interactive with failure on missing required values |
-| `secretspec export --scope NAME --format json` | Emits only the selected scope/profile intersection; does not unset inherited process values |
-| `secretspec check --json` | Produces a value-free resolution report, never prompts, and fails on missing required values |
-| `secretspec run -- COMMAND` | Makes resolved profile values available in a child process environment |
-| `secretspec run --scope NAME -- COMMAND` | Narrows resolution and removes excluded declared variables from the child environment; not full-profile validation |
-| `secretspec serve --read-only` | Exposes a private child resolver protocol; availability does not establish that Fence Rider needs it |
-| `forge variables set --encrypt --environment ENV KEY VALUE` | Sets an encrypted remote variable for the app and environment |
-| `forge deploy --environment ENV` | Deploys the app to the selected environment; supports non-interactive operation |
-
-The exploration's `secretspec load` is not an observed command in 0.21.1.
-Ordinary `secretspec check` may prompt or set missing values. A separate check
-followed by export is not evidence of a single coherent resolution.
+| `secretspec export --format json` | Name-to-value object; non-interactive; fails on missing required values |
+| `secretspec export --scope NAME --format json` | Only the scope and profile intersection; does not unset inherited process values |
+| `secretspec check --json` | Value-free report; never prompts; fails on missing required values |
+| `secretspec run -- COMMAND` | Resolved profile values in the child environment |
+| `secretspec run --scope NAME -- COMMAND` | Narrowed resolution; not full-profile validation |
+| `forge variables set --encrypt --environment ENV KEY VALUE` | Sets an encrypted remote variable |
+| `forge deploy --environment ENV` | Deploys to the environment; supports non-interactive operation |
 
 ### Forge argument parsing
 
-`deploy`, `install`, `uninstall`, `tunnel` and `lint` share one small reader
-(`src/forge-args.ts`). It lifts out only the options the wrapper owns
-(`--environment`/`-e`; for installation and uninstall also `--site`/`-s`
-and `--product`/`-p`, which are recognized only to be refused) and the help
-flags. It does not model Forge's option table:
-every other argument is forwarded untouched and in order, and Forge reports
-anything malformed. Everything after `--` is forwarded untouched. Repeated
-owned options and a short option followed by `=` (`-e=dev`) are rejected.
+`deploy`, `install`, `uninstall`, `tunnel` and `lint` share one reader
+(`src/forge-args.ts`).
 
-**Grouped short flags are not parsed.** A group such as `-feproduction` is
-forwarded to Forge as written, so the wrapper cannot see an owned option inside
-it. The wrapper still injects its own `--environment`; whether Forge accepts
-the combination is Forge's decision. This trades strictness for not
-re-implementing Forge's argument grammar. A payload that looks like an owned or
-help flag (`--tag --environment`) is also read as that flag.
+| Input | Handling |
+| --- | --- |
+| `--environment`/`-e` | Owned by the wrapper |
+| `--site`/`-s`, `--product`/`-p` | Recognized for install and uninstall only to be refused |
+| Help flags | Owned by the wrapper |
+| Everything else | Forwarded untouched and in order |
+| Everything after `--` | Forwarded untouched |
+| Repeated owned option, or `-e=dev` | Rejected |
+| Grouped short flags such as `-feproduction` | Not parsed; forwarded as written |
+| Payload that looks like an owned or help flag | Read as that flag |
+| Owned value | Must be non-empty and not start with a dash |
 
-Owned values are checked only for being non-empty and not starting with a dash,
-so a value can never be read as an option. Forge validates environment names,
-site URLs and products.
+Forge validates environment names, site URLs and products.
 
 ## Forge boundaries and failures
 
-Forge reads manifest substitutions from its process environment; referenced
-variables also need Forge's `environment.variables` declaration. This does
-not make them runtime environment entries. A manifest field may expose its
-value through app behavior, so local or manifest does not mean non-secret.
+| Topic | Contract |
+| --- | --- |
+| Manifest substitution | Forge reads it from its process environment and also needs the `environment.variables` declaration; it is not a runtime entry, and a manifest field may expose its value |
+| Runtime activation | `variables`, then deploy to the same app and environment |
+| Encryption | Occurs on Atlassian's servers after receipt; no secrecy from the platform or local process inspection |
+| Upload values | Positional; empty and leading-dash values are rejected before all uploads |
+| Pre-upload failure | SecretSpec validation or a manifest mismatch prevents all uploads |
+| Upload failure | Stops later uploads; a chained `deploy` does not run; earlier uploads stay; no rollback |
+| Diagnostics | Omit resolved values, raw helper output and secret-bearing command lines |
+| Exit status | Scripts preserve Forge's numeric status because they replace the shell; in `variables`, launch failure, signal or interruption is never success |
 
-Runtime updates take effect after `variables` and then deployment to the same app/environment.
-Encryption occurs on Atlassian's servers after receipt, not as a guarantee
-of secrecy from the platform or local process inspection. Inspected CLI help
-accepts positional values; a non-interactive stdin interface is unverified.
-Fence Rider rejects empty and leading-dash runtime values before all uploads.
-Native tests preserve local empty strings and strings `"0"` and `"false"`;
-controlled tests preserve multiline and special characters as one argument.
-Forge server-side value acceptance remains unverified.
-
-SecretSpec validation or an applicable manifest metadata mismatch prevents all
-uploads. This does not establish that Forge's complete lint pipeline has run
-before uploads; broader Forge validation may still fail later. An upload failure
-stops later uploads, and a chained `deploy` script does not run; earlier uploads
-may already have changed remote state. There is no automatic rollback.
-
-Diagnostics omit resolved values, raw helper output, and secret-bearing command
-lines. The deploy script preserves Forge's numeric exit status because it
-replaces the shell; in `variables`, launch failure, signal termination, or
-interruption cannot become success.
-
-## Configured lint
-
-`fence-rider lint [Forge options]` runs nothing. It prints one shell script on
-stdout, `exec secretspec run --scope '' -- forge lint …` with the options given
-to it quoted into the script, and a package script executes that output. Options
-that a script runner appends later reach Forge through the script's `"$@"`
-without being parsed again. The documented package script guards the
-generator; see [short scripts](../how-to/installation.md#run-a-short-script).
-When Fence Rider refuses, it prints the reason on stderr, nothing on stdout, and
-exits 1.
-
-Because the script `exec`s `secretspec run`, the shell is replaced: Fence Rider
-supervises nothing, and signals, the exit status and interactive input belong to
-SecretSpec and Forge directly. Fence Rider checks neither `PATH` nor the
-optional manifest declarations for lint; a missing tool is the shell's "command
-not found" when the script runs, and `fence-rider doctor` reports both tool
-versions and the manifest-scope check. SecretSpec resolves the entire active
-profile into Forge's environment, so a required local, manifest, runtime, or
-control value can block lint even when lint does not use it: this is
-whole-profile repository readiness, not command-scoped requiredness. Native
-optional declarations and profiles represent legitimate absence.
-
-A missing required value fails inside `secretspec run` with SecretSpec's own
-error before Forge starts. Like install and uninstall, lint does not validate
-resolved values and does not clear a stale ambient value for an unresolved
-optional declaration, and an exported variable that the profile neither declares
-nor resolves stays visible to Forge. The generated text never contains a value.
-See [ADR 0005](../adr/0005-install-and-lint-delegate-to-secretspec-run.md) and
-[ADR 0006](../adr/0006-generate-shell-for-lint-install-uninstall.md).
-
-No environment/site/product flags are injected. Explicit lint arguments,
-including Forge's environment option, retain their boundaries and order; Forge
-owns their validation. Runtime scope membership causes no upload, deployment,
-installation, deletion, or other follow-up command. Controls-only profiles
-work without dummy application secrets. Omitted manifest metadata does not
-suppress local delivery or Forge's substitution requirements.
+Pre-upload checks are not Forge's full lint pipeline; Forge may still fail later.
 
 ### Output and input policy
 
-SecretSpec schema/export and encrypted-upload stdout of `variables` remain
-private and stderr is not shown. Forge as run by the lint, deploy, installation,
-uninstall and tunnel scripts inherits stdin, stdout, and stderr:
-output is live, without redaction, and on its original stream; input is available
-without wrapper prompts. Wrapper-owned diagnostics omit values and raw helper
-errors. **Forge output, exception details, application logs, echoed input, and
-terminal sessions may expose values**; Fence Rider provides no passthrough
-redaction or credential isolation. Existing ambient authentication is retained.
+| Stream | Behavior |
+| --- | --- |
+| `variables`: SecretSpec schema, export and upload stdout | Private; stderr not shown |
+| Forge under lint, deploy, install, uninstall and tunnel scripts | Inherits stdin, stdout and stderr; live, without redaction |
+| Wrapper diagnostics | Omit values and raw helper errors |
 
-This shared user-facing stdio mode serves lint, deploy, installation, uninstall,
-and tunnel; it does not certify terminal-specific prompt behavior. Ordinary pipe
-checks establish input and pre-exit streaming. For `variables`, POSIX
-interruption forwards SIGINT/SIGTERM to the active process group, escalates
-after one second, and kills remaining group members, including when the direct
-child exits first. Lint, deploy, tunnel, install and uninstall have no Fence
-Rider process to interrupt: the terminal signals `secretspec run` and Forge
-directly. Windows process-tree cleanup remains uncertified.
+**Forge output, exception details, application logs, echoed input and terminal
+sessions may expose values.** Fence Rider provides no redaction or credential
+isolation.
 
-Numeric Forge lint statuses are preserved because the script replaces the shell.
-Resolution, validation, launch, signal termination, and interruption are
-non-success. Help-looking option values and terminator payloads are not
-discovery requests.
+| Interruption | Behavior |
+| --- | --- |
+| `variables` on POSIX | SIGINT/SIGTERM forwarded to the process group, escalated after one second, remaining members killed |
+| Script commands | No Fence Rider process; the terminal signals `secretspec run` and Forge directly |
+| Windows process-tree cleanup | Not certified |
 
-Observed 2026-10-19: installed Forge CLI 14.2.0 `lint --help` lists `--verbose`,
-`--fix`, `--approve <rule...>`, `-e, --environment [environment]`, and help.
-Inspection used Bun 1.4.3; Forge warned it supports Node.js 22.x or 24.x, so this
-is interface evidence, not runtime certification. Native SecretSpec 0.21.1
-synthetic dotenv tests cover missing runtime/manifest requirements, explicit
-file/profile with native inheritance, shared manifest inputs, stale optional
-cleanup despite ambient scope, and controls-only profiles. Controlled Forge
-checks establish delegation, not real Forge lint or manifest substitution.
-No live app was contacted. See the [validation record](validation.md).
+## Script commands
+
+`lint`, `install`, `uninstall` and `tunnel` run nothing. Each prints one shell
+script on stdout that a package script executes ([short scripts][short-scripts]).
+Arguments a script runner appends reach Forge through the script's `"$@"`
+without being parsed again. When Fence Rider refuses, it prints the reason on
+stderr, nothing on stdout, and exits 1.
+
+Because the script `exec`s `secretspec run`, signals, exit status and
+interactive input belong to SecretSpec and Forge. Differences from `variables`:
+
+| Behavior | Script commands |
+| --- | --- |
+| Value validation (string typing, NUL-free) | Not performed |
+| Stale ambient value for an unresolved optional | Not cleared |
+| Exported variable the profile neither declares nor resolves | Visible to Forge; a resolved value overrides an exported one |
+| `PATH` and manifest-declaration checks | None; use `doctor` |
+| Missing required value | SecretSpec's own error before Forge starts |
+| Generated text | Never contains a value |
+
+See [ADR 0005](../adr/0005-install-and-lint-delegate-to-secretspec-run.md) and
+[ADR 0006](../adr/0006-generate-shell-for-lint-install-uninstall.md).
+
+## Configured lint
+
+`fence-rider lint [Forge options]` prints
+`exec secretspec run --scope '' -- forge lint …`.
+
+| Aspect | Contract |
+| --- | --- |
+| Targeting flags | None injected; explicit arguments keep their order and boundaries |
+| Requiredness | Whole-profile: any required local, manifest, runtime or control value can block lint |
+| Follow-up | No upload, deployment, installation or deletion |
+| Controls-only profiles | Work without dummy secrets |
+| Omitted manifest metadata | Does not suppress local delivery or Forge's substitution requirements |
+| Exit status | Forge's numeric status |
 
 ## Configured installation
 
-`fence-rider install [Forge options]` runs nothing. It prints one shell script,
-`exec secretspec run --scope '' -- sh -c SCRIPT sh install ARGS… "$@"`, and a
-package script executes it as described for [lint](#configured-lint). SecretSpec
-resolves the whole active profile into the child environment and the inner
-script `exec`s Forge with inherited application values, ordinary settings, and
-existing authentication. The inner script is a fixed string; the command and the
-quoted arguments arrive as positional parameters, never interpolated. The
-command needs `sh`. Fence Rider performs no `schema`, `export` or scope
-lookup, no runtime upload, remote deletion, deployment, or optional manifest
-declaration cross-check. Controls-only profiles work.
-Installation does not activate changed runtime values. SecretSpec requiredness
-applies to the whole profile, and `--scope ""` keeps an ambient
-`SECRETSPEC_SCOPE` from narrowing it.
+`fence-rider install [Forge options]` prints
+`exec secretspec run --scope '' -- sh -c SCRIPT sh install ARGS… "$@"`. The
+inner script is a fixed string; the command and quoted arguments arrive as
+positional parameters, never interpolated. It needs `sh`, and runs no
+`schema`, `export` or scope lookup, upload, deletion, deployment or manifest
+cross-check. Installation does not activate changed runtime values.
 
-Because SecretSpec, not Fence Rider, builds the environment, install, uninstall
-and lint differ from `variables` in three ways:
-
-- Fence Rider does not validate the resolved values (string typing, NUL-free).
-- A stale ambient value for an unresolved optional declaration is **not**
-  cleared, because `secretspec run` leaves it in place.
-- An exported variable that the profile neither declares nor resolves stays
-  visible to Forge and is used by the script, so an exported `FORGE_SITE` fills
-  a gap in the profile. A resolved value overrides an exported one.
-
-| Target | Source (in the script) | Validation by the script |
+| Target | Source (in the script) | Validation |
 | --- | --- | --- |
-| Environment | `FORGE_ENVIRONMENT` in the child environment, else `development` | Nonempty, not starting with `-` |
-| Site | `FORGE_SITE`; no fallback | Nonempty, not starting with `-` |
-| Product | `FORGE_PRODUCT`; no fallback | Nonempty, not starting with `-` |
+| Environment | `FORGE_ENVIRONMENT` in the child environment, else `development` | Non-empty, not starting with `-` |
+| Site | `FORGE_SITE`; no fallback | Non-empty, not starting with `-` |
+| Product | `FORGE_PRODUCT`; no fallback | Non-empty, not starting with `-` |
 
-Forge is invoked as `forge install --environment E --site S --product P`
-followed by the forwarded arguments, and Forge validates what the values mean.
-The target options `--environment`/`-e`, `--site`/`-s` and `--product`/`-p` are
-**not accepted**: any spelling of them is refused before any script is printed
-(nothing on stdout, exit 1), because forwarding one would give Forge a second
-copy of an option the script injects. A missing or invalid target fails in the
-script before Forge, and Forge's target prompts never open. Someone who needs
-explicit control writes the command with `secretspec` and `forge` directly, for
-example
-`secretspec run -- forge install --environment … --site … --product …`, which is
-now almost what the wrapper does itself. See
+| Aspect | Contract |
+| --- | --- |
+| Forge call | `forge install --environment E --site S --product P` plus forwarded arguments |
+| Target options `-e`, `-s`, `-p` and long forms | Refused before any script is printed (nothing on stdout, exit 1) |
+| Missing or invalid target | Fails in the script before Forge; Forge's target prompts never open |
+| Explicit control | Write `secretspec run -- forge install …` directly |
+| `--demo-site` / `-d` | Forwarded unchecked beside the injected `--site`; not reconciled |
+| Bitbucket site | A workspace URL such as `https://bitbucket.org/workspace/` |
+| Upgrade | `--upgrade [all\|code]` or `-u`; no upgrade, consent, non-interactive, license or approval policy added |
+| `--confirm-scopes`, `--non-interactive`, license and user options | Forwarded in order with their boundaries |
+| `--app-id-override`, `--major-version`, `--unitId` | Required values consume switch-looking payloads |
+| Equals and attached payloads, everything after `--` | Preserved |
+| Help-looking values and terminator payloads | Not help requests |
+| Feature-gated Teamwork Graph installation | Not certified |
+
+Future Forge options are not modelled. See
 [ADR 0004](../adr/0004-install-targets-from-profile-only.md) and
 [ADR 0005](../adr/0005-install-and-lint-delegate-to-secretspec-run.md).
-Bitbucket uses a workspace URL such as `https://bitbucket.org/workspace/`.
-`--demo-site` / `-d` is forwarded to Forge unchecked, alongside the injected
-`--site`; Fence Rider does not reconcile them. Feature-gated Teamwork Graph
-installation is not certified here.
-
-Upgrade is the same command with an explicit `--upgrade [all|code]` or `-u`
-option. Fence Rider adds no upgrade, consent, non-interactive, license, or
-approval policy. `--confirm-scopes`, `--non-interactive`, optional license
-values, and variadic license/user options retain order and boundaries.
-Required values for `--app-id-override`, `--major-version`, and `--unitId`
-consume even switch-looking payloads; attached/equals payloads and everything
-after `--` are preserved. The wrapper does not implement a universal parser
-for future Forge options.
-
-Forge input/output uses the [live output policy](#output-and-input-policy).
-Numeric failures propagate. Help-looking required values and terminator payloads
-are not help requests.
-
-Observed 2026-10-19: installed Forge CLI 14.2.0 `install --help`, published
-14.2.0 installation registration/context parsing source, and `@forge/cli-shared`
-9.8.0 supported-products source establish these option value counts and products.
-Upstream product matching is case-insensitive; site parsing accepts URLs with
-or without a scheme. Source inspection and controlled subprocesses are not
-live site acceptance. Inspection through Bun 1.4.3 emitted Forge's Node.js
-22.x/24.x support warning. Native SecretSpec 0.21.1 dotenv checks establish
-configuration behavior only. No live installation, consent, upgrade, app
-registration, or cleanup was authorized or executed. See the
-[validation record](validation.md) and [consumer procedure][install-guide].
-
-[install-guide]: ../how-to/local.md#install-upgrade-or-uninstall
 
 ## Configured uninstall
 
-`fence-rider uninstall [Forge options]` prints the script that runs exactly one
-`forge uninstall` through `secretspec run --scope ''`, as described for
-installation, with all
-resolved local values, ordinary settings, and existing authentication. Stale
-ambient values for unresolved optional declarations are not cleared. Missing
-required app credentials or controls block execution. Controls-only
-profiles work without runtime scope or dummy secrets. The optional manifest
-cross-check and deployment-only runtime checks do not apply.
+`fence-rider uninstall [Forge options]` prints a script that runs one
+`forge uninstall` under `secretspec run --scope ''`, as for installation.
 
-Environment/site/product use the [installation target contract](#configured-installation):
-the resolved control, then `development` for environment only. Missing effective
-site/product fails without target-selection prompts, and target options are
-refused as for installation. Jira, Confluence, Compass, and Bitbucket are the
-inspected products.
+| Aspect | Contract |
+| --- | --- |
+| Targets | The [installation targets](#configured-installation); site and product required, environment falls back to `development` |
+| Target options | Refused as for installation |
+| Products | Jira, Confluence, Compass, Bitbucket |
+| Required values | `--installation-id`/`-i` and `--app-id-override` consume switch-looking payloads |
+| Attached and equals values, argument order, everything after `--` | Preserved |
+| Installation-only value grammar | Not applied |
+| Unknown options | Forge's validation |
+| Added behavior | No upload, variable deletion, deployment, installation, retry, follow-up, consent or non-interactive switch |
+| Forge 14.2.0 | Has no `uninstall --non-interactive`; a matched target can uninstall directly |
 
-Uninstall's grammar is distinct from installation: required `--installation-id`
-/ `-i` and `--app-id-override` values consume even switch-looking payloads.
-Attached/equals values, unrelated argument order/boundaries, and all payloads
-after `--` are preserved. Forge validates installation IDs and explicit
-`--batch` behavior; the wrapper still requires all three effective targets.
-Installation-only required-value grammar is not applied to uninstall.
-Unknown options remain Forge's validation responsibility, not added support.
-
-**Uninstall changes remote installation state.** The wrapper adds no runtime
-upload, remote-variable deletion, deployment, installation, retry, or follow-up
-command. No upgrade, approval, consent, confirmation, or non-interactive switch
-is injected. Forge 14.2.0 uninstall has no `--non-interactive` option. A matched
-target can uninstall directly; inherited input does not promise confirmation.
-Forge owns remaining prompts and native uninstall effects, including related
-installation contexts. This is not a read-only command.
-
-The [live stdio policy](#output-and-input-policy) applies without redaction.
-Numeric status is preserved and launch or signal failures cannot become
-success, because the script replaces the shell and no Fence Rider process
-supervises it. Required-value and terminator payloads are not help.
-
-Observed 2026-10-19: installed Forge CLI 14.2.0 `uninstall --help`, published
-14.2.0 `register-installation-commands.js`, `command.js`, and
-`uninstall-command-helpers.js`, plus shared 9.8.0 product handling. Uninstall
-registers context/environment, batch, installation ID, and app override options,
-not installation's non-interactive/upgrade/consent options. Bun 1.4.3 inspection
-emitted Forge's Node.js 22.x/24.x warning; this is interface evidence, not runtime
-certification. Native SecretSpec 0.21.1 synthetic dotenv checks and controlled
-Forge processes establish wrapper behavior, not live removal. No live uninstall
-was authorized or executed. Real terminal-specific prompts and Windows tree
-cleanup remain unverified. See the [procedure][uninstall-guide] and
-[validation record](validation.md).
-
-[uninstall-guide]: ../how-to/local.md#install-upgrade-or-uninstall
+**Uninstall changes remote installation state.** Forge owns remaining prompts
+and native effects, including related installation contexts. It is not
+read-only. See the [procedure][uninstall-guide].
 
 ## Configured tunnel
 
 `fence-rider tunnel [-e, --environment TARGET] [Forge options]` prints a script
-that runs one `forge tunnel` under `secretspec run`. While printing it asks
-SecretSpec, value-free, for the declared names and the `runtime` members; it
-does not check `manifest` declarations (`doctor` does).
-Required local, manifest, runtime, and control declarations still apply with
-explicit target overrides. Ordinary resolved values, process settings, and
-existing authentication remain available to Forge locally. No extra scope or
-second variable inventory is required.
+that runs one `forge tunnel` under `secretspec run`. Target selection and the
+development-only rule are in the [command help](command-help.md#tunnel).
 
-Only effective explicit `runtime` members are copied to
-`FORGE_USER_VAR_<name>` by a shell prologue in the script, which names the
-members it maps when it is printed. Forge strips that
-prefix for local function runtime variables; ordinary local inheritance is
-not evidence of runtime delivery. Shared members use the same resolved value
-locally and in that mapping. Absent optionals are omitted. Empty strings,
-leading-dash strings, multiline values, `"0"`, and `"false"` are supported by
-this environment mechanism, unlike deployment's positional upload contract.
-The four targeting controls cannot be runtime members.
-
-Ambient `FORGE_USER_VAR_` entries (names of letters, digits and underscores) are
-removed before mapped members are added, including stale optional and unrelated
-entries. Active-profile declarations using that prefix are rejected, even if not
-runtime members: this avoids both an implicit runtime bypass and silently losing
-declared local values. Ordinary credentials/settings remain inherited; this is
-not credential isolation.
-
-Target selection and the development-only rule are in the
-[command help](command-help.md#tunnel). Empty, invalid, and duplicate explicit
-targets fail before tools run. Forge, not the wrapper, rejects non-development
-environments and validates names. Site/product flags are never injected.
-
-Separated, long-equals and attached-short environment options normalize to one
-effective target. Every other argument is forwarded in order, and Forge owns the
-debug, `--url` and `--local-port` option grammar. Forge's `-h` is debug host, so
-only `--help` requests wrapper help.
-
-The [live stdio policy](#output-and-input-policy) applies without redaction,
-including tunnel/app logs. Numeric Forge status propagates. Private helper,
-launch, validation, and signal failures cannot become success. The script
-replaces the shell, so the terminal signals `secretspec run` and Forge directly;
-terminal-specific behavior remains unverified. No upload, variable deletion,
-deploy, installation, retry, follow-up, or permanent secret file is added by
-wrapper orchestration. A connected tunnel itself contacts Forge and redirects
-development invocations; this is not a read-only or offline workflow.
-
-Observed 2026-10-20: installed Forge CLI 14.2.0 `tunnel --help` and published
-14.2.0 tunnel registration/environment/controller sources; `@forge/runtime`
-7.0.1 `getUserVars` strips `FORGE_USER_VAR_` and preserves empty strings.
-`@forge/tunnel` 7.3.0 builds each local invocation using that helper and the
-local dev server's user variables. Official [tunneling][tunneling] and
-[environment guidance][environments] describe local variables and named
-development environments. Inspection under Bun 1.4.3 emitted Forge's Node.js
-22.x/24.x support warning; this is interface evidence, not runtime certification.
-Native SecretSpec 0.21.1 synthetic dotenv tests and controlled Forge subprocesses
-prove wrapper mapping, not connected runtime receipt. No live tunnel was
-authorized or run. See the [procedure][tunnel-guide] and [validation record](validation.md).
-
-[tunneling]: https://developer.atlassian.com/platform/forge/tunneling/
-[tunnel-guide]: ../how-to/runtime.md#tunnel-during-development
-
-## Verification ownership
-
-Contract decisions are recorded in this reference. Their completion does not
-depend on further executable proofs and does not certify upstream compatibility.
-The deployment implementation verifies the native schema/export path with
-synthetic values and controlled Forge tooling, extended for native inheritance,
-optional and empty values, inherited environments, and invalid inputs. Separate
-checks verify option handling and failure behavior.
-
-Final acceptance reuses implementation checks and owns explicitly authorized
-live Forge validation and supported-version reporting. Existing exploratory
-checks are optional supporting evidence, not prerequisites. If observed
-behavior conflicts with a contract rule, that specific rule returns for
-review; unresolved evidence does not create a separate proof-work phase.
-
-## Compatibility verification status
-
-The [acceptance map and command outcomes](validation.md) record the executable
-checks rather than treating the initial contract as proof.
-
-| Boundary | Current result |
+| Aspect | Contract |
 | --- | --- |
-| Scope metadata and full resolution | Passing native schema/full export with effective scope intersections |
-| Implicit local validation and environment | Passing unscoped requirement, stale optional, and shared-value checks |
-| Optional manifest scope | Passing omitted, present/missing, string, and keyed-object declaration checks; real Forge substitution not executed |
-| Runtime absence and value semantics | Passing no-write/no-delete, optional, empty, string-zero/false, malformed-output cases |
-| Provider configuration | Passing synthetic dotenv resolution only; no fallback or general provider promise |
-| Forge input boundary | Positional argument boundaries and fail-closed restrictions tested locally; server acceptance and safer input mechanisms unverified |
-| Live Forge behavior | Blocked: no authorized disposable app/environment, writes, deployment, or cleanup |
+| Printing | Asks SecretSpec value-free for declared names and `runtime` members; does not check `manifest` (`doctor` does) |
+| Declarations | Required local, manifest, runtime and control declarations apply, including with explicit targets |
+| Runtime mapping | A shell prologue copies only effective `runtime` members to `FORGE_USER_VAR_<name>`; Forge strips the prefix |
+| Mapped values | Empty strings, leading-dash strings, multiline values, `"0"` and `"false"` supported |
+| Absent optionals | Omitted |
+| Targeting controls as runtime members | Not allowed |
+| Ambient `FORGE_USER_VAR_` entries (letters, digits, underscores) | Removed before mapped members are added |
+| Active-profile declarations with that prefix | Rejected, even if not runtime members |
+| Empty, invalid or duplicate explicit target | Fails before tools run |
+| Non-development environment | Rejected by Forge |
+| Environment option spellings | Separated, long-equals and attached-short normalize to one target |
+| Other arguments | Forwarded in order; Forge owns debug, `--url` and `--local-port` |
+| `-h` | Forge's debug host; only `--help` requests wrapper help |
+| Site and product flags | Never injected |
+| Added behavior | No upload, deletion, deploy, installation, retry, follow-up or permanent secret file |
 
-Configured tunneling uses the explicit [local runtime mapping](#configured-tunnel),
-not remote upload or ordinary environment inheritance alone. Connected runtime
-receipt remains blocked pending authorization. Local availability does not
-imply a general command runner.
+A connected tunnel contacts Forge and redirects development invocations; it is
+not read-only or offline. See the [procedure][tunnel-guide].
 
 ## Sources
 
@@ -713,29 +354,22 @@ imply a general command runner.
 - [SecretSpec configuration reference][configuration]
 - [SecretSpec CLI reference][cli]
 - [SecretSpec resolver protocol][resolver]
-- [SecretSpec JavaScript SDK][sdk]
-- [Published SDK 0.21.1 metadata][sdk-package]
-- [Published SDK 0.21.1 archive][sdk-archive]
-- [SecretSpec 0.21.1 configuration loader and scope tests][config-source]
-- [SecretSpec 0.21.1 profile/scope intersection][membership-source]
-- [SecretSpec 0.21.1 schema profile interface][spec-source]
 - [SecretSpec dotenv provider][dotenv]
 - [Forge manifest environment variables][manifest]
 - [Forge variables set][variables]
 - [Forge environments][environments]
+- [Forge tunneling][tunneling]
 
 [explanation]: ../explanation/explanation.md
+[short-scripts]: ../how-to/installation.md#run-a-short-script
+[uninstall-guide]: ../how-to/local.md#install-upgrade-or-uninstall
+[tunnel-guide]: ../how-to/runtime.md#tunnel-during-development
 [scopes]: https://secretspec.dev/concepts/scopes/
 [configuration]: https://secretspec.dev/reference/configuration/
 [cli]: https://secretspec.dev/reference/cli/
 [resolver]: https://secretspec.dev/reference/resolver-protocol/
-[sdk]: https://secretspec.dev/sdk/nodejs/
-[sdk-package]: https://registry.npmjs.org/secretspec/0.21.1
-[sdk-archive]: https://registry.npmjs.org/secretspec/-/secretspec-0.21.1.tgz
-[config-source]: https://github.com/cachix/secretspec/blob/v0.21.1/secretspec/src/config.rs
-[membership-source]: https://github.com/cachix/secretspec/blob/v0.21.1/secretspec/src/secrets.rs
-[spec-source]: https://github.com/cachix/secretspec/blob/v0.21.1/secretspec/src/spec.rs
 [dotenv]: https://secretspec.dev/providers/dotenv/
 [manifest]: https://developer.atlassian.com/platform/forge/manifest-reference/environment/
 [variables]: https://developer.atlassian.com/platform/forge/cli-reference/variables-set/
 [environments]: https://developer.atlassian.com/platform/forge/environments/
+[tunneling]: https://developer.atlassian.com/platform/forge/tunneling/
