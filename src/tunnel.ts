@@ -1,6 +1,6 @@
 import { checkManifest, configure } from "./configured";
-import { members } from "./resolution";
 import { checkInterruption, passthrough } from "./process";
+import { members } from "./resolution";
 import {
   isReservedVariable,
   parseTunnelOptions,

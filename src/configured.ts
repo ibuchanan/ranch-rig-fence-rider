@@ -2,20 +2,20 @@ import { accessSync, constants } from "node:fs";
 import { resolve } from "node:path";
 import { capture } from "./process";
 import {
-  isCompiledBuild,
-  locateSecretSpec,
-  secretSpecVersion,
-  versionBanner,
-} from "./secretspec";
-import {
-  manifestKeys,
   configuredEnvironment,
+  manifestKeys,
   members,
   parseInheritance,
   parseResolved,
   parseScopes,
   type Specification,
 } from "./resolution";
+import {
+  isCompiledBuild,
+  locateSecretSpec,
+  secretSpecVersion,
+  versionBanner,
+} from "./secretspec";
 import type { Workflow } from "./workflow";
 
 function deliveredSecretSpec(path: string, state: Workflow) {

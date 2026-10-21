@@ -1,5 +1,4 @@
 import { checkManifest, configure } from "./configured";
-import { members } from "./resolution";
 import {
   type DeployOptions,
   type DeployPlan,
@@ -13,6 +12,7 @@ import {
   checkInterruption,
   DelegatedFailure,
 } from "./process";
+import { members } from "./resolution";
 import { describeStage, runWorkflow, type Workflow } from "./workflow";
 
 export const deployUsage = [
