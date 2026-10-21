@@ -189,6 +189,9 @@ credentials and app registration are never supplied automatically.
   required site can therefore block lint, and a required runtime credential
   can block uninstall; this is repository readiness, not command-scoped
   requiredness. Native optional declarations and profiles remain available.
+- (Superseded 2026-10-21 for `install` and `uninstall`: the wrapper no longer
+  accepts target options; targets come only from the resolved profile. See
+  `docs/adr/0004-install-targets-from-profile-only.md`.)
 - Explicit target arguments override target selection, not SecretSpec
   requiredness. Missing required declarations still fail even if a command
   option could otherwise supply that target.

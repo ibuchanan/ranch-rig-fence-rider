@@ -19,9 +19,9 @@ SecretSpec CLI must be installed on PATH; no downloads or installs.
 Run fence-rider doctor to compare installed tool versions with the tested range.
 Forge CLI must be installed on PATH and authenticated separately; no automatic login.
 
-Install/uninstall targets: explicit options override resolved FORGE_SITE / FORGE_PRODUCT
-and environment independently. Site/product are required. Only environment
-falls back to development. Install consent/upgrade/non-interactive policy is explicit.
+Install/uninstall targets: resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT only;
+no target options. Site/product are required. Only environment falls back to
+development. Install consent/upgrade/non-interactive policy is explicit.
 Uninstall inherits no install policy; Forge 14.2.0 has no --non-interactive option.
 
 Tunnel uses explicit runtime members via FORGE_USER_VAR_<name>; no remote uploads.

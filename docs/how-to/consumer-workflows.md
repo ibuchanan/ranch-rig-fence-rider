@@ -66,19 +66,21 @@ Deployment approval does not grant install scope consent. Keep `--confirm-scopes
   without remote synchronization. Staging/production are rejected; named targets
   must already be development environments. Stop with Ctrl-C.
 
-Override targets explicitly, without changing declarations:
+Targets for install/uninstall come only from the profile; to aim elsewhere,
+select another profile or change the declaration. Extra Forge options are
+forwarded:
 
 ```sh
-bun run install:forge --site example.atlassian.net --product confluence --environment development
 bun run lint:forge --verbose
 ```
 
-Environment/site/product are independent for install/uninstall. Environment
-falls back to development; site/product never do. Supported product values are
-`jira`, `confluence`, `compass`, and `bitbucket`. Lint receives no injected target;
-deploy/tunnel receive environment only. Native profile/file selection remains
-`SECRETSPEC_PROFILE`/`SECRETSPEC_FILE`, not a Forge environment switch. Explicit
-targets never waive required values. See the [exact command grammar][contract].
+Environment falls back to development for install/uninstall; site/product never
+do, and `--site`, `--product` and `--environment` are refused there. Supported
+product values are `jira`, `confluence`, `compass`, and `bitbucket`. Lint
+receives no injected target; deploy/tunnel receive environment only. Native
+profile/file selection remains `SECRETSPEC_PROFILE`/`SECRETSPEC_FILE`, not a
+Forge environment switch. An explicit deploy or tunnel target never waives
+required values. See the [exact command grammar][contract].
 
 ## Use a controls-only app
 

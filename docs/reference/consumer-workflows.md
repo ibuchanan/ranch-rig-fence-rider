@@ -37,8 +37,8 @@ certify real Forge execution under Bun.
 | CW-04 | Deployment shared-values test sees unchanged implicit local values and removes stale absent optional; compiled tests cover empty strings | Broader native providers unverified |
 | CW-05 | Shared value matches local upload args and tunnel prefix mapping from one export; native profile tests count one schema/export, with scope checks name-only | Actual manifest substitution and connected runtime receipt blocked |
 | CW-06 | Environment control selection in native compiled tests and installed controls-only cases | Named server environment identity blocked |
-| CW-07 | Installed controls-only install overrides all targets independently; compiled deploy upload/deploy target checks | Actual server destination blocked |
-| CW-08 | Command grammar tests reject duplicates/missing targets and preserve unrelated options | Upstream version range unverified |
+| CW-07 | Installed controls-only install takes all targets from the profile and refuses target options; compiled deploy upload/deploy target checks | Actual server destination blocked |
+| CW-08 | Command grammar tests reject target options and missing targets and preserve unrelated options | Upstream version range unverified |
 | CW-09 | Installed lint script gets all inputs and live output; only one lint call with no injected target or writes | Real Forge manifest acceptance blocked |
 | CW-10 | Installed install/upgrade preserve explicit consent/non-interactive switches and configured targets | Real install/upgrade/scope consent blocked |
 | CW-11 | Installed uninstall injects only targets; no runtime sync or inherited install policy | Actual removal and terminal-specific prompts blocked |
@@ -63,9 +63,9 @@ variants, install, upgrade, caller-controlled uninstall, lint, and tunnel.
 `MAJOR_VERSION_RULE` is documented upstream; the alternate
 `REVIEWED_RULE_FROM_FORGE` is an explicit replacement placeholder, not a verified
 server rule. Only distinct-rule argument forwarding is established for it.
-`installed controls-only consumer ...` covers environment fallback, explicit
-site/product/environment overrides and whole-profile requiredness without
-runtime scope or dummy credential.
+`installed controls-only consumer ...` covers environment fallback, refused
+target options and whole-profile requiredness without runtime scope or dummy
+credential.
 
 These are incremental acceptance checks on completed behavior slices. The script
 fixture was missing on the first failing run, then supplied and executed. No new

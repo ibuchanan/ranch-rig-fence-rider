@@ -131,11 +131,15 @@ the [output and input policy](../reference/reference.md#output-and-input-policy)
    SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli install --upgrade --confirm-scopes --non-interactive
    ```
 
-Override individual targets with `--site URL`, `--product PRODUCT`, and
-`--environment TARGET`. Each wins over its resolved control independently.
-Only environment falls back to `development`; absent site/product fails rather
-than opening a target picker. SecretSpec profile names never select
-Forge environments. Explicit targets do not waive required declarations.
+Targets come only from the resolved profile: `FORGE_ENVIRONMENT`, `FORGE_SITE`
+and `FORGE_PRODUCT`. Only environment falls back to `development`; absent
+site/product fails rather than opening a target picker. `--site`, `--product`
+and `--environment` (and their short forms) are not accepted. SecretSpec profile
+names never select Forge environments. To target something the profile does not
+declare, run `secretspec` and `forge` directly, for example
+`secretspec run -- forge install --environment … --site … --product …`; note
+that `secretspec run` does not clear stale ambient values for unresolved
+optional declarations.
 
 Installation and upgrade do not upload, delete, or activate changed runtime
 values, deploy code, or apply Fence Rider's optional manifest declaration check.
@@ -164,10 +168,10 @@ verified grammar, products, and the separate live-verification blocker.
    SECRETSPEC_PROVIDER=dotenv:values.env bun run uninstall:forge
    ```
 
-Override individual targets explicitly with `--site URL`, `--product PRODUCT`,
-and `--environment TARGET`. Defaults match installation.
-Missing required app credentials still block uninstall despite explicit targets;
-use native optional declarations or a suitable profile for legitimate absence.
+Targets come from the profile as for installation, and target options are not
+accepted; for another target run `secretspec` and `forge` directly. Missing
+required app credentials still block uninstall; use native optional
+declarations or a suitable profile for legitimate absence.
 
 Forge owns remaining interaction and may uninstall directly once targets match;
 do not rely on an extra confirmation prompt. Fence Rider injects no upgrade,

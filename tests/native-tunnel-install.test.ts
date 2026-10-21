@@ -189,13 +189,6 @@ test.skipIf(!realSecretSpec).each(
       pass: true,
     },
     {
-      name: "explicit override",
-      declarations: 'FORGE_ENVIRONMENT = { default = "staging" }',
-      target: "production",
-      args: ["-eproduction"],
-      pass: true,
-    },
-    {
       name: "absent optional environment",
       declarations: "FORGE_ENVIRONMENT = { required = false }",
       target: "development",
@@ -203,10 +196,10 @@ test.skipIf(!realSecretSpec).each(
       pass: true,
     },
     {
-      name: "required environment despite override",
+      name: "required environment",
       declarations: "FORGE_ENVIRONMENT = { required = true }",
       target: "unused",
-      args: ["-edevelopment"],
+      args: [],
       pass: false,
     },
   ].flatMap((scenario) =>
@@ -275,7 +268,7 @@ test.skipIf(!realSecretSpec).each(
     })),
   ),
 )(
-  "native configured $command still requires $missing despite overrides",
+  "native configured $command still requires $missing",
   async ({ command, missing }) => {
     const spec = installationSpec
       .replace('default = "synthetic.atlassian.net"', "required = true")
@@ -298,7 +291,6 @@ test.skipIf(!realSecretSpec).each(
         .filter(([name]) => name !== missing)
         .map(([name, value]) => `${name}=${value}\n`)
         .join(""),
-      args: ["-sother.atlassian.net", "-pconfluence", "-eproduction"],
     });
     expect(result.exitCode).toBe(1);
     expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(

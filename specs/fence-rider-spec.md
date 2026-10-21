@@ -100,7 +100,9 @@ before being declared supported.
    so that missing values do not cause avoidable partial updates.
 5. As a developer, I want reusable deployment defaults, so that routine
    commands do not repeat environment, site, and product settings.
-6. As a release operator, I want explicit CLI options to override defaults,
+6. (Superseded 2026-10-21 for `install` and `uninstall`, which no longer accept
+   target options; see `docs/adr/0004-install-targets-from-profile-only.md`.)
+   As a release operator, I want explicit CLI options to override defaults,
    so that each invocation can target the intended environment.
 7. As a release operator, I want uploads and the delegated command to use the
    same resolved environment, so that secrets and deployment do not diverge.

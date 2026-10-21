@@ -27,10 +27,11 @@ SecretSpec and Forge must be installed on PATH and authenticated separately.
 ## install
 
 ```text
-Usage: fence-rider install [-e, --environment TARGET] [-s, --site URL] [-p, --product PRODUCT] [Forge options]
-Targets: explicit option, then resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT. Only environment falls back to development.
+Usage: fence-rider install [Forge options]
+Targets come from the resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT. Only environment falls back to development.
 Site and product are required; Forge validates their values.
-The whole profile must resolve, even when options override its values.
+The wrapper's own target options (-e/--environment, -s/--site, -p/--product) are not accepted; for other targets run secretspec and forge directly.
+The whole profile must resolve.
 Use --upgrade [all|code], --confirm-scopes and --non-interactive only when intended.
 No runtime uploads, variable deletion or deployment.
 Forge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.
@@ -39,10 +40,11 @@ Forge input/output is inherited, live and unredacted. SecretSpec and Forge must 
 ## uninstall
 
 ```text
-Usage: fence-rider uninstall [-e, --environment TARGET] [-s, --site URL] [-p, --product PRODUCT] [Forge options]
-Targets: explicit option, then resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT. Only environment falls back to development.
+Usage: fence-rider uninstall [Forge options]
+Targets come from the resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT. Only environment falls back to development.
 Site and product are required; Forge validates their values.
-The whole profile must resolve, even when options override its values.
+The wrapper's own target options (-e/--environment, -s/--site, -p/--product) are not accepted; for other targets run secretspec and forge directly.
+The whole profile must resolve.
 Uninstall changes remote installation state; Forge owns remaining interaction. Forge 14.2.0 does not support --non-interactive. No upgrade, consent, approval or confirmation switches are injected.
 No runtime uploads, variable deletion or deployment.
 Forge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.

@@ -31,16 +31,22 @@ test.each([2, 23, 127, 255])(
 
 test.each(
   [
-    ["--site", "--verbose"],
-    ["-eproduction", "--environment", "staging"],
+    ["--site", "other.atlassian.net"],
+    ["--site=other.atlassian.net"],
+    ["-sother.atlassian.net"],
+    ["-p", "confluence"],
+    ["-e", "production"],
+    ["--verbose", "--environment=production"],
   ].map((args) => ({ args })),
 )(
-  "configured uninstall rejects invalid and duplicate targets %j before tools",
+  "configured uninstall refuses target options %j before any tool",
   async ({ args }) => {
     const result = await runInstallation({ command: "uninstall", args });
     expect(result.exitCode).toBe(1);
     expect(result.interactions).toEqual([]);
-    expect(result.stderr).toContain("uninstallation option validation");
+    expect(result.stderr).toContain(
+      "uninstallation option validation (target options are not accepted",
+    );
   },
 );
 

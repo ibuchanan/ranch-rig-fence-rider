@@ -18,10 +18,9 @@ function plan(
     environment?: string | undefined;
   } = {},
 ) {
-  const { targets, forwarded } = parseInstallOptions([...args]);
+  const { forwarded } = parseInstallOptions([...args]);
   return planInstall({
     command,
-    targets,
     values: overrides.values ?? values,
     environment: "environment" in overrides ? overrides.environment : "staging",
     forwarded,
@@ -46,55 +45,20 @@ describe.each(["install", "uninstall"] as const)("%s", (command) => {
   });
 
   test.each([
-    {
-      args: ["-e", "production", "--verbose"],
-      target: ["production", "synthetic.atlassian.net", "jira"],
-      forwarded: ["--verbose"],
-    },
-    {
-      args: ["--site", "other.atlassian.net"],
-      target: ["staging", "other.atlassian.net", "jira"],
-      forwarded: [],
-    },
-    {
-      args: ["-p", "confluence"],
-      target: ["staging", "synthetic.atlassian.net", "confluence"],
-      forwarded: [],
-    },
-    {
-      args: [
-        "--environment=release_42",
-        "--site=https://other.atlassian.net",
-        "--product=compass",
-      ],
-      target: ["release_42", "https://other.atlassian.net", "compass"],
-      forwarded: [],
-    },
-    {
-      args: [
-        "-eproduction",
-        "-shttps://bitbucket.org/synthetic/",
-        "-pbitbucket",
-        "--batch",
-      ],
-      target: ["production", "https://bitbucket.org/synthetic/", "bitbucket"],
-      forwarded: ["--batch"],
-    },
-  ])(
-    "explicit options $args override targets independently",
-    ({ args, target, forwarded }) => {
-      expect(plan(command, args)).toEqual([
-        command,
-        "--environment",
-        target[0],
-        "--site",
-        target[1],
-        "--product",
-        target[2],
-        ...forwarded,
-      ]);
-    },
-  );
+    { args: ["--site", "x"] },
+    { args: ["--site=x"] },
+    { args: ["-sx"] },
+    { args: ["-s", "x"] },
+    { args: ["-p", "confluence"] },
+    { args: ["--product=compass"] },
+    { args: ["-e", "production", "--verbose"] },
+    { args: ["--environment=release_42"] },
+    { args: ["--verbose", "-eproduction"] },
+  ])("target option $args is refused rather than forwarded", ({ args }) => {
+    expect(() => parseInstallOptions([...args])).toThrow(
+      "Target options are not accepted",
+    );
+  });
 
   test.each([
     { args: ["-upconfluence"] },
@@ -150,7 +114,7 @@ describe.each(["install", "uninstall"] as const)("%s", (command) => {
     { args: ["--site", "one.atlassian.net", "-stwo.atlassian.net"] },
     { args: ["-pjira", "--product=jira"] },
     { args: ["-eproduction", "--environment", "staging"] },
-  ])("invalid or duplicate target $args is rejected", ({ args }) => {
+  ])("malformed or duplicate target option $args is rejected", ({ args }) => {
     expect(() => parseInstallOptions([...args])).toThrow();
   });
 
@@ -163,12 +127,4 @@ describe.each(["install", "uninstall"] as const)("%s", (command) => {
       );
     },
   );
-
-  test("an explicit option supplies an otherwise absent site", () => {
-    expect(
-      plan(command, ["-sother.atlassian.net"], {
-        values: { FORGE_PRODUCT: "jira" },
-      }),
-    ).toContain("other.atlassian.net");
-  });
 });

@@ -16,10 +16,11 @@ const installPolicy = {
 
 export function installUsage(command: InstallCommand) {
   return [
-    `Usage: fence-rider ${command} [-e, --environment TARGET] [-s, --site URL] [-p, --product PRODUCT] [Forge options]`,
-    "Targets: explicit option, then resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT. Only environment falls back to development.",
+    `Usage: fence-rider ${command} [Forge options]`,
+    "Targets come from the resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT. Only environment falls back to development.",
     "Site and product are required; Forge validates their values.",
-    "The whole profile must resolve, even when options override its values.",
+    "The wrapper's own target options (-e/--environment, -s/--site, -p/--product) are not accepted; for other targets run secretspec and forge directly.",
+    "The whole profile must resolve.",
     installPolicy[command],
     "No runtime uploads, variable deletion or deployment.",
     "Forge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.",
@@ -33,8 +34,8 @@ export async function install(
 ): Promise<number> {
   const operation = command === "install" ? "installation" : "uninstallation";
   return runWorkflow(async (workflow) => {
-    workflow.stage = `${operation} option validation`;
-    const { targets, forwarded, help } = parseInstallOptions(args);
+    workflow.stage = `${operation} option validation (target options are not accepted; set FORGE_ENVIRONMENT, FORGE_SITE and FORGE_PRODUCT in the profile, or run forge directly)`;
+    const { forwarded, help } = parseInstallOptions(args);
     if (help) {
       console.log(installUsage(command));
       return;
@@ -43,7 +44,6 @@ export async function install(
     workflow.stage = `${operation} target validation (environment, site and product required)`;
     const forgeArgs = planInstall({
       command,
-      targets,
       values,
       environment,
       forwarded,

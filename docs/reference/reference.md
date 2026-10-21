@@ -359,8 +359,9 @@ followed by export is not evidence of a single coherent resolution.
 
 `deploy`, `install`, `uninstall`, `tunnel` and `lint` share one small reader
 (`src/forge-args.ts`). It lifts out only the options the wrapper owns
-(`--environment`/`-e`, and for installation `--site`/`-s` and
-`--product`/`-p`) and the help flags. It does not model Forge's option table:
+(`--environment`/`-e`; for installation and uninstall also `--site`/`-s`
+and `--product`/`-p`, which are recognized only to be refused) and the help
+flags. It does not model Forge's option table:
 every other argument is forwarded untouched and in order, and Forge reports
 anything malformed. Everything after `--` is forwarded untouched. Repeated
 owned options and a short option followed by `=` (`-e=dev`) are rejected.
@@ -458,20 +459,26 @@ and delegates exactly one installation with inherited application values,
 ordinary settings, and existing authentication. It performs no runtime upload,
 remote deletion, deployment, or optional manifest declaration cross-check.
 Controls-only profiles work. Installation does not activate changed runtime
-values. SecretSpec requiredness still applies with explicit target overrides.
+values. SecretSpec requiredness applies to the whole profile.
 
-| Target | Selection order | Validation |
+| Target | Source | Validation by Fence Rider |
 | --- | --- | --- |
-| Environment | Explicit option, resolved `FORGE_ENVIRONMENT`, `development` | Alphanumeric first character, then alphanumeric, underscore, or hyphen |
-| Site | Explicit option, resolved `FORGE_SITE`; no fallback | Nonempty HTTP(S) URL or hostname, without whitespace, controls, or credentials |
-| Product | Explicit option, resolved `FORGE_PRODUCT`; no fallback | Case-insensitive Jira, Confluence, Compass, or Bitbucket |
+| Environment | Resolved `FORGE_ENVIRONMENT`, else `development` | Nonempty, not starting with `-` |
+| Site | Resolved `FORGE_SITE`; no fallback | Nonempty, not starting with `-` |
+| Product | Resolved `FORGE_PRODUCT`; no fallback | Nonempty, not starting with `-` |
 
-Target switches accept separated long/short forms, long equals forms, and
-attached short values: `--site URL`, `-s URL`, `--site=URL`, `-sURL`, and the
-corresponding `--product`/`-p` and `--environment`/`-e` forms. Short equals forms
-such as `-p=jira` are invalid. Missing, empty, invalid, or repeated targets fail
-before Forge; explicit target syntax errors fail before SecretSpec too.
-Missing effective site/product never opens Forge's target selection prompts.
+Forge is invoked as `forge install --environment E --site S --product P`
+followed by the forwarded arguments, and Forge validates what the values mean.
+The target options `--environment`/`-e`, `--site`/`-s` and `--product`/`-p` are
+**not accepted**: any spelling of them is refused before SecretSpec or Forge is
+called, because forwarding one would give Forge a second copy of an option the
+wrapper injects. A missing or invalid target also fails before Forge, and Forge's
+target prompts never open. Someone who needs explicit control writes the command
+with `secretspec` and `forge` directly, for example
+`secretspec run -- forge install --environment … --site … --product …`. That
+route differs from Fence Rider in one respect: `secretspec run` does not clear a
+stale ambient value for an unresolved optional declaration. See
+[ADR 0004](../adr/0004-install-targets-from-profile-only.md).
 Bitbucket uses a workspace URL such as `https://bitbucket.org/workspace/`.
 `--demo-site` / `-d` is forwarded to Forge unchecked, alongside the injected
 `--site`; Fence Rider does not reconcile them. Feature-gated Teamwork Graph
@@ -510,17 +517,15 @@ registration, or cleanup was authorized or executed. See the
 and delegates exactly one `forge uninstall` with all resolved local values,
 ordinary settings, and existing authentication. Declared absent optionals are
 removed from the inherited environment. Missing required app credentials or
-controls block execution even with explicit target overrides. Controls-only
+controls block execution. Controls-only
 profiles work without runtime scope or dummy secrets. The optional manifest
 cross-check and deployment-only runtime checks do not apply.
 
 Environment/site/product use the [installation target contract](#configured-installation):
-explicit option, resolved control, then `development` for environment only.
-Missing effective
-site/product fails without target-selection prompts. Separated short/long,
-long-equals, and attached-short target forms normalize to one effective option
-per field. Invalid, empty, missing, short-equals, and repeated targets fail
-before Forge. Jira, Confluence, Compass, and Bitbucket are the inspected products.
+the resolved control, then `development` for environment only. Missing effective
+site/product fails without target-selection prompts, and target options are
+refused as for installation. Jira, Confluence, Compass, and Bitbucket are the
+inspected products.
 
 Uninstall's grammar is distinct from installation: required `--installation-id`
 / `-i` and `--app-id-override` values consume even switch-looking payloads.

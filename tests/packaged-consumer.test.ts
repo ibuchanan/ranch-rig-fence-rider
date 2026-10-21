@@ -329,7 +329,7 @@ test.skipIf(!realSecretSpec)(
 );
 
 test.skipIf(!realSecretSpec)(
-  "installed controls-only consumer uses defaults, and overrides without dummy credentials",
+  "installed controls-only consumer uses defaults, refuses target options and needs no dummy credentials",
   async () => {
     const project = await packedConsumer();
     const example = await Bun.file(
@@ -357,27 +357,25 @@ test.skipIf(!realSecretSpec)(
         script: "install:forge",
         declarations:
           'FORGE_ENVIRONMENT = { description = "Target", default = "staging" }\n',
-        args: [
-          "--site",
-          "override.atlassian.net",
-          "--product",
-          "confluence",
-          "--environment",
-          "production",
-          "--verbose",
-        ],
+        args: ["--verbose"],
         expected: [
           "install",
           "--environment",
-          "production",
+          "staging",
           "--site",
-          "override.atlassian.net",
+          "synthetic.atlassian.net",
           "--product",
-          "confluence",
+          "jira",
           "--confirm-scopes",
           "--non-interactive",
           "--verbose",
         ],
+      },
+      {
+        script: "install:forge",
+        declarations: "",
+        args: ["--site", "override.atlassian.net"],
+        expected: null,
       },
       {
         script: "tunnel",
@@ -390,7 +388,7 @@ test.skipIf(!realSecretSpec)(
         script: "uninstall:forge",
         declarations:
           'MISSING = { description = "Full-profile requirement", required = true }\n',
-        args: ["--environment", "development"],
+        args: [],
         expected: null,
       },
     ]) {

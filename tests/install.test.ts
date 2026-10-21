@@ -35,11 +35,10 @@ test("configured installation resolves once and delegates only install with full
   expect(result.stderr).toBe("synthetic install warning\n");
 });
 
-test("configured installation overrides targets independently and preserves explicit upgrade policy", async () => {
+test("configured installation forwards Forge options and explicit upgrade policy untouched", async () => {
   const result = await runInstallation({
     args: [
       "--verbose",
-      "-sother.atlassian.net",
       "--upgrade",
       "code",
       "--confirm-scopes",
@@ -57,7 +56,7 @@ test("configured installation overrides targets independently and preserves expl
       "--environment",
       "staging",
       "--site",
-      "other.atlassian.net",
+      "synthetic.atlassian.net",
       "--product",
       "jira",
       "--verbose",
@@ -71,16 +70,22 @@ test("configured installation overrides targets independently and preserves expl
 
 test.each(
   [
-    ["--site", "--non-interactive"],
-    ["-eproduction", "--environment", "staging"],
+    ["--site", "other.atlassian.net"],
+    ["--site=other.atlassian.net"],
+    ["-sother.atlassian.net"],
+    ["-p", "confluence"],
+    ["-e", "production"],
+    ["--verbose", "--environment=production"],
   ].map((args) => ({ args })),
 )(
-  "configured installation rejects invalid or duplicate explicit targets %j before tools",
+  "configured installation refuses target options %j before any tool",
   async ({ args }) => {
     const result = await runInstallation({ args });
     expect(result.exitCode).toBe(1);
     expect(result.interactions).toEqual([]);
-    expect(result.stderr).toContain("installation option validation");
+    expect(result.stderr).toContain(
+      "installation option validation (target options are not accepted",
+    );
   },
 );
 

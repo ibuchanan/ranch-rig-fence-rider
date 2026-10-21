@@ -487,3 +487,18 @@ the whole-profile export. The earlier entries describing `extends` rejection,
 single-file limits, and one-resolution claims record superseded behavior.
 Native checks against SecretSpec 0.21.1 with synthetic dotenv values observed
 the scoped report and the undefined-scope error.
+
+## Install targets from the profile only — 2026-10-21
+
+`fence-rider install` and `fence-rider uninstall` no longer accept the
+wrapper-owned `-e`/`--environment`, `-s`/`--site` and `-p`/`--product` options.
+They are recognized only to be refused, before SecretSpec or Forge is called.
+Targets come from the resolved `FORGE_ENVIRONMENT` (else `development`),
+`FORGE_SITE` and `FORGE_PRODUCT`, each nonempty and not starting with `-`, and
+Forge is invoked as `forge <command> --environment E --site S --product P`
+followed by the forwarded arguments. Someone needing explicit control runs
+`secretspec` and `forge` directly; `secretspec run` does not clear stale ambient
+values for unresolved optional declarations, unlike Fence Rider. See
+[ADR 0004](../adr/0004-install-targets-from-profile-only.md). Earlier entries
+describing independent target overrides record superseded behavior. This change
+was documented only; the test and source updates are recorded elsewhere.
