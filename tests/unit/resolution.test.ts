@@ -8,7 +8,7 @@ import {
 import {
   deploymentSchema,
   deploymentValues,
-  sharedValue,
+  hostileValue,
 } from "../support/fixtures.ts";
 
 describe("scope membership", () => {
@@ -105,7 +105,7 @@ describe("native schema and export output", () => {
         ...deploymentSchema,
         properties: {
           ...deploymentSchema.properties,
-          [sharedValue]: { type: "string" },
+          [hostileValue]: { type: "string" },
         },
       },
     },
@@ -116,7 +116,7 @@ describe("native schema and export output", () => {
   test.each([
     { name: "null export", exported: null },
     { name: "array export", exported: [] },
-    { name: "string export", exported: sharedValue },
+    { name: "string export", exported: hostileValue },
   ])("malformed export: $name is rejected", ({ exported }) => {
     expect(() => parseResolved(deploymentSchema, exported)).toThrow(
       "Malformed export output",
@@ -127,9 +127,9 @@ describe("native schema and export output", () => {
     { name: "null", value: null },
     { name: "number zero", value: 0 },
     { name: "boolean false", value: false },
-    { name: "array", value: [sharedValue] },
-    { name: "object", value: { secret: sharedValue } },
-    { name: "NUL", value: `before\u0000${sharedValue}` },
+    { name: "array", value: [hostileValue] },
+    { name: "object", value: { secret: hostileValue } },
+    { name: "NUL", value: `before\u0000${hostileValue}` },
   ])("resolved value $name is rejected", ({ value }) => {
     expect(() =>
       parseResolved(deploymentSchema, { ...deploymentValues, OPTIONAL: value }),
@@ -140,7 +140,7 @@ describe("native schema and export output", () => {
     expect(() =>
       parseResolved(deploymentSchema, {
         ...deploymentValues,
-        UNDECLARED: sharedValue,
+        UNDECLARED: hostileValue,
       }),
     ).toThrow("not in the schema");
   });

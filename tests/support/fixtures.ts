@@ -10,10 +10,11 @@ import { cli } from "./cli.ts";
 import {
   expectNoInjectedFile,
   expectNoSecretInOutput,
+  hostileValue,
   sharedValue,
 } from "./guarantees.ts";
 
-export { sharedValue };
+export { hostileValue, sharedValue };
 
 export const deploymentSpec = `[project]
 name = "fence-rider-test"
@@ -141,10 +142,10 @@ if (scripted.includes(args[0])) {
     console.log("ordinary:" + process.env.ORDINARY_SETTING);
     console.log("auth:" + process.env.FORGE_API_TOKEN);
   });
-} else console.error("synthetic helper noise: " + ${JSON.stringify(sharedValue)});
+} else console.error("synthetic helper noise: " + ${JSON.stringify(hostileValue)});
 if (fixture.failStage === args[0] && (!fixture.failKey || fixture.failKey === args[5])) {
-  if (!scripted.includes(args[0])) console.log(${JSON.stringify(sharedValue)});
-  if (fixture.failureMode === "throw") throw new Error("synthetic error details: " + ${JSON.stringify(sharedValue)});
+  if (!scripted.includes(args[0])) console.log(${JSON.stringify(hostileValue)});
+  if (fixture.failureMode === "throw") throw new Error("synthetic error details: " + ${JSON.stringify(hostileValue)});
   if (fixture.failureMode === "signal") process.kill(process.pid, "SIGTERM");
   else process.exit(fixture.exitCode ?? 23);
 }
@@ -152,7 +153,7 @@ if (fixture.blockStage === args[0]) {
   if (fixture.spawnDescendant) Bun.spawn([process.execPath, "-e", 'process.on("SIGINT", () => {}); process.on("SIGTERM", () => {}); require("node:fs").writeFileSync("descendant-ready", String(process.pid)); setInterval(() => {}, 1000);'], { stdin: "ignore", stdout: "ignore", stderr: "ignore" });
   for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {
     writeFileSync("received-signal", signal);
-    console.error(scripted.includes(args[0]) ? "synthetic " + args[0] + " interrupted" : "synthetic signal error: " + ${JSON.stringify(sharedValue)});
+    console.error(scripted.includes(args[0]) ? "synthetic " + args[0] + " interrupted" : "synthetic signal error: " + ${JSON.stringify(hostileValue)});
     if (!fixture.ignoreSignal) process.exit(0);
   });
   setInterval(() => {}, 1000);
@@ -237,7 +238,7 @@ function prepareTools(project: string, options: WorkflowOptions) {
     if (options.launchTool === tool)
       writeFileSync(
         join(bin, tool),
-        `#!${join(project, "missing-interpreter")}\n${sharedValue}\n`,
+        `#!${join(project, "missing-interpreter")}\n${hostileValue}\n`,
         { mode: 0o755 },
       );
     else symlinkSync(sharedTool(tool), join(bin, tool));

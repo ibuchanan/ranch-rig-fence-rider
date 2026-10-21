@@ -3,7 +3,7 @@ import {
   deploymentSchema,
   deploymentSpec,
   deploymentValues,
-  sharedValue,
+  hostileValue,
 } from "../support/fixtures.ts";
 import { runInProcess } from "../support/fake-io.ts";
 
@@ -21,9 +21,9 @@ test.each([
       },
     },
   },
-  { name: "string export", options: { values: sharedValue } },
-  { name: "broken schema JSON", options: { schemaOutput: `{${sharedValue}` } },
-  { name: "broken export JSON", options: { exportOutput: `{${sharedValue}` } },
+  { name: "string export", options: { values: hostileValue } },
+  { name: "broken schema JSON", options: { schemaOutput: `{${hostileValue}` } },
+  { name: "broken export JSON", options: { exportOutput: `{${hostileValue}` } },
 ])(
   "malformed native output: $name stops before all Forge commands",
   async ({ options }) => {
@@ -44,7 +44,7 @@ test.each([
 test("preflight failures retain a validated explicit target without leaking invalid values", async () => {
   const result = await runInProcess({
     args: ["-e", "production"],
-    values: { ...deploymentValues, OPTIONAL: { secret: sharedValue } },
+    values: { ...deploymentValues, OPTIONAL: { secret: hostileValue } },
   });
   expect(result.exitCode).not.toBe(0);
   expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
@@ -57,11 +57,11 @@ test("preflight failures retain a validated explicit target without leaking inva
 test.each([
   {
     name: "non-string value",
-    values: { ...deploymentValues, OPTIONAL: { secret: sharedValue } },
+    values: { ...deploymentValues, OPTIONAL: { secret: hostileValue } },
   },
   {
     name: "missing required declaration",
-    values: { FORGE_ENVIRONMENT: "staging", SHARED: sharedValue },
+    values: { FORGE_ENVIRONMENT: "staging", SHARED: hostileValue },
   },
   {
     name: "NUL byte in value",
@@ -69,7 +69,7 @@ test.each([
   },
   {
     name: "undeclared value",
-    values: { ...deploymentValues, UNDECLARED: sharedValue },
+    values: { ...deploymentValues, UNDECLARED: hostileValue },
   },
   {
     name: "option-like target",
@@ -138,7 +138,7 @@ test.each([
 });
 
 test.each([
-  { name: "object", value: { secret: sharedValue } },
+  { name: "object", value: { secret: hostileValue } },
   { name: "empty runtime", value: "" },
 ])(
   "late invalid runtime value: $name prevents the earlier valid upload",
@@ -183,7 +183,7 @@ test("omitted manifest scope does not require a manifest file or suppress local 
 });
 
 test.each([
-  { name: "invalid TOML", spec: `not valid TOML ${sharedValue}` },
+  { name: "invalid TOML", spec: `not valid TOML ${hostileValue}` },
   { name: "missing specification", env: { SECRETSPEC_FILE: "missing.toml" } },
 ])(
   "invalid configuration: $name fails with secret-safe diagnostics",

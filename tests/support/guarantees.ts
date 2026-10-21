@@ -1,9 +1,15 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-/** A synthetic secret value that no output or stray file may ever contain. */
-export const sharedValue =
-  "synthetic shared FENCE_RIDER_SYNTHETIC_SECRET_06 \"quoted\" 'value'\n$HOME; $(touch injected); `id`";
+/** The ordinary synthetic secret every fixture uses unless a test asks for more. */
+export const sharedValue = "synthetic shared FENCE_RIDER_SYNTHETIC_SECRET_06";
+
+/**
+ * A secret carrying quotes, a newline and shell syntax. Only the tests about
+ * quoting, injection and leaks request it. It contains sharedValue, so the
+ * leak guarantee catches either form.
+ */
+export const hostileValue = `${sharedValue} "quoted" 'value'\n$HOME; $(touch injected); \`id\``;
 
 /**
  * The suite's two strongest guarantees as named assertions. Runners apply the
@@ -16,7 +22,7 @@ export function expectNoSecretInOutput(
   invocation: string,
   output: { stdout: string; stderr: string },
 ) {
-  const secretMarkers = [sharedValue, "FENCE_RIDER_SYNTHETIC_SECRET_06"];
+  const secretMarkers = [hostileValue, sharedValue];
   for (const [stream, text] of Object.entries(output)) {
     const leaked = secretMarkers.find((marker) => text.includes(marker));
     if (leaked !== undefined)

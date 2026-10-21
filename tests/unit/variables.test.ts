@@ -3,6 +3,7 @@ import {
   deploymentSchema,
   deploymentSpec,
   deploymentValues,
+  hostileValue,
   sharedValue,
 } from "../support/fixtures.ts";
 import { runInProcess } from "../support/fake-io.ts";
@@ -54,6 +55,15 @@ test("variables resolves once and encrypts only runtime values for the configure
       .map(({ values }) => values),
   ).toEqual([deploymentValues]);
   expect(result.stdout + result.stderr).not.toContain("synthetic local-only");
+});
+
+test("a value with quotes, a newline and shell syntax is uploaded verbatim", async () => {
+  const result = await runInProcess({
+    values: { ...deploymentValues, SHARED: hostileValue },
+  });
+  expect(result.exitCode).toBe(0);
+  const upload = result.interactions.find(({ tool }) => tool === "forge");
+  expect(upload?.args.at(-1)).toBe(hostileValue);
 });
 
 test.each(["FORGE_ENVIRONMENT", "FORGE_SITE", "FORGE_PRODUCT"])(

@@ -3,6 +3,7 @@ import { readdirSync } from "node:fs";
 import { useBuiltCli } from "../support/cli.ts";
 import {
   deploymentValues,
+  hostileValue,
   runWorkflow,
   sharedValue,
 } from "../support/fixtures.ts";
@@ -41,6 +42,16 @@ test("variables resolves once and encrypts only runtime values through real help
     "secretspec.toml",
     "tool-calls",
   ]);
+});
+
+test("a value with quotes, a newline and shell syntax reaches Forge as one argument and runs nothing", async () => {
+  const result = await runWorkflow({
+    values: { ...deploymentValues, SHARED: hostileValue },
+  });
+  expect(result.exitCode).toBe(0);
+  const upload = result.interactions.find(({ tool }) => tool === "forge");
+  expect(upload?.args.at(-1)).toBe(hostileValue);
+  expect(readdirSync(result.project)).not.toContain("injected");
 });
 
 test.each(["secretspec", "forge"])(

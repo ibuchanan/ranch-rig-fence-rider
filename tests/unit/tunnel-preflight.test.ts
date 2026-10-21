@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import {
   deploymentSpec,
-  sharedValue,
+  hostileValue,
   type ToolCall,
 } from "../support/fixtures.ts";
 import { runInProcess } from "../support/fake-io.ts";
@@ -43,7 +43,7 @@ test.each([
     expect(result.stderr).toContain(stage);
     expect(result.stderr).toContain("No further commands were run");
     expect(result.stderr).not.toContain("synthetic helper noise");
-    expect(result.stderr).not.toContain(sharedValue);
+    expect(result.stderr).not.toContain(hostileValue);
     expect(result.stderr).not.toContain(
       "Remote variables may already have changed",
     );
