@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -15,32 +16,50 @@ export const root = fileURLToPath(new URL("../../", import.meta.url));
 // parallel worker processes without sharing a cwd or any other mutable state.
 export const cli = { workspace: "", executable: "" };
 
+// The compiled binary is built once per source revision and shared by every
+// test file and worker. Concurrent workers race benignly: each builds to a
+// private path and renames atomically, so the shared path is never partial.
+async function sharedExecutable() {
+  const hash = new Bun.CryptoHasher("sha256").update(Bun.version);
+  for (const file of [...new Bun.Glob("src/**/*.ts").scanSync(root)].sort())
+    hash.update(file).update(await Bun.file(join(root, file)).bytes());
+  const dir = join(root, "node_modules/.cache/fence-rider-test");
+  const executable = join(
+    dir,
+    `fence-rider-${hash.digest("hex").slice(0, 16)}`,
+  );
+  if (existsSync(executable)) return executable;
+
+  mkdirSync(dir, { recursive: true });
+  const pending = `${executable}.${process.pid}.tmp`;
+  const build = Bun.spawn(
+    [
+      process.execPath,
+      "build",
+      "--compile",
+      join(root, "src/index.ts"),
+      "--outfile",
+      pending,
+    ],
+    { cwd: dir, stdout: "pipe", stderr: "pipe" },
+  );
+  const [exitCode, stdout, stderr] = await Promise.all([
+    build.exited,
+    new Response(build.stdout).text(),
+    new Response(build.stderr).text(),
+  ]);
+  expect({ exitCode, stderr: exitCode === 0 ? "" : stdout + stderr }).toEqual({
+    exitCode: 0,
+    stderr: "",
+  });
+  renameSync(pending, executable);
+  return executable;
+}
+
 export function useBuiltCli() {
   beforeAll(async () => {
     cli.workspace = mkdtempSync(join(root, "tmp_rovo_cli-"));
-    cli.executable = join(cli.workspace, "fence-rider");
-    const build = Bun.spawn(
-      [
-        process.execPath,
-        "build",
-        "--compile",
-        join(root, "src/index.ts"),
-        "--outfile",
-        cli.executable,
-      ],
-      { cwd: cli.workspace, stdout: "pipe", stderr: "pipe" },
-    );
-    const [exitCode, stdout, stderr] = await Promise.all([
-      build.exited,
-      new Response(build.stdout).text(),
-      new Response(build.stderr).text(),
-    ]);
-    expect({ exitCode, stderr: exitCode === 0 ? "" : stdout + stderr }).toEqual(
-      {
-        exitCode: 0,
-        stderr: "",
-      },
-    );
+    cli.executable = await sharedExecutable();
   }, 60_000);
 
   afterAll(() => rmSync(cli.workspace, { recursive: true, force: true }));
