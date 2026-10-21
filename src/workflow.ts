@@ -1,3 +1,4 @@
+import type { Io } from "./io";
 import {
   CommandFailure,
   signalExitCode,
@@ -22,6 +23,7 @@ export function describeStage({ stage, target }: Workflow) {
 /** Run one configured workflow: own signals, disposal, failure report and exit status. */
 export async function runWorkflow(
   body: (workflow: Workflow) => Promise<void>,
+  io: Io,
 ): Promise<number> {
   const interruption = workflowInterruption();
   const workflow: Workflow = {
@@ -36,7 +38,7 @@ export async function runWorkflow(
     const warning = workflow.uploadAttempted
       ? " Remote variables may already have changed; no rollback was attempted."
       : "";
-    console.error(
+    io.err(
       `Fence Rider: ${describeStage(workflow)} failed${detail}. No further commands were run.${warning}`,
     );
     if (workflow.signal.aborted) return signalExitCode(workflow.signal.reason);

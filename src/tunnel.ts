@@ -1,4 +1,5 @@
 import { runtimeNames } from "./configured";
+import type { Io } from "./io";
 import { forgeUnderSecretSpec } from "./shell";
 import { parseTunnelOptions, tunnelPrologue } from "./tunnel-plan";
 import { runWorkflow } from "./workflow";
@@ -15,17 +16,17 @@ export const tunnelUsage = [
 ].join("\n");
 
 /** Print the script that runs forge tunnel with the runtime members mapped, or the usage text for help. */
-export async function tunnel(args: string[]): Promise<number> {
+export async function tunnel(args: string[], io: Io): Promise<number> {
   return runWorkflow(async (workflow) => {
     workflow.stage = "tunnel option validation";
     const options = parseTunnelOptions(args);
     if (options.help) {
-      console.log(tunnelUsage);
+      io.out(tunnelUsage);
       return;
     }
     const { declared, runtime } = await runtimeNames(workflow);
     workflow.stage = "tunnel runtime selection validation";
-    console.log(
+    io.out(
       forgeUnderSecretSpec({
         command: "tunnel",
         forwarded: options.forwarded,
@@ -33,5 +34,5 @@ export async function tunnel(args: string[]): Promise<number> {
         prologue: tunnelPrologue(declared, runtime),
       }),
     );
-  });
+  }, io);
 }

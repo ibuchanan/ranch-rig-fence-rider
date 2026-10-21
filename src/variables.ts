@@ -1,4 +1,5 @@
 import { checkManifest, configure } from "./configured";
+import type { Io } from "./io";
 import { capture } from "./process";
 import { parseTargetOptions, validateTarget } from "./target";
 import { planUploads, type Upload } from "./variables-plan";
@@ -18,11 +19,12 @@ async function upload(
   uploads: Upload[],
   env: NodeJS.ProcessEnv,
   workflow: Workflow,
+  io: Io,
 ) {
   for (const { key, args } of uploads) {
     workflow.stage = `encrypted upload for ${key}`;
     workflow.uploadAttempted = true;
-    console.log(`Fence Rider: ${describeStage(workflow)}.`);
+    io.out(`Fence Rider: ${describeStage(workflow)}.`);
     await capture(tool, args, workflow.signal, env);
   }
 }
@@ -30,6 +32,7 @@ async function upload(
 async function performUpload(
   options: ReturnType<typeof parseTargetOptions>,
   workflow: Workflow,
+  io: Io,
 ) {
   if (options.explicitTarget !== undefined)
     workflow.target = options.explicitTarget;
@@ -45,21 +48,21 @@ async function performUpload(
   workflow.stage =
     "runtime selection validation (local controls, empty and leading-dash upload values unsupported)";
   const uploads = planUploads({ target, runtime, values });
-  await upload(forge, uploads, env, workflow);
-  console.log(`Uploaded ${uploads.length} runtime variable(s).`);
+  await upload(forge, uploads, env, workflow, io);
+  io.out(`Uploaded ${uploads.length} runtime variable(s).`);
 }
 
 /** Encrypt and upload the runtime values for one environment, with secret-safe diagnostics. */
-export async function variables(args: string[]): Promise<number> {
+export async function variables(args: string[], io: Io): Promise<number> {
   return runWorkflow(async (workflow) => {
     workflow.stage = "environment option validation";
     const options = parseTargetOptions(args);
     if (options.help) {
-      console.log(variablesUsage);
+      io.out(variablesUsage);
       return;
     }
     if (options.forwarded.length)
       throw new Error("Forge options are not accepted");
-    await performUpload(options, workflow);
-  });
+    await performUpload(options, workflow, io);
+  }, io);
 }

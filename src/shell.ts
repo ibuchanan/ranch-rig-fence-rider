@@ -1,3 +1,5 @@
+import type { Io } from "./io";
+
 /** Build the shell scripts that `fence-rider lint|deploy|tunnel|install|uninstall` print for a package script to run. */
 
 /** One word quoted for POSIX sh; plain words stay readable. */
@@ -100,14 +102,12 @@ export function forgeUnderSecretSpec(options: {
 }
 
 /** Print a script on stdout, or the reason on stderr with no stdout so a guarded eval stops. */
-export function emit(build: () => string) {
+export function emit(build: () => string, io: Io) {
   try {
-    console.log(build());
+    io.out(build());
     return 0;
   } catch (error) {
-    console.error(
-      `Fence Rider: ${error instanceof Error ? error.message : error}`,
-    );
+    io.err(`Fence Rider: ${error instanceof Error ? error.message : error}`);
     return 1;
   }
 }

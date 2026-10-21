@@ -1,4 +1,5 @@
 import { type InstallCommand, parseInstallOptions } from "./install-plan";
+import type { Io } from "./io";
 import { emit, forgeUnderSecretSpec } from "./shell";
 
 const installPolicy = {
@@ -38,7 +39,8 @@ export function installScript(args: string[], command: InstallCommand) {
 /** Print what installScript builds. */
 export function install(
   args: string[],
+  io: Io,
   command: InstallCommand = "install",
 ): number {
-  return emit(() => installScript(args, command));
+  return emit(() => installScript(args, command), io);
 }

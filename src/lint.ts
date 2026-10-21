@@ -1,4 +1,5 @@
 import { type CommandSpec, parseForgeArgs } from "./forge-args";
+import type { Io } from "./io";
 import { emit, underSecretSpec } from "./shell";
 
 export const lintUsage = [
@@ -25,6 +26,6 @@ export function lintScript(args: string[]) {
 }
 
 /** Print what lintScript builds. */
-export function lint(args: string[]): number {
-  return emit(() => lintScript(args));
+export function lint(args: string[], io: Io): number {
+  return emit(() => lintScript(args), io);
 }

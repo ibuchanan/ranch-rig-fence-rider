@@ -1,9 +1,8 @@
 import { expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { root, runCli, useBuiltCli } from "./support/cli.ts";
-
-useBuiltCli();
+import { root } from "../support/cli.ts";
+import { runMain } from "../support/main.ts";
 
 const commands = [
   "deploy",
@@ -30,7 +29,7 @@ function markdownFiles(directory: string): string[] {
 test.each(commands)(
   "the command help page embeds the CLI help for %s verbatim",
   async (command) => {
-    const help = await runCli(["help", command], true);
+    const help = await runMain(["help", command]);
     const page = readFileSync(helpPage, "utf8");
     expect(page).toContain(`\`\`\`text\n${help.stdout.trimEnd()}\n\`\`\``);
   },
@@ -39,7 +38,7 @@ test.each(commands)(
 test("usage text lives only in the command help page", async () => {
   const others = markdownFiles(docsRoot).filter((file) => file !== helpPage);
   for (const command of commands) {
-    const help = await runCli(["help", command], true);
+    const help = await runMain(["help", command]);
     for (const line of help.stdout.trimEnd().split("\n")) {
       for (const file of others)
         expect(readFileSync(file, "utf8").replace(/\s+/g, " ")).not.toContain(

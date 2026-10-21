@@ -1,3 +1,4 @@
+import type { Io } from "./io";
 import { emit, forgeUnderSecretSpec } from "./shell";
 import { parseTargetOptions } from "./target";
 
@@ -23,6 +24,6 @@ export function deployScript(args: string[]) {
 }
 
 /** Print what deployScript builds. */
-export function deploy(args: string[]): number {
-  return emit(() => deployScript(args));
+export function deploy(args: string[], io: Io): number {
+  return emit(() => deployScript(args), io);
 }

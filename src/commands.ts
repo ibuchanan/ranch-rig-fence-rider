@@ -1,6 +1,7 @@
 import { deploy, deployUsage } from "./deploy";
 import { doctor, doctorUsage } from "./doctor";
 import { install, installUsage } from "./install";
+import type { Io } from "./io";
 import { lint, lintUsage } from "./lint";
 import { tunnel, tunnelUsage } from "./tunnel";
 import { variables, variablesUsage } from "./variables";
@@ -11,12 +12,12 @@ type Command = {
   summary?: string;
   usage: string;
   /** Receives the arguments after the command name; returns the exit code. */
-  run: (args: string[]) => number | Promise<number>;
+  run: (args: string[], io: Io) => number | Promise<number>;
 };
 
 /** The one error for any invocation the command table cannot resolve. */
-export function unknownInvocation() {
-  console.error(
+export function unknownInvocation(io: Io) {
+  io.err(
     "Unknown command or unsupported arguments. Run fence-rider --help for usage, or use the Forge CLI directly.",
   );
   return 1;
@@ -49,12 +50,12 @@ const commands: Record<string, Command> = {
     summary:
       "Prints a script for installation or --upgrade under secretspec run",
     usage: installUsage("install"),
-    run: (args) => install(args, "install"),
+    run: (args, io) => install(args, io, "install"),
   },
   uninstall: {
     summary: "Prints a script for removal; changes remote installation state",
     usage: installUsage("uninstall"),
-    run: (args) => install(args, "uninstall"),
+    run: (args, io) => install(args, io, "uninstall"),
   },
   tunnel: {
     summary:
@@ -65,7 +66,7 @@ const commands: Record<string, Command> = {
   doctor: {
     summary: "Check SecretSpec and Forge versions against the tested range",
     usage: doctorUsage,
-    run: async (args) => (args.length ? unknownInvocation() : doctor()),
+    run: async (args, io) => (args.length ? unknownInvocation(io) : doctor(io)),
   },
 };
 

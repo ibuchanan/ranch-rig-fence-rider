@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { checkManifest, scopeMembers } from "./configured";
+import type { Io } from "./io";
 import { capture } from "./process";
 import { recognizedScopes, unrecognizedScopes } from "./resolution";
 
@@ -153,8 +154,8 @@ async function inspectAll() {
 }
 
 /** Report each external tool's version against its supported range, then check the configuration. */
-export async function doctor(): Promise<number> {
+export async function doctor(io: Io): Promise<number> {
   const { lines, failed } = await inspectAll();
-  for (const line of lines) console.log(line);
+  for (const line of lines) io.out(line);
   return failed ? 1 : 0;
 }
