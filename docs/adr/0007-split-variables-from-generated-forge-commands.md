@@ -65,6 +65,36 @@ named for uploading hides that the upload is the risky part.
 Mirrors `forge variables set` and `forge deploy`, leaves one Bun workflow that
 handles values, and makes the other four forge commands pure string generators.
 
+### 5. Re-entrant `variables --apply` under `secretspec run` (rejected)
+
+`forge variables set` takes one key and one value per invocation, so there is no
+batching to exploit. `variables` could print `exec secretspec run --scope
+runtime -- fence-rider variables --apply …` with the runtime names baked in, as
+`tunnel` does, and read the values from its own environment. That would drop the
+`schema` and `export` parsing and keep the validation in `planUploads`.
+
+It trades one residual for others, and none of them keep SecretSpec
+authoritative:
+
+- The names come from `secretspec check --json --scope runtime` and the values
+  from `secretspec run`. If the two disagree on a scope's members, a name with no
+  value is skipped as an absent optional member, and the run ends with
+  `Uploaded 0 runtime variable(s).` and exit 0. Today an omitted key in the
+  `export` JSON is SecretSpec saying the value is unresolved; in the environment
+  the same absence can also mean SecretSpec delivered nothing.
+- It depends on `run` injecting plain environment variables named after the keys,
+  leaving the working directory and `PATH` alone, allowing a nested `check`, and
+  not exporting a marker such as `SECRETSPEC_SCOPE` to the child. A change to any
+  of them breaks it, and several of those breaks are silent.
+- `secretspec run` leaves ambient values for unresolved optional declarations, so
+  an exported variable could be uploaded where the baseline skips it. Restoring
+  the clearing puts back the code the option was meant to remove.
+- It still holds values in a Bun process that forwards signals to Forge, and it
+  makes about as many SecretSpec resolutions as option 4.
+
+Option 4 asks SecretSpec once for the resolved profile and treats an omitted key
+as unresolved, so that stays.
+
 ## Consequences
 
 - ADR 0006's deferral of generating all five commands is superseded in part:
