@@ -33,7 +33,8 @@ bun run build
 
 `doctor` checks that SecretSpec and Forge are installed and in the tested range.
 Both must be on `PATH`, and Forge must be authenticated; Fence Rider installs
-neither and logs in to neither.
+neither and logs in to neither. To build a Forge app's full set of package
+scripts step by step, follow the [tutorial](docs/tutorials/tutorial.md).
 
 ## Use it in a Forge app
 
