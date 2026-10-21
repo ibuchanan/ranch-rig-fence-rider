@@ -4,6 +4,7 @@ import {
   deploymentSpec,
   deploymentValues,
   sharedValue,
+  standardSpec,
 } from "../support/fixtures.ts";
 import { runInProcess } from "../support/fake-io.ts";
 
@@ -105,10 +106,10 @@ test.each([
 
 test("site and product defaults stay local and are never uploaded", async () => {
   const result = await runInProcess({
-    spec: deploymentSpec.replace(
-      "[profiles.default]",
-      "[profiles.default]\nFORGE_SITE = { required = true }\nFORGE_PRODUCT = { required = true }",
-    ),
+    spec: standardSpec
+      .declare("FORGE_SITE", { required: true })
+      .declare("FORGE_PRODUCT", { required: true })
+      .build(),
     schema: {
       ...deploymentSchema,
       properties: {

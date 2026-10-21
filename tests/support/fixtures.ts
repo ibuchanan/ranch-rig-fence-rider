@@ -13,22 +13,14 @@ import {
   hostileValue,
   sharedValue,
 } from "./guarantees.ts";
+import { SpecBuilder } from "./spec.ts";
 
-export { hostileValue, sharedValue };
+export { hostileValue, SpecBuilder, sharedValue };
 
-export const deploymentSpec = `[project]
-name = "fence-rider-test"
-revision = "1.0"
+/** The spec most tests use. Tests that need a variation build it from this. */
+export const standardSpec = SpecBuilder.standard();
 
-[profiles.default]
-FORGE_ENVIRONMENT = { description = "Deployment target", default = "staging" }
-SHARED = { description = "Shared application value", required = true }
-LOCAL_ONLY = { description = "Local application value", required = true }
-OPTIONAL = { description = "Absent optional value", required = false }
-
-[scopes.runtime]
-secrets = ["SHARED", "OPTIONAL"]
-`;
+export const deploymentSpec = standardSpec.build();
 
 export const deploymentValues = {
   FORGE_ENVIRONMENT: "staging",
@@ -311,10 +303,15 @@ export async function runWorkflow(options: WorkflowOptions = {}) {
   }
 }
 
-export const installationSpec = deploymentSpec.replace(
-  "[profiles.default]",
-  '[profiles.default]\nFORGE_SITE = { description = "Installation site", default = "synthetic.atlassian.net" }\nFORGE_PRODUCT = { description = "Installation product", default = "jira" }',
-);
+export const installationSpec = standardSpec
+  .declare("FORGE_SITE", {
+    description: "Installation site",
+    default: "synthetic.atlassian.net",
+  })
+  .declare("FORGE_PRODUCT", {
+    description: "Installation product",
+    default: "jira",
+  });
 
 const installationSchema = {
   ...deploymentSchema,
@@ -332,7 +329,7 @@ const installationValues = {
 };
 
 const installationOptions = {
-  spec: installationSpec,
+  spec: installationSpec.build(),
   schema: installationSchema,
   values: installationValues,
 };

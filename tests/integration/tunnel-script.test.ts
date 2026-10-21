@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { readdirSync } from "node:fs";
 import { useBuiltCli } from "../support/cli.ts";
 import {
-  deploymentSpec,
+  standardSpec,
   deploymentValues,
   runScript,
   sharedValue,
@@ -131,8 +131,11 @@ test.each(["-x"])(
 );
 
 test.each([
-  deploymentSpec.split("[scopes.runtime]")[0] ?? "",
-  `${deploymentSpec.replace('["SHARED", "OPTIONAL"]', '["OTHER"]')}\n[profiles.other]\nOTHER = { description = "Other profile" }\n`,
+  standardSpec.dropScope("runtime").build(),
+  standardSpec
+    .setMembers("runtime", ["OTHER"])
+    .profile("other", { OTHER: { description: "Other profile" } })
+    .build(),
 ])(
   "tunnel without effective runtime members injects nothing and strips ambient prefixed values",
   async (spec) => {

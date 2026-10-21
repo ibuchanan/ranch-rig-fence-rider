@@ -5,6 +5,7 @@ import {
   deploymentSpec,
   realSecretSpec,
   runWorkflow,
+  standardSpec,
 } from "../support/fixtures.ts";
 
 useBuiltCli();
@@ -14,7 +15,9 @@ test.skipIf(!realSecretSpec)(
   async () => {
     const result = await runWorkflow({
       realSecretSpec: realSecretSpec ?? "",
-      spec: deploymentSpec.replace('default = "staging"', "required = true"),
+      spec: standardSpec
+        .modify("FORGE_ENVIRONMENT", { default: undefined, required: true })
+        .build(),
       args: ["-e", "production"],
       env: {
         SECRETSPEC_PROVIDER: "dotenv:values.env",
@@ -37,7 +40,7 @@ test.skipIf(!realSecretSpec)(
   async () => {
     const result = await runWorkflow({
       realSecretSpec: realSecretSpec ?? "",
-      spec: `${deploymentSpec}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`,
+      spec: standardSpec.addScope("manifest", ["SHARED"]).build(),
       manifest: "environment:\n  variables: [SHARED]\n",
       schema: deploymentSchema,
       env: { SECRETSPEC_PROVIDER: "dotenv:values.env" },
@@ -108,7 +111,14 @@ test.skipIf(!realSecretSpec)(
   async () => {
     const result = await runWorkflow({
       realSecretSpec: realSecretSpec ?? "",
-      spec: `${deploymentSpec}\n[profiles.release]\nFORGE_ENVIRONMENT = { description = "Release target", default = "production" }\n`,
+      spec: standardSpec
+        .profile("release", {
+          FORGE_ENVIRONMENT: {
+            description: "Release target",
+            default: "production",
+          },
+        })
+        .build(),
       env: {
         SECRETSPEC_PROVIDER: "dotenv:values.env",
         SECRETSPEC_PROFILE: "release",
@@ -139,7 +149,19 @@ test.skipIf(!realSecretSpec)(
   async () => {
     const result = await runWorkflow({
       realSecretSpec: realSecretSpec ?? "",
-      spec: `${deploymentSpec}\n[profiles.release.defaults]\ninherit = false\n[profiles.release]\nFORGE_ENVIRONMENT = { description = "Standalone target", default = "production" }\nLOCAL_ONLY = { description = "Standalone value", required = true }\n`,
+      spec: standardSpec
+        .profile(
+          "release",
+          {
+            FORGE_ENVIRONMENT: {
+              description: "Standalone target",
+              default: "production",
+            },
+            LOCAL_ONLY: { description: "Standalone value", required: true },
+          },
+          false,
+        )
+        .build(),
       env: {
         SECRETSPEC_PROVIDER: "dotenv:values.env",
         SECRETSPEC_PROFILE: "release",
@@ -224,33 +246,27 @@ test.skipIf(!realSecretSpec).each([
 test.skipIf(!realSecretSpec).each([
   {
     name: "empty extends",
-    spec: deploymentSpec.replace(
-      'revision = "1.0"',
-      'revision = "1.0"\nextends = []',
-    ),
+    spec: standardSpec.extending([]).build(),
     succeeds: true,
   },
   {
     name: "omitted runtime",
-    spec: deploymentSpec.split("[scopes.runtime]")[0] ?? "",
+    spec: standardSpec.dropScope("runtime").build(),
     succeeds: true,
   },
   {
     name: "numeric default",
-    spec: deploymentSpec.replace('default = "staging"', "default = 0"),
+    spec: standardSpec.modify("FORGE_ENVIRONMENT", { default: 0 }).build(),
     succeeds: false,
   },
   {
     name: "boolean default",
-    spec: deploymentSpec.replace('default = "staging"', "default = false"),
+    spec: standardSpec.modify("FORGE_ENVIRONMENT", { default: false }).build(),
     succeeds: false,
   },
   {
     name: "invalid native type",
-    spec: deploymentSpec.replace(
-      "required = false",
-      'required = false, type = "number"',
-    ),
+    spec: standardSpec.modify("OPTIONAL", { type: "number" }).build(),
     succeeds: false,
   },
   {
@@ -285,7 +301,7 @@ test.skipIf(!realSecretSpec).each([
 test.skipIf(!realSecretSpec).each([
   {
     name: "manifest requirement",
-    spec: `${deploymentSpec}\n[scopes.manifest]\nsecrets = ["LOCAL_ONLY"]\n`,
+    spec: standardSpec.addScope("manifest", ["LOCAL_ONLY"]).build(),
     provider: "dotenv:values.env",
     dotenv: "SHARED=synthetic-native-shared\n",
   },

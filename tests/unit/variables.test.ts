@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import {
   deploymentSchema,
-  deploymentSpec,
+  standardSpec,
   deploymentValues,
   hostileValue,
   sharedValue,
@@ -70,12 +70,12 @@ test.each(["FORGE_ENVIRONMENT", "FORGE_SITE", "FORGE_PRODUCT"])(
   "%s cannot be selected for upload even with an explicit target",
   async (control) => {
     const result = await runInProcess({
-      spec: deploymentSpec
-        .replace(
-          "[profiles.default]",
-          `[profiles.default]\n${control === "FORGE_ENVIRONMENT" ? "" : `${control} = { required = true }`}`,
-        )
-        .replace('["SHARED", "OPTIONAL"]', `["SHARED", "${control}"]`),
+      spec: (control === "FORGE_ENVIRONMENT"
+        ? standardSpec
+        : standardSpec.declare(control, { required: true })
+      )
+        .setMembers("runtime", ["SHARED", control])
+        .build(),
       schema: {
         ...deploymentSchema,
         properties: {
@@ -107,11 +107,16 @@ test("variables emits safe stage progress without forwarding helper streams", as
 test.each([
   {
     name: "omitted runtime scope",
-    spec: deploymentSpec.split("[scopes.runtime]")[0] ?? "",
+    spec: standardSpec.dropScope("runtime").build(),
   },
   {
     name: "empty active-profile intersection",
-    spec: `${deploymentSpec.replace('["SHARED", "OPTIONAL"]', '["OTHER_PROFILE_VALUE"]')}\n[profiles.other]\nOTHER_PROFILE_VALUE = { description = "Not active" }\n`,
+    spec: standardSpec
+      .setMembers("runtime", ["OTHER_PROFILE_VALUE"])
+      .profile("other", {
+        OTHER_PROFILE_VALUE: { description: "Not active" },
+      })
+      .build(),
   },
 ])("$name uploads nothing and deletes nothing", async ({ spec }) => {
   const result = await runInProcess({ spec });

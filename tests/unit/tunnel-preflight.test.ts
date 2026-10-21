@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import {
-  deploymentSpec,
+  standardSpec,
   hostileValue,
   type ToolCall,
 } from "../support/fixtures.ts";
@@ -13,7 +13,7 @@ test("tunnel leaves manifest declarations to doctor and never reads the manifest
   const result = await runInProcess({
     command: "tunnel",
     args: ["-edevelopment"],
-    spec: `${deploymentSpec}\n[scopes.manifest]\nsecrets = ["SHARED", "OPTIONAL"]\n`,
+    spec: standardSpec.addScope("manifest", ["SHARED", "OPTIONAL"]).build(),
     manifest: "environment:\n  variables: [SHARED]\n",
   });
   expect(result.exitCode).toBe(0);

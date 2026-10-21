@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { useBuiltCli } from "../support/cli.ts";
 import {
   deploymentSchema,
-  deploymentSpec,
+  standardSpec,
   realSecretSpec,
   runScript,
 } from "../support/fixtures.ts";
@@ -15,7 +15,7 @@ test.skipIf(!realSecretSpec).each(["SHARED", "LOCAL_ONLY"])(
     const result = await runScript({
       command: "lint",
       realSecretSpec: realSecretSpec ?? "",
-      spec: `${deploymentSpec}\n[scopes.manifest]\nsecrets = ["LOCAL_ONLY"]\n`,
+      spec: standardSpec.addScope("manifest", ["LOCAL_ONLY"]).build(),
       env: {
         SECRETSPEC_PROVIDER: "dotenv:values.env",
         SECRETSPEC_SCOPE: "manifest",
@@ -37,7 +37,15 @@ test.skipIf(!realSecretSpec).each(["SHARED", "LOCAL_ONLY"])(
 test.skipIf(!realSecretSpec)(
   "native lint script delivers the selected profile despite an ambient scope, and leaves an ambient optional visible",
   async () => {
-    const spec = `${deploymentSpec.replace("[scopes.runtime]", '[profiles.release]\nLOCAL_ONLY = { description = "Local override", default = "synthetic-release" }\n\n[scopes.runtime]')}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`;
+    const spec = standardSpec
+      .profile("release", {
+        LOCAL_ONLY: {
+          description: "Local override",
+          default: "synthetic-release",
+        },
+      })
+      .addScope("manifest", ["SHARED"])
+      .build();
     const result = await runScript({
       command: "lint",
       realSecretSpec: realSecretSpec ?? "",

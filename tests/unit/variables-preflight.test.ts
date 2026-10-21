@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import {
   deploymentSchema,
-  deploymentSpec,
+  standardSpec,
   deploymentValues,
   hostileValue,
 } from "../support/fixtures.ts";
@@ -88,7 +88,9 @@ test.each([
 );
 
 test("manifest scope checks declarations including absent optionals before uploads", async () => {
-  const spec = `${deploymentSpec}\n[scopes.manifest]\nsecrets = ["SHARED", "OPTIONAL"]\n`;
+  const spec = standardSpec
+    .addScope("manifest", ["SHARED", "OPTIONAL"])
+    .build();
   const mismatch = await runInProcess({
     spec,
     manifest: "environment:\n  variables:\n    - SHARED\n",
@@ -112,10 +114,9 @@ test.each([
   {
     name: "control variable in runtime scope",
     options: {
-      spec: deploymentSpec.replace(
-        '["SHARED", "OPTIONAL"]',
-        '["SHARED", "FORGE_ENVIRONMENT"]',
-      ),
+      spec: standardSpec
+        .setMembers("runtime", ["SHARED", "FORGE_ENVIRONMENT"])
+        .build(),
     },
   },
   {
@@ -164,7 +165,9 @@ test.each(
     const values: Record<string, unknown> = { ...deploymentValues };
     delete values[key];
     const result = await runInProcess({
-      spec: `${withRuntime ? deploymentSpec : deploymentSpec.split("[scopes.runtime]")[0]}\n[scopes.manifest]\nsecrets = ["LOCAL_ONLY"]\n`,
+      spec: (withRuntime ? standardSpec : standardSpec.dropScope("runtime"))
+        .addScope("manifest", ["LOCAL_ONLY"])
+        .build(),
       values,
       manifest: "environment:\n  variables: [LOCAL_ONLY]\n",
     });

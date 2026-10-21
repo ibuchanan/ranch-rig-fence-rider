@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import {
   deploymentSchema,
-  deploymentSpec,
+  standardSpec,
   deploymentValues,
   type ToolCall,
 } from "../support/fixtures.ts";
@@ -16,12 +16,12 @@ test.each(["FORGE_ENVIRONMENT", "FORGE_SITE", "FORGE_PRODUCT"])(
   async (control) => {
     const result = await runInProcess({
       command: "tunnel",
-      spec: deploymentSpec
-        .replace(
-          "[profiles.default]",
-          `[profiles.default]\n${control === "FORGE_ENVIRONMENT" ? "" : `${control} = { description = "Protected control" }`}`,
-        )
-        .replace('["SHARED", "OPTIONAL"]', `["SHARED", "${control}"]`),
+      spec: (control === "FORGE_ENVIRONMENT"
+        ? standardSpec
+        : standardSpec.declare(control, { description: "Protected control" })
+      )
+        .setMembers("runtime", ["SHARED", control])
+        .build(),
       schema: {
         ...deploymentSchema,
         properties: {
@@ -42,10 +42,9 @@ test("tunnel refuses reserved prefix declarations rather than losing local value
   const result = await runInProcess({
     command: "tunnel",
     args: ["-edevelopment"],
-    spec: deploymentSpec.replace(
-      "[profiles.default]",
-      '[profiles.default]\nFORGE_USER_VAR_LOCAL_ONLY = { description = "Collision" }',
-    ),
+    spec: standardSpec
+      .declare("FORGE_USER_VAR_LOCAL_ONLY", { description: "Collision" })
+      .build(),
     schema: {
       ...deploymentSchema,
       properties: {

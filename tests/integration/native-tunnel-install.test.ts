@@ -4,6 +4,8 @@ import {
   deploymentSchema,
   deploymentSpec,
   installationSpec,
+  SpecBuilder,
+  standardSpec,
   realSecretSpec,
   runScript,
 } from "../support/fixtures.ts";
@@ -82,7 +84,16 @@ test.skipIf(!realSecretSpec).each([
 test.skipIf(!realSecretSpec)(
   "native tunnel shares one inherited profile resolution with local manifest and runtime destinations",
   async () => {
-    const spec = `${deploymentSpec.replace("[scopes.runtime]", '[profiles.localdev]\nFORGE_ENVIRONMENT = { description = "Target", default = "development" }\nLOCAL_ONLY = { description = "Local override", default = "synthetic-local-dev" }\n\n[scopes.runtime]')}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`;
+    const spec = standardSpec
+      .profile("localdev", {
+        FORGE_ENVIRONMENT: { description: "Target", default: "development" },
+        LOCAL_ONLY: {
+          description: "Local override",
+          default: "synthetic-local-dev",
+        },
+      })
+      .addScope("manifest", ["SHARED"])
+      .build();
     const result = await runScript({
       command: "tunnel",
       realSecretSpec: realSecretSpec ?? "",
@@ -187,21 +198,21 @@ test.skipIf(!realSecretSpec).each(
   [
     {
       name: "canonical",
-      declarations: 'FORGE_ENVIRONMENT = { default = "staging" }',
+      control: { default: "staging" },
       target: "staging",
       args: [],
       pass: true,
     },
     {
       name: "unresolved optional environment keeps the exported value",
-      declarations: "FORGE_ENVIRONMENT = { required = false }",
+      control: { required: false },
       target: "stale",
       args: [],
       pass: true,
     },
     {
       name: "required environment",
-      declarations: "FORGE_ENVIRONMENT = { required = true }",
+      control: { required: true },
       target: "unused",
       args: [],
       pass: false,
@@ -214,11 +225,24 @@ test.skipIf(!realSecretSpec).each(
   ),
 )(
   "native configured $command controls-only profile: $name",
-  async ({ command, declarations, target, args, pass }) => {
+  async ({ command, control, target, args, pass }) => {
     const result = await runScript({
       command,
       realSecretSpec: realSecretSpec ?? "",
-      spec: `[project]\nname = "synthetic-install"\nrevision = "1.0"\n[profiles.default]\n${declarations.replaceAll(" = {", ' = { description = "Synthetic control",')}\nFORGE_SITE = { description = "Installation site", default = "synthetic.atlassian.net" }\nFORGE_PRODUCT = { description = "Installation product", default = "jira" }\n`,
+      spec: SpecBuilder.empty("synthetic-install")
+        .declare("FORGE_ENVIRONMENT", {
+          description: "Synthetic control",
+          ...control,
+        })
+        .declare("FORGE_SITE", {
+          description: "Installation site",
+          default: "synthetic.atlassian.net",
+        })
+        .declare("FORGE_PRODUCT", {
+          description: "Installation product",
+          default: "jira",
+        })
+        .build(),
       schema: {
         properties: {
           FORGE_ENVIRONMENT: {},
@@ -275,8 +299,9 @@ test.skipIf(!realSecretSpec).each(
   "native configured $command still requires $missing",
   async ({ command, missing }) => {
     const spec = installationSpec
-      .replace('default = "synthetic.atlassian.net"', "required = true")
-      .replace('default = "jira"', "required = true");
+      .modify("FORGE_SITE", { default: undefined, required: true })
+      .modify("FORGE_PRODUCT", { default: undefined, required: true })
+      .build();
     const values = {
       FORGE_SITE: "synthetic.atlassian.net",
       FORGE_PRODUCT: "jira",
