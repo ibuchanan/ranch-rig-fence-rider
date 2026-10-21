@@ -5,6 +5,7 @@ import {
   manifestKeys,
   parseMembers,
   parseResolved,
+  parseUnresolved,
 } from "./resolution";
 import type { Workflow } from "./workflow";
 
@@ -46,6 +47,30 @@ export async function scopeMembers(
       return [];
     throw error;
   }
+}
+
+/**
+ * Required values the active profile does not resolve. `check --json` prints
+ * its report even when it exits non-zero for a missing required value, so the
+ * report is read from the failure; it may touch the provider, but never prompts.
+ */
+export async function unresolvedRequired(tool: string, state: Workflow) {
+  state.stage = "SecretSpec resolution report";
+  let text: string;
+  try {
+    text = await state.io.capture(
+      tool,
+      ["check", "--json", "--scope", ""],
+      state.signal,
+    );
+  } catch (error) {
+    if (!(error instanceof CommandFailure) || !error.output) throw error;
+    text = error.output;
+    const names = parseUnresolved(JSON.parse(text));
+    if (!names.length) throw error;
+    return names;
+  }
+  return parseUnresolved(JSON.parse(text));
 }
 
 type ScopeMembers = (scope: string) => Promise<string[]>;

@@ -4,6 +4,22 @@ Recorded 2026-10-19. Public seams: the compiled CLI subprocess
 and observable validation-command output/status, confirmed by the user.
 No private-function tests or second native proof suite were introduced.
 
+## Doctor reports unresolved required values — 2026-10-21
+
+`fence-rider doctor --resolve` runs `secretspec check --json --scope ""`, whose
+report carries no values, and names each required value that does not resolve,
+so a failure `deploy` would hit inside `secretspec run` is found beforehand
+([ADR 0007](../adr/0007-split-variables-from-generated-forge-commands.md)).
+SecretSpec prints the report on stdout while exiting 1 for a missing required
+value, so doctor reads it from the failed call; a failure with no report fails
+doctor without echoing SecretSpec's stderr. An unresolved optional value does
+not fail doctor. Plain `doctor` makes no such call, because resolving may prompt
+for vault authentication and add audit entries
+([ADR 0002](../adr/0002-delegate-scope-membership-to-secretspec.md)). Any other
+option is refused before a tool runs. Unit tests cover the outcomes with the
+fake SecretSpec and `tests/integration/real-secretspec/doctor-resolve.test.ts`
+with the real one.
+
 ## Doctor warns about ambient shadowing — 2026-10-21
 
 `fence-rider doctor` compares the exported environment with the declared keys,

@@ -25,6 +25,8 @@ export class CommandFailure extends Error {
     readonly exitCode = 1,
     /** The helper's stderr; for matching only, never to be printed. */
     readonly diagnostic = "",
+    /** The helper's stdout, for a report it prints while failing; never to be printed. */
+    readonly output = "",
   ) {
     super(message);
   }
@@ -112,13 +114,14 @@ function checkExit(
   code: number,
   launchError: boolean,
   diagnostic: string,
+  output: string,
 ) {
   if (launchError)
     throw new CommandFailure("executable failed to start; check installation");
   if (child.signalCode !== null)
     throw new CommandFailure(`terminated by ${child.signalCode}`);
   if (code !== 0)
-    throw new CommandFailure(`exit status ${code}`, code, diagnostic);
+    throw new CommandFailure(`exit status ${code}`, code, diagnostic, output);
 }
 
 /** Run a helper with private stdio and return its stdout; group-kill on interruption and classify exit. */
@@ -141,7 +144,7 @@ export async function capture(
       new Response(child.stderr).text(),
     ]);
     checkInterruption(signal);
-    checkExit(child, code, failed.launch, diagnostic);
+    checkExit(child, code, failed.launch, diagnostic, stdout);
     return stdout;
   } finally {
     await cleanup();

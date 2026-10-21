@@ -62,6 +62,8 @@ export class AnswerFailure extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** What the helper prints on stdout before failing. */
+    readonly output = "",
   ) {
     super(message);
   }
@@ -77,11 +79,38 @@ const objectOrEmpty = (value: unknown) =>
     ? (value as Record<string, unknown>)
     : {};
 
+/** One secret as `check --json` reports it; a value equal to the declared default is reported as the default. */
+function secretReport(
+  name: string,
+  control: Control,
+  values: Record<string, unknown>,
+) {
+  const hasValue = Object.hasOwn(values, name);
+  const fromDefault = hasValue && values[name] === control.default;
+  const required = control.required !== false && control.default === undefined;
+  return {
+    name,
+    status: hasValue
+      ? "resolved"
+      : required
+        ? "missing_required"
+        : "missing_optional",
+    required,
+    ...(hasValue && !fromDefault ? { source_provider: "fake" } : {}),
+    default_applied: fromDefault,
+    generated: false,
+    as_path: false,
+  };
+}
+
 /**
  * `secretspec check --json --scope <scope>`: the scope's members that the
  * schema declares, each reported as SecretSpec does. A value equal to the
  * declared default is reported as the default, since the exported values
  * carry defaults without saying where they came from.
+ *
+ * An empty scope is the whole profile, and `check` then prints the report
+ * while exiting non-zero for a required value that is missing.
  *
  * `provider` and `source_provider` name where values were read, which a fake
  * has no way to know; they carry a placeholder.
@@ -91,44 +120,49 @@ function scopeReport(specText: string, args: string[], answers: Answers) {
   const controls = spec.profiles?.default ?? {};
   const scopes = spec.scopes ?? {};
   const scope = args[args.indexOf("--scope") + 1];
-  const entry = scope === undefined ? undefined : scopes[scope];
-  if (scope === undefined || !entry)
-    throw new AnswerFailure(
-      1,
-      `Invalid scope: '${scope}' is not defined in secretspec.toml. Available scopes: ${Object.keys(scopes).sort().join(", ")}`,
-    );
+  const members = scopeMembers(scope, controls, scopes);
   const declared = Object.keys(
     objectOrEmpty(objectOrEmpty(answers.schema)["properties"]),
   );
   const values = objectOrEmpty(answers.values);
-  return {
+  const report = {
     schema_version: 1,
     provider: "fake",
     profile: "default",
     scope,
-    secrets: entry.secrets
+    secrets: members
       .filter((name) => declared.includes(name))
-      .map((name) => {
-        const control = controls[name] ?? {};
-        const hasValue = Object.hasOwn(values, name);
-        const fromDefault = hasValue && values[name] === control.default;
-        const required =
-          control.required !== false && control.default === undefined;
-        return {
-          name,
-          status: hasValue
-            ? "resolved"
-            : required
-              ? "missing_required"
-              : "missing_optional",
-          required,
-          ...(hasValue && !fromDefault ? { source_provider: "fake" } : {}),
-          default_applied: fromDefault,
-          generated: false,
-          as_path: false,
-        };
-      }),
+      .map((name) => secretReport(name, controls[name] ?? {}, values)),
   };
+  return scope === "" ? failIfUnresolved(report) : report;
+}
+
+/** The names a scope covers; an empty scope is the whole profile. */
+function scopeMembers(
+  scope: string | undefined,
+  controls: Controls,
+  scopes: NonNullable<Spec["scopes"]>,
+) {
+  if (scope === "") return Object.keys(controls);
+  const entry = scope === undefined ? undefined : scopes[scope];
+  if (entry) return entry.secrets;
+  throw new AnswerFailure(
+    1,
+    `Invalid scope: '${scope}' is not defined in secretspec.toml. Available scopes: ${Object.keys(scopes).sort().join(", ")}`,
+  );
+}
+
+/** A whole-profile check prints its report while exiting non-zero for a missing required value. */
+function failIfUnresolved<Report extends { secrets: { status: string }[] }>(
+  report: Report,
+) {
+  if (report.secrets.some(({ status }) => status === "missing_required"))
+    throw new AnswerFailure(
+      1,
+      "Failed to resolve secrets",
+      JSON.stringify(report),
+    );
+  return report;
 }
 
 /**

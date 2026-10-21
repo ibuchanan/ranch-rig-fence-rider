@@ -158,6 +158,7 @@ if (fixture.blockStage === command) {
     );
   } catch (error) {
     if (!(error instanceof answers.AnswerFailure)) throw error;
+    if (error.output) console.log(error.output);
     console.error(error.message);
     process.exit(error.status);
   }

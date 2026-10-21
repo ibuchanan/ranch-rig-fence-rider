@@ -14,11 +14,51 @@ type Project = {
   runtime?: string[] | "undefined";
   /** Printed by a fake `secretspec schema`; defaults to one valid string declaration. */
   schema?: object | "fail";
+  /** Printed by a fake `secretspec check --json --scope ""`, as name and status; "fail" exits 1 with no report. Calls are counted in `resolutionCalls`. */
+  resolution?: [string, string][] | "fail";
   /** The exported environment; defaults to empty. */
   env?: Record<string, string>;
   /** The manifest.yml in the project, when it has one. */
   manifest?: string;
 };
+
+const resolutionCalls: string[][] = [];
+
+/** A fake `secretspec check --json`: the whole profile for an empty scope, else the named scope. */
+function checkAnswer(project: Project, callArgs: string[]) {
+  const scope = callArgs.at(-1);
+  if (scope === "") return resolutionAnswer(project, callArgs);
+  const report =
+    (scope === "runtime" ? project.runtime : project.report) ?? "undefined";
+  if (report === "fail")
+    throw new CommandFailure("exit status 1", 1, "Invalid scope");
+  if (report === "undefined")
+    throw new CommandFailure(
+      "exit status 1",
+      1,
+      `Scope '${scope}' is not defined in secretspec.toml`,
+    );
+  return JSON.stringify({
+    schema_version: 1,
+    scope,
+    secrets: report.map((name) => ({ name, status: "resolved" })),
+  });
+}
+
+/** SecretSpec prints the whole-profile report even when it exits 1 for a missing required value. */
+function resolutionAnswer(project: Project, callArgs: string[]) {
+  resolutionCalls.push(callArgs);
+  const rows = project.resolution ?? [];
+  if (rows === "fail")
+    throw new CommandFailure("exit status 1", 1, "Provider locked");
+  const report = JSON.stringify({
+    schema_version: 1,
+    secrets: rows.map(([name, status]) => ({ name, status })),
+  });
+  if (rows.some(([, status]) => status === "missing_required"))
+    throw new CommandFailure("exit status 1", 1, "Failed", report);
+  return report;
+}
 
 /** Run `doctor` in-process against fake tools whose `--version` prints the given text (null: tool absent). */
 async function runDoctor(
@@ -49,25 +89,7 @@ async function runDoctor(
           },
         );
       }
-      if (callArgs[0] === "check") {
-        const scope = callArgs.at(-1);
-        const report =
-          (scope === "runtime" ? project.runtime : project.report) ??
-          "undefined";
-        if (report === "fail")
-          throw new CommandFailure("exit status 1", 1, "Invalid scope");
-        if (report === "undefined")
-          throw new CommandFailure(
-            "exit status 1",
-            1,
-            `Scope '${scope}' is not defined in secretspec.toml`,
-          );
-        return JSON.stringify({
-          schema_version: 1,
-          scope,
-          secrets: report.map((name) => ({ name, status: "resolved" })),
-        });
-      }
+      if (callArgs[0] === "check") return checkAnswer(project, callArgs);
       return `${tools[basename(path)]}\n`;
     },
   };
@@ -122,10 +144,90 @@ test("doctor fails when a version cannot be read", async () => {
   expect(result.stdout).toContain("SecretSpec: no version found unreadable");
 });
 
-test("doctor accepts no arguments", async () => {
-  const result = await runDoctor({}, ["--verbose"]);
+test("doctor refuses an unknown option before any tool runs", async () => {
+  resolutionCalls.length = 0;
+  const calls: string[] = [];
+  const recorded = recordingIo();
+  const io: Io = {
+    ...recorded.io,
+    which: (tool) => {
+      calls.push(tool);
+      return `/fake/bin/${tool}`;
+    },
+    capture: async (path) => {
+      calls.push(path);
+      return "";
+    },
+  };
+  for (const args of [["--verbose"], ["--resolve", "--verbose"], ["resolve"]])
+    expect(await main(["doctor", ...args], io)).toBe(1);
+  expect(recorded.stderr()).toContain(
+    "Unknown command or unsupported arguments",
+  );
+  expect(calls).toEqual([]);
+});
+
+test("doctor --help lists --resolve and what it may cost", async () => {
+  const result = await runDoctor({}, ["--help"]);
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain("Usage: fence-rider doctor [--resolve]");
+  expect(result.stdout).toContain("--resolve additionally asks SecretSpec");
+  expect(result.stdout).toContain("prompt for vault authentication");
+  expect(result.stdout).toContain("audit entries");
+});
+
+test("plain doctor makes no resolution call", async () => {
+  resolutionCalls.length = 0;
+  const result = await runDoctor(ok, [], undefined, {
+    resolution: [["A", "missing_required"]],
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).not.toContain("Resolution:");
+  expect(resolutionCalls).toEqual([]);
+});
+
+test("doctor --resolve reports ok when every required value resolves", async () => {
+  const result = await runDoctor(ok, ["--resolve"], undefined, {
+    resolution: [
+      ["A", "resolved"],
+      ["B", "missing_optional"],
+    ],
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain("Resolution: every required value resolves");
+});
+
+test("doctor --resolve fails and names each unresolved required value", async () => {
+  const result = await runDoctor(ok, ["--resolve"], undefined, {
+    resolution: [
+      ["A", "resolved"],
+      ["B", "missing_required"],
+      ["C", "missing_required"],
+    ],
+  });
   expect(result.exitCode).toBe(1);
-  expect(result.stderr).toContain("Unknown command or unsupported arguments");
+  expect(result.stdout).toContain(
+    "Resolution: required values do not resolve: B, C",
+  );
+});
+
+test("doctor --resolve does not fail for an unresolved optional value", async () => {
+  const result = await runDoctor(ok, ["--resolve"], undefined, {
+    resolution: [["A", "missing_optional"]],
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain("Resolution: every required value resolves");
+});
+
+test("doctor --resolve fails privately when SecretSpec gives no report", async () => {
+  const result = await runDoctor(ok, ["--resolve"], undefined, {
+    resolution: "fail",
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.stdout).toContain(
+    "Resolution: SecretSpec resolution report failed",
+  );
+  expect(result.stdout + result.stderr).not.toContain("Provider locked");
 });
 
 const spec = (scopes: string) =>

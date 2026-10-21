@@ -1,5 +1,5 @@
 import { deploy, deployUsage } from "./deploy";
-import { doctor, doctorUsage } from "./doctor";
+import { doctor, doctorUsage, parseDoctorOptions } from "./doctor";
 import { install, installUsage } from "./install";
 import type { Io } from "./io";
 import { lint, lintUsage } from "./lint";
@@ -66,7 +66,13 @@ const commands: Record<string, Command> = {
   doctor: {
     summary: "Check SecretSpec and Forge versions against the tested range",
     usage: doctorUsage,
-    run: async (args, io) => (args.length ? unknownInvocation(io) : doctor(io)),
+    run: async (args, io) => {
+      const options = parseDoctorOptions(args);
+      if (!options) return unknownInvocation(io);
+      if (!options.help) return doctor(io, options);
+      io.out(doctorUsage);
+      return 0;
+    },
   },
 };
 

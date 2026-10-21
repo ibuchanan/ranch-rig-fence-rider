@@ -80,6 +80,7 @@ export function answer(
       `exit status ${error.status}`,
       error.status,
       error.message,
+      error.output,
     );
   }
 }

@@ -43,6 +43,18 @@ export function parseMembers(report: unknown) {
   });
 }
 
+/** Names of required values that `secretspec check --json` reports as unresolved; the report never carries values. */
+export function parseUnresolved(report: unknown) {
+  const secrets = isObject(report) ? report["secrets"] : undefined;
+  if (!Array.isArray(secrets)) throw new Error("Malformed resolution report");
+  return secrets.flatMap((secret) => {
+    const name = isObject(secret) ? secret["name"] : undefined;
+    if (typeof name !== "string")
+      throw new Error("Malformed resolution report");
+    return secret["status"] === "missing_required" ? [name] : [];
+  });
+}
+
 function isStringType(type: unknown) {
   if (type === "string") return true;
   if (!Array.isArray(type)) return false;
