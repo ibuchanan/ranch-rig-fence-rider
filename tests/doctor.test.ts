@@ -40,7 +40,7 @@ test("doctor passes when both tools are within the tested range", async () => {
   expect(result.exitCode).toBe(0);
   expect(result.stdout).toContain("SecretSpec: 0.21.1 ok");
   expect(result.stdout).toContain("Forge CLI: 14.2.0 ok");
-  expect(result.stdout).toContain("supported from 0.21.1, tested through");
+  expect(result.stdout).toContain("supported from 0.17.0, tested through");
 });
 
 test("doctor warns about newer versions without failing", async () => {
@@ -55,11 +55,11 @@ test("doctor warns about newer versions without failing", async () => {
 
 test("doctor fails for a version older than supported", async () => {
   const result = await runDoctor({
-    secretspec: "secretspec 0.20.9",
+    secretspec: "secretspec 0.16.9",
     forge: "14.2.0",
   });
   expect(result.exitCode).toBe(1);
-  expect(result.stdout).toContain("SecretSpec: 0.20.9 unsupported");
+  expect(result.stdout).toContain("SecretSpec: 0.16.9 unsupported");
   expect(result.stdout).toContain("Forge CLI: 14.2.0 ok");
 });
 

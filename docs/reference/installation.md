@@ -19,11 +19,13 @@ changed incompatibly surfaces as the failure of the step that depends on it. Run
 `fence-rider doctor` to compare the installed versions with the lowest supported
 and highest tested release of each tool; the table is in `src/doctor.ts`. A
 newer-than-tested version is a warning, an older-than-supported or unreadable
-one is a failure. Both bounds currently equal the only exercised baseline,
-SecretSpec 0.21.1 and Forge 14.2.0. No dependency lifecycle script, `setup`
-command, mirror variable, or cache is involved, so Bun's blocked install-script
-policy and `--ignore-scripts` do not affect package installation. Help, version,
-and invalid commands need neither tool.
+one is a failure. The lowest supported versions (SecretSpec 0.17, Forge CLI 1.3)
+are inferred from the features used, not exercised; the highest tested versions
+are the only exercised baseline, SecretSpec 0.21.1 and Forge 14.2.0. No
+dependency lifecycle script, `setup` command, mirror variable, or cache is
+involved, so Bun's blocked install-script policy and `--ignore-scripts` do not
+affect package installation. Help, version, and invalid commands need neither
+tool.
 
 SecretSpec is Apache-2.0 upstream software. No SecretSpec SDK or additional npm
 runtime dependency is used. The wrapper belongs in a consumer's

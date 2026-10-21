@@ -1,18 +1,19 @@
 import { capture } from "./process";
 
 /**
- * Lowest supported and highest tested release of each external tool. Only the
- * baseline Fence Rider was built against has been exercised, so both bounds
- * start there; widen `tested` as newer releases are verified.
+ * Lowest supported and highest tested release of each external tool. The floors
+ * are inferred from the features Fence Rider uses (SecretSpec scopes arrived in
+ * 0.17), not exercised; only the baseline it was built against is tested, so
+ * widen `tested` as newer releases are verified.
  */
 const dependencies = [
   {
     name: "SecretSpec",
     tool: "secretspec",
-    lowest: "0.21.1",
+    lowest: "0.17.0",
     tested: "0.21.1",
   },
-  { name: "Forge CLI", tool: "forge", lowest: "14.2.0", tested: "14.2.0" },
+  { name: "Forge CLI", tool: "forge", lowest: "1.3.0", tested: "14.2.0" },
 ];
 
 type Dependency = (typeof dependencies)[number];

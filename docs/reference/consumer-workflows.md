@@ -32,7 +32,7 @@ certify real Forge execution under Bun.
 | ID | Observable local evidence | Service/other evidence still missing |
 | --- | --- | --- |
 | CW-01 | Installed package discovery; documented installed consumer scripts run via Bun package scripts | Registry publication is not attempted or required |
-| CW-02 | Installed consumer runs native lint against SecretSpec on `PATH`; missing-tool diagnostics before Forge runs; `doctor` version report | Only 0.21.1 is accepted; other platform execution unverified |
+| CW-02 | Installed consumer runs native lint against SecretSpec on `PATH`; missing-tool diagnostics before Forge runs; `doctor` version report | Floors are inferred, not exercised; other platform execution unverified |
 | CW-03 | Required values fail before Forge in compiled native cases and installed controls-only uninstall | Other providers unverified |
 | CW-04 | Deployment shared-values test sees unchanged implicit local values and removes stale absent optional; compiled tests cover empty strings | Broader native providers unverified |
 | CW-05 | Shared value matches local upload args and tunnel prefix mapping from one export; native profile tests count one schema/export | Actual manifest substitution and connected runtime receipt blocked |
