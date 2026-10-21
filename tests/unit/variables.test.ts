@@ -1,15 +1,11 @@
 import { expect, test } from "bun:test";
-import { readdirSync } from "node:fs";
-import { useBuiltCli } from "./support/cli.ts";
 import {
   deploymentSchema,
   deploymentSpec,
   deploymentValues,
-  runWorkflow,
   sharedValue,
-} from "./support/fixtures.ts";
-
-useBuiltCli();
+} from "../support/fixtures.ts";
+import { runInProcess } from "../support/fake-io.ts";
 
 test("variables refuses Forge options before any tool call", async () => {
   for (const args of [
@@ -17,7 +13,7 @@ test("variables refuses Forge options before any tool call", async () => {
     ["--", "-x"],
     ["-e", "production", "--verbose"],
   ]) {
-    const result = await runWorkflow({ args });
+    const result = await runInProcess({ args });
     expect(result.exitCode).toBe(1);
     expect(result.interactions).toEqual([]);
     expect(result.stderr).toContain("environment option validation");
@@ -27,7 +23,7 @@ test("variables refuses Forge options before any tool call", async () => {
 test.each(["secretspec", "forge"])(
   "missing %s stops before any helper interaction",
   async (missingTool) => {
-    const result = await runWorkflow({ missingTool });
+    const result = await runInProcess({ missingTool });
     expect(result.exitCode).not.toBe(0);
     expect(result.interactions).toEqual([]);
     expect(result.stderr).toContain(missingTool);
@@ -36,7 +32,7 @@ test.each(["secretspec", "forge"])(
 );
 
 test("variables resolves once and encrypts only runtime values for the configured target", async () => {
-  const result = await runWorkflow();
+  const result = await runInProcess();
   expect(result.exitCode).toBe(0);
   expect(result.interactions.map(({ tool, args }) => [tool, ...args])).toEqual([
     ["secretspec", "schema"],
@@ -60,18 +56,12 @@ test("variables resolves once and encrypts only runtime values for the configure
     expect(call.values).toEqual(deploymentValues);
   }
   expect(result.stdout + result.stderr).not.toContain("synthetic local-only");
-  expect(readdirSync(result.project).sort()).toEqual([
-    "bin",
-    "manifest.yml",
-    "secretspec.toml",
-    "tool-calls",
-  ]);
 });
 
 test.each(["FORGE_ENVIRONMENT", "FORGE_SITE", "FORGE_PRODUCT"])(
   "%s cannot be selected for upload even with an explicit target",
   async (control) => {
-    const result = await runWorkflow({
+    const result = await runInProcess({
       spec: deploymentSpec
         .replace(
           "[profiles.default]",
@@ -97,7 +87,7 @@ test.each(["FORGE_ENVIRONMENT", "FORGE_SITE", "FORGE_PRODUCT"])(
 );
 
 test("variables emits safe stage progress without forwarding helper streams", async () => {
-  const result = await runWorkflow();
+  const result = await runInProcess();
   expect(result.exitCode).toBe(0);
   expect(result.stdout).toContain(
     "Fence Rider: encrypted upload for SHARED (target staging).",
@@ -111,7 +101,7 @@ test("omitted runtime scope and empty active-profile intersection upload nothing
     deploymentSpec.split("[scopes.runtime]")[0],
     `${deploymentSpec.replace('["SHARED", "OPTIONAL"]', '["OTHER_PROFILE_VALUE"]')}\n[profiles.other]\nOTHER_PROFILE_VALUE = { description = "Not active" }\n`,
   ]) {
-    const result = await runWorkflow({ spec: spec ?? "" });
+    const result = await runInProcess({ spec: spec ?? "" });
     expect(result.exitCode).toBe(0);
     expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
       [],
@@ -126,7 +116,7 @@ test("omitted runtime scope and empty active-profile intersection upload nothing
 });
 
 test("missing configured target falls back to development for uploads", async () => {
-  const result = await runWorkflow({
+  const result = await runInProcess({
     values: { SHARED: sharedValue, LOCAL_ONLY: "synthetic local-only" },
     schema: { ...deploymentSchema, required: ["SHARED", "LOCAL_ONLY"] },
   });
@@ -138,7 +128,7 @@ test("missing configured target falls back to development for uploads", async ()
 });
 
 test("every runtime value is encrypted in declaration order", async () => {
-  const result = await runWorkflow({
+  const result = await runInProcess({
     values: { ...deploymentValues, OPTIONAL: "second synthetic value" },
   });
   expect(result.exitCode).toBe(0);

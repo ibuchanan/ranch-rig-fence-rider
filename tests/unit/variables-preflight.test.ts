@@ -1,14 +1,11 @@
 import { expect, test } from "bun:test";
-import { useBuiltCli } from "./support/cli.ts";
 import {
   deploymentSchema,
   deploymentSpec,
   deploymentValues,
-  runWorkflow,
   sharedValue,
-} from "./support/fixtures.ts";
-
-useBuiltCli();
+} from "../support/fixtures.ts";
+import { runInProcess } from "../support/fake-io.ts";
 
 test.each([
   { name: "null schema", options: { schema: null } },
@@ -30,7 +27,7 @@ test.each([
 ])(
   "malformed native output: $name stops before all Forge commands",
   async ({ options }) => {
-    const result = await runWorkflow({
+    const result = await runInProcess({
       ...options,
       args: ["-e", "production"],
     });
@@ -45,7 +42,7 @@ test.each([
 );
 
 test("preflight failures retain a validated explicit target without leaking invalid values", async () => {
-  const result = await runWorkflow({
+  const result = await runInProcess({
     args: ["-e", "production"],
     values: { ...deploymentValues, OPTIONAL: { secret: sharedValue } },
   });
@@ -65,7 +62,7 @@ test("validates every resolved value and required declaration before the first u
     { ...deploymentValues, UNDECLARED: sharedValue },
     { ...deploymentValues, FORGE_ENVIRONMENT: "--unsafe-target" },
   ]) {
-    const result = await runWorkflow({ values });
+    const result = await runInProcess({ values });
     expect(result.exitCode).not.toBe(0);
     expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
       [],
@@ -76,7 +73,7 @@ test("validates every resolved value and required declaration before the first u
 
 test("manifest scope checks declarations including absent optionals before uploads", async () => {
   const spec = `${deploymentSpec}\n[scopes.manifest]\nsecrets = ["SHARED", "OPTIONAL"]\n`;
-  const mismatch = await runWorkflow({
+  const mismatch = await runInProcess({
     spec,
     manifest: "environment:\n  variables:\n    - SHARED\n",
   });
@@ -86,7 +83,7 @@ test("manifest scope checks declarations including absent optionals before uploa
   );
   expect(mismatch.stderr).toContain("manifest");
   expect(mismatch.stderr).toContain("OPTIONAL");
-  const match = await runWorkflow({
+  const match = await runInProcess({
     spec,
     manifest:
       "environment:\n  variables:\n    - SHARED\n    - key: OPTIONAL\n      default: fallback\n",
@@ -106,7 +103,7 @@ test("rejects control-variable upload selection and unsupported runtime inputs b
     { values: { ...deploymentValues, OPTIONAL: "" } },
     { values: { ...deploymentValues, OPTIONAL: "--option-like-value" } },
   ]) {
-    const result = await runWorkflow(options);
+    const result = await runInProcess(options);
     expect(result.exitCode).not.toBe(0);
     expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
       [],
@@ -121,7 +118,7 @@ test.each([
 ])(
   "late invalid runtime value: $name prevents the earlier valid upload",
   async ({ value }) => {
-    const result = await runWorkflow({
+    const result = await runInProcess({
       values: { ...deploymentValues, OPTIONAL: value },
     });
     expect(result.exitCode).not.toBe(0);
@@ -138,7 +135,7 @@ test.each(["SHARED", "LOCAL_ONLY"])(
     for (const withRuntime of [false, true]) {
       const values: Record<string, unknown> = { ...deploymentValues };
       delete values[key];
-      const result = await runWorkflow({
+      const result = await runInProcess({
         spec: `${withRuntime ? deploymentSpec : deploymentSpec.split("[scopes.runtime]")[0]}\n[scopes.manifest]\nsecrets = ["LOCAL_ONLY"]\n`,
         values,
         manifest: "environment:\n  variables: [LOCAL_ONLY]\n",
@@ -153,7 +150,7 @@ test.each(["SHARED", "LOCAL_ONLY"])(
 );
 
 test("omitted manifest scope does not require a manifest file or suppress local values", async () => {
-  const result = await runWorkflow({ manifest: null });
+  const result = await runInProcess({ manifest: null });
   expect(result.exitCode).toBe(0);
   expect(result.interactions.at(-1)?.values).toEqual(deploymentValues);
 });
@@ -164,7 +161,7 @@ test.each([
 ])(
   "invalid configuration: $name fails with secret-safe diagnostics",
   async ({ spec, env }) => {
-    const result = await runWorkflow({
+    const result = await runInProcess({
       ...(spec === undefined ? {} : { spec }),
       ...(env === undefined ? {} : { env }),
       args: ["-e", "production"],

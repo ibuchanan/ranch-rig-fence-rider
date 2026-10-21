@@ -1,12 +1,10 @@
 import { expect, test } from "bun:test";
-import { useBuiltCli } from "./support/cli.ts";
-import { deploymentValues, runWorkflow } from "./support/fixtures.ts";
-
-useBuiltCli();
+import { deploymentValues } from "../support/fixtures.ts";
+import { runInProcess } from "../support/fake-io.ts";
 
 test("resolution and upload failures never report success or leak helper output", async () => {
   for (const failStage of ["schema", "export", "variables"]) {
-    const result = await runWorkflow({ failStage });
+    const result = await runInProcess({ failStage });
     expect(result.exitCode).not.toBe(0);
     expect(result.stdout).not.toContain("Uploaded");
     expect(result.stderr).not.toContain("synthetic helper noise");
@@ -23,7 +21,7 @@ test("resolution and upload failures never report success or leak helper output"
 test.each(["secretspec", "forge"])(
   "unlaunchable %s executable reports safe actionable context",
   async (launchTool) => {
-    const result = await runWorkflow({
+    const result = await runInProcess({
       launchTool,
       args: ["-e", "production"],
     });
@@ -41,7 +39,7 @@ test.each(["secretspec", "forge"])(
 test.each(["schema", "export", "variables"])(
   "child signal termination during %s cannot become success",
   async (failStage) => {
-    const result = await runWorkflow({
+    const result = await runInProcess({
       failStage,
       failureMode: "signal",
       args: ["-e", "production"],
@@ -57,7 +55,7 @@ test.each(["schema", "export", "variables"])(
 test.each(["schema", "export", "variables"])(
   "helper exception during %s never leaks stdout stderr or error details",
   async (failStage) => {
-    const result = await runWorkflow({
+    const result = await runInProcess({
       failStage,
       failureMode: "throw",
       args: ["-e", "production"],
@@ -77,7 +75,7 @@ test.each(["schema", "export", "variables"])(
 test.each([2, 23, 127, 255])(
   "a failed upload with exit status %i is reported as exit 1 without raw helper output",
   async (exitCode) => {
-    const result = await runWorkflow({ failStage: "variables", exitCode });
+    const result = await runInProcess({ failStage: "variables", exitCode });
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain(`exit status ${exitCode}`);
     expect(result.stderr).toContain(
@@ -92,7 +90,7 @@ test.each([2, 23, 127, 255])(
 test.each(["SHARED", "OPTIONAL"])(
   "failed upload for %s stops later writes and reports possible partial state",
   async (failKey) => {
-    const result = await runWorkflow({
+    const result = await runInProcess({
       values: { ...deploymentValues, OPTIONAL: "second synthetic value" },
       failStage: "variables",
       failKey,

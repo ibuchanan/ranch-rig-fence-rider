@@ -1,17 +1,14 @@
 import { expect, test } from "bun:test";
-import { useBuiltCli } from "./support/cli.ts";
 import {
   deploymentSchema,
   deploymentSpec,
   deploymentValues,
-  runWorkflow,
   sharedValue,
-} from "./support/fixtures.ts";
-
-useBuiltCli();
+} from "../support/fixtures.ts";
+import { runInProcess } from "../support/fake-io.ts";
 
 test("canonical environment selects the target for encrypted uploads", async () => {
-  const result = await runWorkflow({
+  const result = await runInProcess({
     spec: deploymentSpec,
     schema: deploymentSchema,
     values: deploymentValues,
@@ -51,7 +48,7 @@ test.each([
 ])(
   "$name environment control preserves selection and child values",
   async ({ args }) => {
-    const result = await runWorkflow({
+    const result = await runInProcess({
       spec: deploymentSpec,
       schema: deploymentSchema,
       values: deploymentValues,
@@ -68,7 +65,7 @@ test.each([
 );
 
 test("explicit environment overrides the configured target for the upload", async () => {
-  const result = await runWorkflow({ args: ["--environment", "production"] });
+  const result = await runInProcess({ args: ["--environment", "production"] });
   expect(result.exitCode).toBe(0);
   expect(
     result.interactions
@@ -98,7 +95,7 @@ test.each([
 ])(
   "invalid or duplicate target %j fails before any tool call",
   async ({ args }) => {
-    const result = await runWorkflow({ args });
+    const result = await runInProcess({ args });
     expect(result.exitCode).not.toBe(0);
     expect(result.interactions).toEqual([]);
     expect(result.stderr).toContain("environment option validation");
@@ -107,7 +104,7 @@ test.each([
 );
 
 test("site and product defaults stay local and are never uploaded", async () => {
-  const result = await runWorkflow({
+  const result = await runInProcess({
     spec: deploymentSpec.replace(
       "[profiles.default]",
       "[profiles.default]\nFORGE_SITE = { required = true }\nFORGE_PRODUCT = { required = true }",
