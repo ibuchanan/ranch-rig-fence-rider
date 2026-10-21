@@ -8,14 +8,10 @@ const installSpec: CommandSpec = {
 };
 
 /**
- * Target options are recognized only to be refused: forwarding one would hand
- * Forge a second copy of an option the wrapper injects from the profile.
+ * Target options are recognized only to be dropped: forwarding one would hand
+ * Forge a second copy of an option the script injects from the profile.
  */
 export function parseInstallOptions(args: string[]) {
   const { owned, forwarded, help } = parseForgeArgs(installSpec, args);
-  if (Object.keys(owned).length)
-    throw new Error(
-      "Target options are not accepted; set FORGE_ENVIRONMENT, FORGE_SITE and FORGE_PRODUCT in the profile, or run secretspec and forge directly",
-    );
-  return { forwarded, help };
+  return { forwarded, help, ignored: Object.keys(owned) };
 }

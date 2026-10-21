@@ -92,7 +92,8 @@ bun run lint:forge --verbose
 ```
 
 Environment falls back to development for install/uninstall; site/product never
-do, and `--site`, `--product` and `--environment` are refused there. Supported
+do, and `--site`, `--product` and `--environment` are dropped there with a note
+on stderr. Supported
 product values are `jira`, `confluence`, `compass`, and `bitbucket`. Lint
 receives no injected target; deploy/tunnel receive environment only. Native
 profile/file selection remains `SECRETSPEC_PROFILE`/`SECRETSPEC_FILE`, not a

@@ -4,6 +4,18 @@ Recorded 2026-10-19. Public seams: the compiled CLI subprocess
 and observable validation-command output/status, confirmed by the user.
 No private-function tests or second native proof suite were introduced.
 
+## Dropped install target options — 2026-10-21
+
+`fence-rider install` and `fence-rider uninstall` now drop `-e`/`--environment`,
+`-s`/`--site` and `-p`/`--product` when building the script, instead of refusing
+them. Each dropped option gets one note on stderr, the script is still printed,
+and the exit status is 0; malformed parsing such as a duplicated option still
+fails with nothing on stdout. Options a script runner appends after `sh` are not
+inspected and can duplicate the injected targets, which Fence Rider cannot
+prevent ([ADR 0004](../adr/0004-install-targets-from-profile-only.md)). Earlier
+entries that say the options are refused record superseded behavior. This change
+was documented only; test and source updates are recorded elsewhere.
+
 ## Script generators for lint, install and uninstall — 2026-10-21
 
 `fence-rider lint`, `install` and `uninstall` no longer run Forge: each prints one
