@@ -1,7 +1,7 @@
 import { checkManifest, configure, members } from "./configured";
-import { checkInterruption, passthrough } from "./process";
 import { type CommandSpec, parseForgeArgs } from "./forge-args";
 import { isEnvironmentName, isLocalControl } from "./policy";
+import { checkInterruption, passthrough } from "./process";
 import { runWorkflow } from "./workflow";
 
 function validateTarget(target: string) {

@@ -1,9 +1,9 @@
 import { mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import {
+  CommandFailure,
   capture,
   checkInterruption,
-  CommandFailure,
   DelegatedFailure,
   passthrough,
 } from "./process";

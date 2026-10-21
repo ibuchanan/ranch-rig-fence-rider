@@ -1,12 +1,12 @@
 import { checkManifest, configure, members } from "./configured";
-import {
-  CommandFailure,
-  DelegatedFailure,
-  capture,
-  checkInterruption,
-} from "./process";
 import { type CommandSpec, parseForgeArgs } from "./forge-args";
 import { isEnvironmentName, isLocalControl } from "./policy";
+import {
+  CommandFailure,
+  capture,
+  checkInterruption,
+  DelegatedFailure,
+} from "./process";
 import { describeStage, runWorkflow, type Workflow } from "./workflow";
 
 function validateTarget(target: string) {
