@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { cli } from "./cli.ts";
 import {
   expectNoInjectedFile,
@@ -14,6 +15,11 @@ import {
   hostileValue,
   sharedValue,
 } from "./guarantees.ts";
+import {
+  schemaFor,
+  standardSchema,
+  standardValues,
+} from "./secretspec-answers.ts";
 import { SpecBuilder } from "./spec.ts";
 
 export { hostileValue, SpecBuilder, sharedValue };
@@ -23,22 +29,9 @@ export const standardSpec = SpecBuilder.standard();
 
 export const deploymentSpec = standardSpec.build();
 
-export const deploymentValues = {
-  FORGE_ENVIRONMENT: "staging",
-  SHARED: sharedValue,
-  LOCAL_ONLY: "synthetic local-only",
-};
+export const deploymentValues = standardValues;
 
-export const deploymentSchema = {
-  type: "object",
-  properties: {
-    FORGE_ENVIRONMENT: { type: "string" },
-    SHARED: { type: "string" },
-    LOCAL_ONLY: { type: "string" },
-    OPTIONAL: { type: ["string", "null"] },
-  },
-  required: ["FORGE_ENVIRONMENT", "SHARED", "LOCAL_ONLY"],
-};
+export const deploymentSchema = standardSchema;
 
 export type ToolCall = {
   tool: string;
@@ -103,6 +96,10 @@ export function deploymentEnv(project: string, options: WorkflowOptions) {
     XDG_STATE_HOME: join(project, "state"),
     TMPDIR: project,
     TOOL_CALL_LOG: join(project, "tool-calls"),
+    // The spawned fake loads the answers it shares with the in-process fake from here.
+    FAKE_ANSWERS: fileURLToPath(
+      new URL("./secretspec-answers.ts", import.meta.url),
+    ),
     FIXTURE: JSON.stringify({
       schema: Object.hasOwn(options, "schema")
         ? options.schema
@@ -246,14 +243,7 @@ export const installationSpec = standardSpec
     default: "jira",
   });
 
-const installationSchema = {
-  ...deploymentSchema,
-  properties: {
-    ...deploymentSchema.properties,
-    FORGE_SITE: { type: "string" },
-    FORGE_PRODUCT: { type: "string" },
-  },
-};
+const installationSchema = schemaFor(installationSpec.controls());
 
 const installationValues = {
   ...deploymentValues,

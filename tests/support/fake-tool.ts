@@ -3,8 +3,9 @@
  *
  * One source serves both: it is written as `secretspec` and as `forge`, and
  * learns which it is from the name it was invoked as. It runs
- * as a standalone Bun script, so it imports nothing from this repository; the
- * fixtures hand it everything through the `FIXTURE` environment variable.
+ * as a standalone Bun script, so it imports nothing from this repository at load time; the
+ * fixtures hand it everything through the `FIXTURE` environment variable and
+ * the path of the shared answers module through `FAKE_ANSWERS`.
  */
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
@@ -143,31 +144,21 @@ if (fixture.blockStage === command) {
     });
   setInterval(() => {}, 1000);
   writeFileSync("ready", String(process.pid));
-} else if (tool === "secretspec" && command === "check") {
-  const scope = args[args.indexOf("--scope") + 1];
-  const scopes: Record<string, { secrets: string[] }> =
-    (
-      Bun.TOML.parse(
+} else if (tool === "secretspec") {
+  // The answers come from the module the in-process fake uses too.
+  // fallow-ignore-next-line unresolved-import -- the path arrives in FAKE_ANSWERS at run time
+  const answers: typeof import("./secretspec-answers.ts") = await import(
+    env["FAKE_ANSWERS"] ?? ""
+  );
+  try {
+    console.log(
+      answers.secretspecAnswer(args, fixture, () =>
         readFileSync(env["SECRETSPEC_FILE"] ?? "secretspec.toml", "utf8"),
-      ) as { scopes?: Record<string, { secrets: string[] }> }
-    ).scopes ?? {};
-  if (scope === undefined || !Object.hasOwn(scopes, scope)) {
-    console.error(
-      `Invalid scope: '${scope}' is not defined in secretspec.toml. Available scopes: ${Object.keys(scopes).join(", ")}`,
+      ),
     );
-    process.exit(1);
+  } catch (error) {
+    if (!(error instanceof answers.AnswerFailure)) throw error;
+    console.error(error.message);
+    process.exit(error.status);
   }
-  console.log(
-    JSON.stringify({
-      schema_version: 1,
-      scope,
-      secrets: scopes[scope]?.secrets
-        .filter((name) => names.includes(name))
-        .map((name) => ({ name, status: "resolved" })),
-    }),
-  );
-} else if (tool === "secretspec")
-  console.log(
-    (command === "schema" ? fixture.schemaOutput : fixture.exportOutput) ??
-      JSON.stringify(command === "schema" ? fixture.schema : fixture.values),
-  );
+}

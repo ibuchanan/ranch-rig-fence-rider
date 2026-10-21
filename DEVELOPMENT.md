@@ -58,6 +58,15 @@ SecretSpec into a failure naming the required version. You need SecretSpec
 0.21.1 on `PATH` to push. POSIX interruption checks are skipped on Windows; Windows
 process-tree cleanup is not certified.
 
+Both fake SecretSpecs, the in-process one (`tests/support/fake-io.ts`) and the
+spawned one (`tests/support/fake-tool.ts`), take the standard profile and the
+schema, export and scope-membership answers from one module,
+`tests/support/secretspec-answers.ts`. The native contract test
+(`tests/integration/native-secretspec-contract.test.ts`) compares those answers
+with what real SecretSpec prints for the same profile, so a change in either
+shows up there rather than as a product break the fakes hide. When you change an
+answer shape, expect that test to fail until the shape matches SecretSpec.
+
 `tests/integration/check.test.ts` exercises validation output and statuses with
 isolated tools and passing/failing Bun fixtures. No nested full-suite
 invocation is needed. The acceptance map is in the

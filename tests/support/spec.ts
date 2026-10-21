@@ -92,6 +92,11 @@ export class SpecBuilder {
     );
   }
 
+  /** The declarations of a profile, as the fakes answer for them. */
+  controls(profile = "default") {
+    return Object.fromEntries(this.profileNamed(this.state, profile).controls);
+  }
+
   /** Declare a value that the profile does not declare yet. */
   declare(name: string, control: Control, profile = "default") {
     return this.next((state) => {

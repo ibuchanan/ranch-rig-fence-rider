@@ -10,9 +10,10 @@ import {
   type WorkflowOptions,
 } from "./fixtures.ts";
 import { expectNoSecretInOutput } from "./guarantees.ts";
+import { AnswerFailure, secretspecAnswer } from "./secretspec-answers.ts";
 
 /**
- * The in-process counterpart of the fake SecretSpec and Forge in fixtures.ts:
+ * The in-process counterpart of the fake SecretSpec and Forge in fake-tool.ts:
  * the same options drive the same answers, but helper calls are answered and
  * recorded here instead of by spawned scripts. It covers what a command does
  * through Io; process-level behavior (PATH lookup, interruption, exec) stays
@@ -36,17 +37,6 @@ const schemaOf = (options: InProcessOptions) =>
 const valuesOf = (options: InProcessOptions) =>
   Object.hasOwn(options, "values") ? options.values : deploymentValues;
 
-function declaredScopes(options: InProcessOptions) {
-  const file = options.env?.["SECRETSPEC_FILE"];
-  // The spawned fake read the file it was pointed at, and failed if it was absent.
-  if (file !== undefined)
-    throw new CommandFailure("exit status 1", 1, `No such file: ${file}`);
-  const parsed = Bun.TOML.parse(options.spec ?? deploymentSpec) as {
-    scopes?: Record<string, { secrets: string[] }>;
-  };
-  return parsed.scopes ?? {};
-}
-
 /** Fail the way the spawned fake did when a stage was told to fail. */
 function failIfScripted(options: InProcessOptions, args: string[]) {
   if (options.failStage !== args[0]) return;
@@ -59,45 +49,39 @@ function failIfScripted(options: InProcessOptions, args: string[]) {
   throw new CommandFailure(`exit status ${status}`, status);
 }
 
-/** `secretspec check --json --scope <scope>`: the scope's members that the schema declares. */
-function scopeReport(
-  options: InProcessOptions,
-  args: string[],
-  names: string[],
-) {
-  const scope = args[args.indexOf("--scope") + 1] ?? "";
-  const scopes = declaredScopes(options);
-  const entry = scopes[scope];
-  if (!entry)
-    throw new CommandFailure(
-      "exit status 1",
-      1,
-      `Invalid scope: '${scope}' is not defined in secretspec.toml. Available scopes: ${Object.keys(scopes).join(", ")}`,
-    );
-  return JSON.stringify({
-    schema_version: 1,
-    scope,
-    secrets: entry.secrets
-      .filter((name) => names.includes(name))
-      .map((name) => ({ name, status: "resolved" })),
-  });
-}
-
 /** Answer one helper call as the fake tool would, after recording it. */
-function answer(
+export function answer(
   options: InProcessOptions,
   tool: string,
   args: string[],
-  names: string[],
 ) {
   failIfScripted(options, args);
   if (tool !== "secretspec") return "";
-  if (args[0] === "check") return scopeReport(options, args, names);
-  if (args[0] === "schema")
-    return options.schemaOutput ?? JSON.stringify(schemaOf(options));
-  if (args[0] === "export")
-    return options.exportOutput ?? JSON.stringify(valuesOf(options));
-  return "";
+  try {
+    return secretspecAnswer(
+      args,
+      {
+        schema: schemaOf(options),
+        values: valuesOf(options),
+        schemaOutput: options.schemaOutput,
+        exportOutput: options.exportOutput,
+      },
+      () => {
+        const file = options.env?.["SECRETSPEC_FILE"];
+        // The spawned fake read the file it was pointed at, and failed if it was absent.
+        if (file !== undefined)
+          throw new CommandFailure("exit status 1", 1, `No such file: ${file}`);
+        return options.spec ?? deploymentSpec;
+      },
+    );
+  } catch (error) {
+    if (!(error instanceof AnswerFailure)) throw error;
+    throw new CommandFailure(
+      `exit status ${error.status}`,
+      error.status,
+      error.message,
+    );
+  }
 }
 
 /** Run one `fence-rider` invocation in-process against the fake tools. */
@@ -147,7 +131,7 @@ export async function runInProcess(
             .map((name) => [name, callEnv[name] as string]),
         ),
       });
-      return answer(options, tool, args, names);
+      return answer(options, tool, args);
     },
   };
 
