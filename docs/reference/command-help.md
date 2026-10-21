@@ -57,3 +57,12 @@ Resolve the whole profile once; check optional manifest declarations. Runtime me
 Forge input/output streams live and unredacted; app logs may expose values. -h is debug host, not help; use --help.
 No remote variable uploads/deletion, deployment or installation. SecretSpec and Forge must be installed on PATH and authenticated separately.
 ```
+
+## doctor
+
+```text
+Usage: fence-rider doctor
+Report the SecretSpec and Forge CLI versions on PATH against the lowest supported and highest tested versions.
+Exits 1 when a tool is missing, unreadable or older than supported; a newer version is only a warning.
+Other commands never pre-check versions: a changed tool contract surfaces as that command's failure.
+```

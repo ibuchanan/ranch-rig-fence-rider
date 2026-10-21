@@ -41,7 +41,7 @@ CLIs find SecretSpec and Forge on `PATH`. Packaging tests in
 `tests/packaged-consumer.test.ts` pack a local artifact, install it with
 lifecycle scripts blocked, and invoke its installed executable in isolated
 consumers with controlled tools. Native installed checks additionally require
-SecretSpec 0.21.1 on `PATH`; without it they skip, not pass. They remove
+SecretSpec on `PATH`; without it they skip, not pass. They remove
 consumer fixtures and never publish or contact Forge.
 See [delivery evidence and limits](docs/reference/installation.md). Installed
 consumer acceptance reads the checked-in `docs/examples` scripts/declarations

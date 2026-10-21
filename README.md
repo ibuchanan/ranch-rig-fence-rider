@@ -36,9 +36,9 @@ bun run build
 ```
 
 Help and version need no configuration, vault, network, or Forge login.
-Configured workflows require separately installed SecretSpec 0.21.1 and Forge
-CLIs on `PATH`, for the compiled binary and the dependency-based package alike.
-For dependency-based usage, follow the
+Configured workflows require separately installed SecretSpec and Forge
+CLIs on `PATH`, for the compiled binary and the dependency-based package alike;
+`fence-rider doctor` checks their versions. For dependency-based usage, follow the
 [consumer installation guide](docs/how-to/installation.md): the package requires
 Bun. Forge installation/authentication, provider access, and app registration
 remain separate. No workflow downloads tools or logs you in.

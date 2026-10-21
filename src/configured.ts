@@ -9,7 +9,6 @@ import {
   parseScopes,
   type Specification,
 } from "./resolution";
-import { secretSpecVersion, versionBanner } from "./secretspec";
 import type { Workflow } from "./workflow";
 
 /**
@@ -88,10 +87,6 @@ function forgeEnvironment(
 
 export async function configure(state: Workflow) {
   const secretspec = prerequisite("secretspec", state);
-  state.stage = `SecretSpec ${secretSpecVersion} required on PATH (install or switch to that version)`;
-  const version = await capture(secretspec, ["--version"], state.signal);
-  if (version.trim() !== versionBanner)
-    throw new Error("Incompatible executable");
   const forge = prerequisite("forge", state);
   const { config, nativeArgs } = await readConfiguration(state);
   const { properties, values } = await resolveProfile(

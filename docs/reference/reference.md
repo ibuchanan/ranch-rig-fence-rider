@@ -38,10 +38,10 @@ to record live verification as blocked rather than authorize a destination.
 ## Installed tool delivery
 
 The private local package exposes `fence-rider` under Bun 1.4.3+. Explicit
-SecretSpec 0.21.1 and Forge are separate prerequisites on `PATH`, for the package
+SecretSpec and Forge are separate prerequisites on `PATH`, for the package
 and the compiled binary alike; no command downloads or installs tools. Forge and
 provider authentication remain separate. See [installation reference](installation.md)
-for the version check, platforms, and install-script policy.
+for `fence-rider doctor`, platforms, and install-script policy.
 
 ## Declaration ownership
 

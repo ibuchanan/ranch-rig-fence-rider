@@ -1,4 +1,5 @@
 import { deploy, deployUsage } from "./deploy";
+import { doctor, doctorUsage } from "./doctor";
 import { install, installUsage } from "./install";
 import { lint, lintUsage } from "./lint";
 import { tunnel, tunnelUsage } from "./tunnel";
@@ -52,6 +53,11 @@ const commands: Record<string, Command> = {
     summary: "Configured local runtime delivery; development environments only",
     usage: tunnelUsage,
     run: tunnel,
+  },
+  doctor: {
+    summary: "Check SecretSpec and Forge versions against the tested range",
+    usage: doctorUsage,
+    run: async (args) => (args.length ? unknownInvocation() : doctor()),
   },
 };
 

@@ -41,10 +41,12 @@ Live claims above remain blocked.
 
 The package no longer provisions SecretSpec: `fence-rider setup`, the pinned
 installer digest, the mirror variables, and the package-local `.tools`
-directory were removed in favor of a `secretspec` executable on `PATH` that
-must report exactly `secretspec 0.21.1` ([ADR 0001](../adr/0001-secretspec-cli-on-path.md)).
-Public tests cover a missing executable and an incompatible version failing
-before Forge runs. Installed-consumer checks against the native executable
+directory were removed in favor of `secretspec` on `PATH`
+([ADR 0001](../adr/0001-secretspec-cli-on-path.md)). Workflows do not
+pre-check versions; the `doctor` command reports SecretSpec and Forge versions
+against their supported and tested range. Public tests cover `doctor` statuses
+and exit codes and a missing executable failing before Forge runs.
+Installed-consumer checks against the native executable
 skip when SecretSpec is absent. The entry below records the superseded
 provisioning evidence.
 

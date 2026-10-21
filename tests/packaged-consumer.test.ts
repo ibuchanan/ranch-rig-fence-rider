@@ -64,33 +64,6 @@ test("installed configured invocation rejects a missing SecretSpec before Forge 
   expect(existsSync(join(project, "tool-calls"))).toBe(false);
 });
 
-test("installed workflow rejects an incompatible SecretSpec on PATH before Forge runs", async () => {
-  const project = await packedConsumer();
-  writeFileSync(
-    join(project, "bin/secretspec"),
-    '#!/bin/sh\necho "secretspec 0.1.0"\n',
-    { mode: 0o755 },
-  );
-  const child = Bun.spawn([process.execPath, "run", "forge:lint"], {
-    cwd: project,
-    env: {
-      ...deploymentEnv(project, {}),
-      PATH: `${join(project, "bin")}:${process.execPath.slice(0, process.execPath.lastIndexOf("/"))}`,
-    },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [status, stdout, stderr] = await Promise.all([
-    child.exited,
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-  ]);
-  expect(status).toBe(1);
-  expect(stdout + stderr).toContain("SecretSpec 0.21.1 required on PATH");
-  expect(stdout + stderr).not.toContain("0.1.0");
-  expect(existsSync(join(project, "tool-calls"))).toBe(false);
-});
-
 test.skipIf(!realSecretSpec)(
   "installed consumer runs configured lint against the native SecretSpec on PATH",
   async () => {

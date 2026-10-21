@@ -24,9 +24,11 @@ CLI themselves.
 - Allows deleting `setup.ts`, the installer digest, the mirror variables
   (`SECRETSPEC_INSTALLER_URL`, `INSTALLER_DOWNLOAD_URL`), `.tools/`, the
   `sha256sum` requirement and the packaged-consumer delivery tests.
-- Keep the `--version` check: the wrapper depends on the output shape of
-  `secretspec schema` and `secretspec export --scope "" --format json`. Whether
-  to loosen the exact `0.21.1` pin to a tested range is left open.
+- Do not pre-check versions in workflows. The wrapper depends on the output
+  shape of `secretspec schema` and `secretspec export --scope "" --format json`,
+  but tool versions are expected to move safely, so contract changes surface as
+  failures and error messages. A `fence-rider doctor` command reports the lowest
+  supported and highest tested version of SecretSpec and Forge instead.
 - Cost: `npm install` alone no longer yields a working tool. Docs must state the
   prerequisite and the error must say how to install it.
 
@@ -82,7 +84,7 @@ confirming that `report()` plus the SDK's resolved fields carry what
 ## Consequences
 
 - Consumers are responsible for installing and upgrading SecretSpec; version
-  drift is caught by the `--version` check rather than prevented.
+  drift is reported by `fence-rider doctor` and otherwise shows up as a failure.
 - `docs/reference/installation.md`, `docs/how-to/installation.md`,
   `DEVELOPMENT.md`, the top-level help text and the specs still describe the
   `setup` flow and must be updated when it is removed.

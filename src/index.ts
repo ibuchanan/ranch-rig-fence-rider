@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import { version } from "../package.json";
 import { findCommand, unknownInvocation, workflowListing } from "./commands";
-import { secretSpecVersion } from "./secretspec";
 
 const topLevelHelp = `Fence Rider — SecretSpec-powered Forge development utility
 
@@ -18,7 +17,8 @@ Discovery:
   help, --help, -h       Show this help
   --version, -V          Show the version
 
-SecretSpec CLI ${secretSpecVersion} must be installed on PATH; no downloads or installs.
+SecretSpec CLI must be installed on PATH; no downloads or installs.
+Run fence-rider doctor to compare installed tool versions with the tested range.
 Forge CLI must be installed on PATH and authenticated separately; no automatic login.
 
 Install/uninstall targets: explicit options override resolved FORGE_SITE / FORGE_PRODUCT

@@ -13,13 +13,17 @@ example with a package manager such as Homebrew. The decision and the rejected
 alternatives are recorded in
 [ADR 0001](../adr/0001-secretspec-cli-on-path.md).
 
-Before profile resolution, every configured workflow runs `secretspec --version`
-and requires the exact banner `secretspec 0.21.1`. A missing executable or a
-different version stops the workflow before Forge or any remote change runs. No
-dependency lifecycle script, `setup` command, mirror variable, or cache is
-involved, so Bun's blocked install-script policy and `--ignore-scripts` do not
-affect package installation. Help, version, and invalid commands need neither
-tool.
+Configured workflows do not pre-check tool versions. A missing executable stops
+a workflow before Forge or any remote change runs, and a tool whose behavior has
+changed incompatibly surfaces as the failure of the step that depends on it. Run
+`fence-rider doctor` to compare the installed versions with the lowest supported
+and highest tested release of each tool; the table is in `src/doctor.ts`. A
+newer-than-tested version is a warning, an older-than-supported or unreadable
+one is a failure. Both bounds currently equal the only exercised baseline,
+SecretSpec 0.21.1 and Forge 14.2.0. No dependency lifecycle script, `setup`
+command, mirror variable, or cache is involved, so Bun's blocked install-script
+policy and `--ignore-scripts` do not affect package installation. Help, version,
+and invalid commands need neither tool.
 
 SecretSpec is Apache-2.0 upstream software. No SecretSpec SDK or additional npm
 runtime dependency is used. The wrapper belongs in a consumer's
@@ -36,6 +40,6 @@ installs Forge, registers an app, logs into providers, or grants consent.
 Ordinary tests use controlled executables and need no network. When a real
 `secretspec` is on `PATH`, the suite also runs native synthetic dotenv checks,
 including installed-consumer checks against that executable; without it they
-skip rather than claiming SecretSpec compatibility. Only the pinned 0.21.1
-release is exercised. See [validation](validation.md) and the
+skip rather than claiming SecretSpec compatibility. Only the 0.21.1 release is
+exercised. See [validation](validation.md) and the
 [consumer installation guide](../how-to/installation.md).
