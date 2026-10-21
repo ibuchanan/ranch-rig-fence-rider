@@ -9,17 +9,6 @@
   "bin": {
     "fence-rider": "src/index.ts"
   },
-  "engines": {
-    "bun": ">=1.4.3"
-  },
-  "os": [
-    "darwin",
-    "linux"
-  ],
-  "cpu": [
-    "arm64",
-    "x64"
-  ],
   "files": [
     "src",
     "docs",
@@ -60,5 +49,16 @@
     "npm-run-all2": "^9.0",
     "typescript": "^5.9"
   },
-  "packageManager": "bun@1.4.3"
+  "packageManager": "bun@1.4.3",
+  "engines": {
+    "bun": ">=1.4.3"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "cpu": [
+    "arm64",
+    "x64"
+  ]
 }
