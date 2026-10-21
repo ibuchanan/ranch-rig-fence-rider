@@ -4,6 +4,16 @@ export type Specification = {
   scopes?: Record<string, { secrets: string[] }>;
 };
 
+/** The only scopes Fence Rider reads; any other scope belongs to another consumer. */
+export const recognizedScopes = ["manifest", "runtime"];
+
+/** Names of declared scopes that Fence Rider never reads. */
+export function unrecognizedScopes(config: Specification) {
+  return Object.keys(config.scopes ?? {}).filter(
+    (name) => !recognizedScopes.includes(name),
+  );
+}
+
 /** Select scope declarations present in the effective native profile schema. */
 export function members(
   config: Specification,

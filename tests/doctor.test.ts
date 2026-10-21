@@ -8,7 +8,7 @@ useBuiltCli();
 type Tools = Record<string, string | null>;
 
 /** Run `doctor` with fake tools whose `--version` prints the given text (null: tool absent). */
-async function runDoctor(tools: Tools, args: string[] = []) {
+async function runDoctor(tools: Tools, args: string[] = [], toml?: string) {
   const project = mkdtempSync(join(cli.workspace, "doctor-"));
   const bin = join(project, "bin");
   mkdirSync(bin);
@@ -18,6 +18,7 @@ async function runDoctor(tools: Tools, args: string[] = []) {
       mode: 0o755,
     });
   }
+  if (toml !== undefined) writeFileSync(join(project, "secretspec.toml"), toml);
   const child = Bun.spawn([cli.executable, "doctor", ...args], {
     cwd: project,
     env: { PATH: bin, HOME: project, TMPDIR: project },
@@ -83,4 +84,48 @@ test("doctor accepts no arguments", async () => {
   const result = await runDoctor({}, ["--verbose"]);
   expect(result.exitCode).toBe(1);
   expect(result.stderr).toContain("Unknown command or unsupported arguments");
+});
+
+const spec = (scopes: string) =>
+  `[project]\nname = "x"\nrevision = "1.0"\n[profiles.default]\nA = { description = "a" }\n${scopes}`;
+const ok = { secretspec: "secretspec 0.21.1", forge: "14.2.0" };
+
+test("doctor skips the scope check without a SecretSpec file", async () => {
+  const result = await runDoctor(ok);
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain("scope check skipped");
+});
+
+test("doctor accepts the recognized scopes", async () => {
+  const result = await runDoctor(
+    ok,
+    [],
+    spec(
+      '[scopes.manifest]\nsecrets = ["A"]\n[scopes.runtime]\nsecrets = ["A"]\n',
+    ),
+  );
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain("scopes ok");
+});
+
+test("doctor warns about a scope Fence Rider never reads without failing", async () => {
+  const result = await runDoctor(
+    ok,
+    [],
+    spec('[scopes.runtim]\nsecrets = ["A"]\n'),
+  );
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain(
+    'scope "runtim" is not read by Fence Rider (recognized: manifest, runtime)',
+  );
+});
+
+test("doctor fails when the scopes are malformed", async () => {
+  const result = await runDoctor(
+    ok,
+    [],
+    spec('[scopes.runtime]\nsecrets = ["MISSING"]\n'),
+  );
+  expect(result.exitCode).toBe(1);
+  expect(result.stdout).toContain("is not usable: Malformed scope");
 });

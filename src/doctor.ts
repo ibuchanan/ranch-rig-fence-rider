@@ -1,4 +1,10 @@
+import { specificationPath } from "./configured";
 import { capture } from "./process";
+import {
+  parseScopes,
+  recognizedScopes,
+  unrecognizedScopes,
+} from "./resolution";
 
 /**
  * Lowest supported and highest tested release of each external tool. The floors
@@ -21,7 +27,8 @@ type Dependency = (typeof dependencies)[number];
 export const doctorUsage = [
   "Usage: fence-rider doctor",
   "Report the SecretSpec and Forge CLI versions on PATH against the lowest supported and highest tested versions.",
-  "Exits 1 when a tool is missing, unreadable or older than supported; a newer version is only a warning.",
+  "Also checks the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml) and warns about scopes Fence Rider never reads.",
+  "Exits 1 when a tool is missing, unreadable or older than supported, or the scopes are malformed; a newer version or an unused scope is only a warning.",
   "Other commands never pre-check versions: a changed tool contract surfaces as that command's failure.",
 ].join("\n");
 
@@ -73,9 +80,42 @@ async function inspect(dependency: Dependency) {
   };
 }
 
-/** Report each external tool's version against its supported range. */
+/** Warn about scopes that Fence Rider ignores, where a typo would otherwise pass silently. */
+async function inspectConfiguration() {
+  const file = specificationPath();
+  if (!(await Bun.file(file).exists()))
+    return {
+      failed: false,
+      lines: [`Configuration: no ${file}; scope check skipped`],
+    };
+  try {
+    const config = parseScopes(Bun.TOML.parse(await Bun.file(file).text()));
+    const unused = unrecognizedScopes(config).map(
+      (name) =>
+        `Configuration: scope "${name}" is not read by Fence Rider (recognized: ${recognizedScopes.join(", ")}); ignore this if another tool uses it`,
+    );
+    return {
+      failed: false,
+      lines: unused.length ? unused : [`Configuration: ${file} scopes ok`],
+    };
+  } catch (error) {
+    return {
+      failed: true,
+      lines: [
+        `Configuration: ${file} is not usable: ${(error as Error).message}`,
+      ],
+    };
+  }
+}
+
+/** Report each external tool's version against its supported range, then check the configuration. */
 export async function doctor(): Promise<number> {
-  const results = await Promise.all(dependencies.map(inspect));
-  for (const { line } of results) console.log(line);
+  const results = [
+    ...(await Promise.all(dependencies.map(inspect))).map(
+      ({ failed, line }) => ({ failed, lines: [line] }),
+    ),
+    await inspectConfiguration(),
+  ];
+  for (const { lines } of results) for (const line of lines) console.log(line);
   return results.some(({ failed }) => failed) ? 1 : 0;
 }

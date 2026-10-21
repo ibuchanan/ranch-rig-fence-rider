@@ -63,6 +63,7 @@ No remote variable uploads/deletion, deployment or installation. SecretSpec and 
 ```text
 Usage: fence-rider doctor
 Report the SecretSpec and Forge CLI versions on PATH against the lowest supported and highest tested versions.
-Exits 1 when a tool is missing, unreadable or older than supported; a newer version is only a warning.
+Also checks the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml) and warns about scopes Fence Rider never reads.
+Exits 1 when a tool is missing, unreadable or older than supported, or the scopes are malformed; a newer version or an unused scope is only a warning.
 Other commands never pre-check versions: a changed tool contract surfaces as that command's failure.
 ```

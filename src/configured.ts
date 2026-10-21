@@ -42,9 +42,14 @@ function prerequisite(tool: string, state: Workflow) {
   return path;
 }
 
+/** The SecretSpec file in use: SECRETSPEC_FILE, else secretspec.toml in the working directory. */
+export function specificationPath() {
+  return resolve(process.env["SECRETSPEC_FILE"] ?? "secretspec.toml");
+}
+
 async function readConfiguration(state: Workflow) {
   state.stage = "configuration";
-  const file = resolve(process.env["SECRETSPEC_FILE"] ?? "secretspec.toml");
+  const file = specificationPath();
   const profile = process.env["SECRETSPEC_PROFILE"] ?? "default";
   const raw: unknown = Bun.TOML.parse(await Bun.file(file).text());
   state.stage = "project.extends validation (only a single file is supported)";
