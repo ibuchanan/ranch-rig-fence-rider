@@ -43,7 +43,7 @@ value.
 
 Writing `secretspec run --scope '' -- forge lint "$@"` in `package.json` by hand
 needs no generator. But the wrapper still adds the install and uninstall target
-derivation and validation, the dropping of target options, and correct quoting of
+derivation and validation, the refusal of target options, and correct quoting of
 embedded options, and gives one place to change them.
 
 ### 4. Generate all five commands (deferred)
@@ -59,13 +59,9 @@ that logic as shell with weaker tests and error stages.
 - A package script must guard the generator with `&&`. An unguarded
   `eval "$(fence-rider lint)"` evaluates an empty string and exits 0 when the
   generator refuses, so a refusal would pass silently.
-- Refusals (malformed arguments) print the reason on stderr and nothing on
-  stdout, and exit 1, so the guard stops the script. The target options
-  `-e`/`-s`/`-p` on install and uninstall are not refusals: they are dropped,
-  with a note on stderr, and the script is still printed
-  ([ADR 0004](0004-install-targets-from-profile-only.md)). `sh -c "$cmd" sh`
-  runs the script rather than `eval` so appended arguments are parsed once, as
-  `"$@"`.
+- Refusals print the reason on stderr and nothing on stdout, and exit 1, so the
+  guard stops the script. `sh -c "$cmd" sh` runs the script rather than `eval`
+  so appended arguments are parsed once, as `"$@"`.
 - Fence Rider no longer checks `PATH` for these commands; a missing tool is the
   shell's "command not found" when the script runs, and `fence-rider doctor`
   reports the tools.

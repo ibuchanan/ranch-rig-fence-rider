@@ -36,7 +36,7 @@ Prints a shell script that runs forge install under secretspec run, with the who
 Options given here are embedded in the script; options a script runner appends after `sh` are passed too.
 Targets come from FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT; only environment falls back to development.
 Site and product are required, and no target may be empty or start with a dash; Forge validates their values.
-The target options -e/--environment, -s/--site and -p/--product are ignored here, with a note on stderr, because the script injects the targets from the profile. Options a script runner appends after `sh` are not inspected and reach Forge as given, so they can duplicate the targets. For other targets run secretspec and forge directly.
+The target options -e/--environment, -s/--site and -p/--product are not accepted; for other targets run secretspec and forge directly.
 Fence Rider does not validate values, and an exported variable the profile does not resolve (or declare) stays visible to Forge.
 Use --upgrade [all|code], --confirm-scopes and --non-interactive only when intended.
 No runtime uploads, variable deletion or deployment.
@@ -52,7 +52,7 @@ Prints a shell script that runs forge uninstall under secretspec run, with the w
 Options given here are embedded in the script; options a script runner appends after `sh` are passed too.
 Targets come from FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT; only environment falls back to development.
 Site and product are required, and no target may be empty or start with a dash; Forge validates their values.
-The target options -e/--environment, -s/--site and -p/--product are ignored here, with a note on stderr, because the script injects the targets from the profile. Options a script runner appends after `sh` are not inspected and reach Forge as given, so they can duplicate the targets. For other targets run secretspec and forge directly.
+The target options -e/--environment, -s/--site and -p/--product are not accepted; for other targets run secretspec and forge directly.
 Fence Rider does not validate values, and an exported variable the profile does not resolve (or declare) stays visible to Forge.
 Uninstall changes remote installation state; Forge owns remaining interaction. Forge 14.2.0 does not support --non-interactive. No upgrade, consent, approval or confirmation switches are injected.
 No runtime uploads, variable deletion or deployment.

@@ -101,8 +101,7 @@ before being declared supported.
 5. As a developer, I want reusable deployment defaults, so that routine
    commands do not repeat environment, site, and product settings.
 6. (Superseded 2026-10-21 for `install` and `uninstall`, which no longer accept
-   target options, which are now dropped with a note; see
-   `docs/adr/0004-install-targets-from-profile-only.md`.)
+   target options; see `docs/adr/0004-install-targets-from-profile-only.md`.)
    As a release operator, I want explicit CLI options to override defaults,
    so that each invocation can target the intended environment.
 7. As a release operator, I want uploads and the delegated command to use the

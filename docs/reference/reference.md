@@ -363,7 +363,7 @@ followed by export is not evidence of a single coherent resolution.
 `deploy`, `install`, `uninstall`, `tunnel` and `lint` share one small reader
 (`src/forge-args.ts`). It lifts out only the options the wrapper owns
 (`--environment`/`-e`; for installation and uninstall also `--site`/`-s`
-and `--product`/`-p`, which are recognized only to be dropped) and the help
+and `--product`/`-p`, which are recognized only to be refused) and the help
 flags. It does not model Forge's option table:
 every other argument is forwarded untouched and in order, and Forge reports
 anything malformed. Everything after `--` is forwarded untouched. Repeated
@@ -516,18 +516,12 @@ and lint differ from deploy and tunnel in three ways:
 Forge is invoked as `forge install --environment E --site S --product P`
 followed by the forwarded arguments, and Forge validates what the values mean.
 The target options `--environment`/`-e`, `--site`/`-s` and `--product`/`-p` are
-**dropped**: given to the generator in any spelling, they are left out of the
-printed script together with their values, and one note per option goes to
-stderr (`Fence Rider: ignored --site; install targets come from the profile …`).
-The script is still printed and the exit status is 0, because forwarding one
-would give Forge a second copy of an option the script injects. Malformed
-parsing, such as a duplicated option or `-s=x`, still fails with nothing on
-stdout. Options that a script runner appends after `sh` are not inspected: they
-reach Forge as given and can duplicate the injected targets, a limitation Fence
-Rider cannot prevent. A missing or invalid target fails in the script before
-Forge, and Forge's target prompts never open. Someone who needs explicit control
-sets the profile or an exported `FORGE_*` variable, or writes the command with
-`secretspec` and `forge` directly, for example
+**not accepted**: any spelling of them is refused before any script is printed
+(nothing on stdout, exit 1), because forwarding one would give Forge a second
+copy of an option the script injects. A missing or invalid target fails in the
+script before Forge, and Forge's target prompts never open. Someone who needs
+explicit control writes the command with `secretspec` and `forge` directly, for
+example
 `secretspec run -- forge install --environment … --site … --product …`, which is
 now almost what the wrapper does itself. See
 [ADR 0004](../adr/0004-install-targets-from-profile-only.md) and
@@ -577,8 +571,8 @@ cross-check and deployment-only runtime checks do not apply.
 Environment/site/product use the [installation target contract](#configured-installation):
 the resolved control, then `development` for environment only. Missing effective
 site/product fails without target-selection prompts, and target options are
-dropped with a note as for installation. Jira, Confluence, Compass, and
-Bitbucket are the inspected products.
+refused as for installation. Jira, Confluence, Compass, and Bitbucket are the
+inspected products.
 
 Uninstall's grammar is distinct from installation: required `--installation-id`
 / `-i` and `--app-id-override` values consume even switch-looking payloads.

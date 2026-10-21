@@ -16,7 +16,7 @@ export function installUsage(command: InstallCommand) {
     "Options given here are embedded in the script; options a script runner appends after `sh` are passed too.",
     "Targets come from FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT; only environment falls back to development.",
     "Site and product are required, and no target may be empty or start with a dash; Forge validates their values.",
-    "The target options -e/--environment, -s/--site and -p/--product are ignored here, with a note on stderr, because the script injects the targets from the profile. Options a script runner appends after `sh` are not inspected and reach Forge as given, so they can duplicate the targets. For other targets run secretspec and forge directly.",
+    "The target options -e/--environment, -s/--site and -p/--product are not accepted; for other targets run secretspec and forge directly.",
     "Fence Rider does not validate values, and an exported variable the profile does not resolve (or declare) stays visible to Forge.",
     installPolicy[command],
     "No runtime uploads, variable deletion or deployment.",
@@ -58,22 +58,10 @@ export function installScript(args: string[], command: InstallCommand) {
   ]);
 }
 
-/** The names of the target options that installScript drops. */
-export function ignoredTargetOptions(args: string[]) {
-  return parseInstallOptions(args).ignored;
-}
-
-/** Print what installScript builds, noting on stderr any target option it dropped. */
+/** Print what installScript builds. */
 export function install(
   args: string[],
   command: InstallCommand = "install",
 ): number {
-  return emit(() => {
-    const script = installScript(args, command);
-    for (const name of ignoredTargetOptions(args))
-      console.error(
-        `Fence Rider: ignored --${name}; ${command} targets come from the profile (FORGE_ENVIRONMENT, FORGE_SITE, FORGE_PRODUCT)`,
-      );
-    return script;
-  });
+  return emit(() => installScript(args, command));
 }

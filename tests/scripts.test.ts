@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ignoredTargetOptions, installScript } from "../src/install.ts";
+import { installScript } from "../src/install.ts";
 import { lintScript } from "../src/lint.ts";
 import { quote, underSecretSpec } from "../src/shell.ts";
 import { cli, runCli, useBuiltCli, waitUntil } from "./support/cli.ts";
@@ -50,33 +50,26 @@ describe.each(installCommands)("%s script", (command) => {
     ).toEndWith(`' sh ${command} --upgrade code --note 'a b;$(id)' "$@"`);
   });
 
-  test.each([
-    { args: ["--site", "other.atlassian.net"], ignored: ["site"] },
-    { args: ["--site=other.atlassian.net"], ignored: ["site"] },
-    { args: ["-sother.atlassian.net"], ignored: ["site"] },
-    { args: ["-s", "other.atlassian.net"], ignored: ["site"] },
-    { args: ["--product", "confluence"], ignored: ["product"] },
-    { args: ["--product=confluence"], ignored: ["product"] },
-    { args: ["-p", "confluence"], ignored: ["product"] },
-    { args: ["--environment", "production"], ignored: ["environment"] },
-    { args: ["-e", "production"], ignored: ["environment"] },
-    { args: ["-eproduction"], ignored: ["environment"] },
-  ])("drops the target option $args with its value", ({ args, ignored }) => {
-    expect(installScript([...args], command)).toBe(installScript([], command));
-    expect(ignoredTargetOptions([...args])).toEqual([...ignored]);
-  });
-
-  test("keeps the remaining options in order around dropped target options", () => {
-    const args = ["--upgrade", "-s", "x", "--verbose", "--product=jira", "all"];
-    expect(installScript(args, command)).toEndWith(
-      `' sh ${command} --upgrade --verbose all "$@"`,
+  test.each(
+    [
+      ["--site", "other.atlassian.net"],
+      ["--site=other.atlassian.net"],
+      ["-sother.atlassian.net"],
+      ["-s", "other.atlassian.net"],
+      ["--product", "confluence"],
+      ["--product=confluence"],
+      ["-p", "confluence"],
+      ["--environment", "production"],
+      ["-e", "production"],
+      ["-eproduction"],
+      ["--verbose", "--environment=production"],
+    ].map((args) => ({ args })),
+  )("refuses target options $args", ({ args }) => {
+    expect(() => installScript(args, command)).toThrow(
+      "Target options are not accepted",
     );
-    expect(ignoredTargetOptions(args)).toEqual(["site", "product"]);
-  });
-
-  test("a duplicated target option is still a parse error", () => {
-    expect(() => installScript(["-s", "a", "-s", "b"], command)).toThrow(
-      "Duplicate option",
+    expect(() => installScript(args, command)).toThrow(
+      "run secretspec and forge directly",
     );
   });
 
@@ -126,24 +119,12 @@ describe("the CLI prints scripts", () => {
   );
 
   test.each(installCommands)(
-    "%s drops a target option, noting it on stderr, and still prints the script",
+    "%s refuses a target option with nothing on stdout",
     async (command) => {
       const result = await runCli([command, "--site", "x"], true);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toBe(`${installScript([], command)}\n`);
-      expect(result.stderr).toBe(
-        `Fence Rider: ignored --site; ${command} targets come from the profile (FORGE_ENVIRONMENT, FORGE_SITE, FORGE_PRODUCT)\n`,
-      );
-    },
-  );
-
-  test.each(installCommands)(
-    "%s refuses a parse error with nothing on stdout",
-    async (command) => {
-      const result = await runCli([command, "-s", "a", "-s", "b"], true);
       expect(result.exitCode).toBe(1);
       expect(result.stdout).toBe("");
-      expect(result.stderr).toStartWith("Fence Rider: Duplicate option");
+      expect(result.stderr).toStartWith("Fence Rider: Target options");
     },
   );
 
@@ -383,23 +364,23 @@ describe("the package.json idiom", () => {
   });
 
   test.each(installCommands)(
-    "a guarded %s stops on a parse error",
+    "a guarded %s stops when fence-rider refuses",
     async (command) => {
-      const result = await run(idiom(command, "-s", "a", "-s", "b"), {});
+      const result = await run(idiom(command, "--site", "x"), {});
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("Duplicate option");
+      expect(result.stderr).toContain("Target options are not accepted");
       expect(result.forgeArgs).toBeUndefined();
       expect(result.secretspecArgs).toBeUndefined();
     },
   );
 
-  test("an unguarded eval would not notice a parse error", () => {
+  test("an unguarded eval would not notice a refusal", () => {
     // The reason the documented idiom is `cmd=$(…) && …` and not `eval "$(…)"`.
     const unguarded = Bun.spawnSync(
       [
         "/bin/sh",
         "-c",
-        'eval "$("$0" install -s a -s b 2>/dev/null)"',
+        'eval "$("$0" install --site x 2>/dev/null)"',
         cli.executable,
       ],
       { env: {} },

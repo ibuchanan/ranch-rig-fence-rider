@@ -375,6 +375,26 @@ test.skipIf(!realSecretSpec)(
         ],
       },
       {
+        script: "install:forge",
+        declarations: "",
+        // The generator refuses target options only when given to fence-rider;
+        // what a script runner appends goes to Forge after the injected targets.
+        args: ["--site", "override.atlassian.net"],
+        expected: [
+          "install",
+          "--environment",
+          "development",
+          "--site",
+          "synthetic.atlassian.net",
+          "--product",
+          "jira",
+          "--confirm-scopes",
+          "--non-interactive",
+          "--site",
+          "override.atlassian.net",
+        ],
+      },
+      {
         script: "tunnel",
         declarations:
           'FORGE_ENVIRONMENT = { description = "Target", default = "alice-dev" }\n',

@@ -3,40 +3,20 @@ import { parseInstallOptions } from "../src/install-plan.ts";
 
 describe("install and uninstall options", () => {
   test.each([
-    { args: ["--site", "x"], forwarded: [], ignored: ["site"] },
-    { args: ["--site=x"], forwarded: [], ignored: ["site"] },
-    { args: ["-sx"], forwarded: [], ignored: ["site"] },
-    { args: ["-s", "x"], forwarded: [], ignored: ["site"] },
-    { args: ["-p", "confluence"], forwarded: [], ignored: ["product"] },
-    { args: ["--product=compass"], forwarded: [], ignored: ["product"] },
-    {
-      args: ["-e", "production", "--verbose"],
-      forwarded: ["--verbose"],
-      ignored: ["environment"],
-    },
-    {
-      args: ["--environment=release_42"],
-      forwarded: [],
-      ignored: ["environment"],
-    },
-    {
-      args: ["--verbose", "-eproduction"],
-      forwarded: ["--verbose"],
-      ignored: ["environment"],
-    },
-    {
-      args: ["-sx", "--upgrade", "-pjira", "-e", "dev", "--verbose"],
-      forwarded: ["--upgrade", "--verbose"],
-      ignored: ["site", "product", "environment"],
-    },
-  ])(
-    "target option $args is dropped with its value, not forwarded",
-    ({ args, forwarded, ignored }) => {
-      const parsed = parseInstallOptions([...args]);
-      expect(parsed.forwarded).toEqual([...forwarded]);
-      expect(parsed.ignored).toEqual([...ignored]);
-    },
-  );
+    { args: ["--site", "x"] },
+    { args: ["--site=x"] },
+    { args: ["-sx"] },
+    { args: ["-s", "x"] },
+    { args: ["-p", "confluence"] },
+    { args: ["--product=compass"] },
+    { args: ["-e", "production", "--verbose"] },
+    { args: ["--environment=release_42"] },
+    { args: ["--verbose", "-eproduction"] },
+  ])("target option $args is refused rather than forwarded", ({ args }) => {
+    expect(() => parseInstallOptions([...args])).toThrow(
+      "Target options are not accepted",
+    );
+  });
 
   test.each([
     { args: ["-upconfluence"] },
@@ -80,34 +60,19 @@ describe("install and uninstall options", () => {
   );
 
   test.each([
-    { args: ["--site"], forwarded: [], ignored: ["site"] },
-    { args: ["-p"], forwarded: [], ignored: ["product"] },
-    { args: ["--environment="], forwarded: [], ignored: ["environment"] },
-    { args: ["--site="], forwarded: [], ignored: ["site"] },
-    { args: ["-p", ""], forwarded: [], ignored: ["product"] },
-    { args: ["--site", ""], forwarded: [], ignored: ["site"] },
-    // A dropped option takes the next argument as its value, as Forge's would.
-    {
-      args: ["--site", "--non-interactive"],
-      forwarded: [],
-      ignored: ["site"],
-    },
-  ])(
-    "empty or missing value $args is dropped like any target option",
-    ({ args, forwarded, ignored }) => {
-      const parsed = parseInstallOptions([...args]);
-      expect(parsed.forwarded).toEqual([...forwarded]);
-      expect(parsed.ignored).toEqual([...ignored]);
-    },
-  );
-
-  test.each([
+    { args: ["--site"] },
+    { args: ["-p"] },
+    { args: ["--environment="] },
+    { args: ["--site="] },
+    { args: ["-p", ""] },
+    { args: ["--site", ""] },
+    { args: ["--site", "--non-interactive"] },
     { args: ["-s=synthetic.atlassian.net"] },
     { args: ["-e=production"] },
     { args: ["--site", "one.atlassian.net", "-stwo.atlassian.net"] },
     { args: ["-pjira", "--product=jira"] },
     { args: ["-eproduction", "--environment", "staging"] },
-  ])("duplicate or malformed target option $args is rejected", ({ args }) => {
+  ])("malformed or duplicate target option $args is rejected", ({ args }) => {
     expect(() => parseInstallOptions([...args])).toThrow();
   });
 });

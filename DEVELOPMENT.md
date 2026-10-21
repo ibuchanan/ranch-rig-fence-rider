@@ -91,7 +91,7 @@ Do not raise thresholds or suppress findings to make a gate pass.
 - `src/lint.ts`: prints the script that runs `forge lint` under
   `secretspec run`; Fence Rider supervises nothing.
 - `src/install.ts`: prints the install/uninstall script, with a fixed target
-  script, dropping of target options and no automatic synchronization.
+  script, refusal of target options and no automatic synchronization.
 - `tests/`: compiled CLI and validation-command behavior.
 - `docs/`: task guides, reference, and architectural explanation.
 - `specs/fence-rider-spec.md`: product contract and AC-01 through AC-18.
