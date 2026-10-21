@@ -86,10 +86,8 @@ the installed package) and add this entry to the app's existing `scripts` object
 { "lint:forge": "cmd=$(fence-rider lint) && sh -c \"$cmd\" sh" }
 ```
 
-The `&&` stops the script when Fence Rider refuses, and `sh -c` hands appended
-arguments to the script as `"$@"` without parsing them again; see the
-[short scripts](consumer-workflows.md) for why. From the configured app
-directory, with the same provider:
+See [why the script is guarded](installation.md#run-a-short-script). From the
+configured app directory, with the same provider:
 
 ```sh
 SECRETSPEC_PROVIDER=dotenv:values.env bun run lint:forge

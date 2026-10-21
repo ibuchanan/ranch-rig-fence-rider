@@ -416,12 +416,10 @@ interruption cannot become success.
 stdout, `exec secretspec run --scope '' -- forge lint …` with the options given
 to it quoted into the script, and a package script executes that output. Options
 that a script runner appends later reach Forge through the script's `"$@"`
-without being parsed again. The documented package script assigns the output
-to a variable, then runs it with `sh -c` only if that assignment succeeded (see
-the [short scripts](../how-to/consumer-workflows.md)): when Fence Rider refuses,
-it prints the reason on stderr, nothing on stdout, and exits 1, so the `&&`
-stops the script. Without the guard, `eval "$(fence-rider lint)"` evaluates an
-empty string and exits 0, so a refusal would pass silently.
+without being parsed again. The documented package script guards the
+generator; see [short scripts](../how-to/installation.md#run-a-short-script).
+When Fence Rider refuses, it prints the reason on stderr, nothing on stdout, and
+exits 1.
 
 Because the script `exec`s `secretspec run`, the shell is replaced: Fence Rider
 supervises nothing, and signals, the exit status and interactive input belong to

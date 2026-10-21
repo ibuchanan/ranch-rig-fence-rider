@@ -25,8 +25,8 @@ same `exec secretspec run` form. Arguments given to `fence-rider` are
 shell-quoted into the script, and arguments a script runner appends arrive as
 `"$@"`. The documented package script assigns the output to a variable and runs
 it with `sh -c` only if the generator succeeded (see the
-[short scripts](../how-to/consumer-workflows.md)). Deploy and tunnel are
-unchanged: Bun still resolves, validates and supervises them.
+[short scripts](../how-to/installation.md#run-a-short-script)). Deploy and
+tunnel are unchanged: Bun still resolves, validates and supervises them.
 
 ## Considered options
 

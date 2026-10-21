@@ -45,15 +45,18 @@ makes any arguments your script runner appends arrive as the script's `"$@"`
 without being parsed a second time. Deploy and tunnel are the exceptions: they
 run directly, as `fence-rider deploy` and `fence-rider tunnel`.
 
-Declare your inputs in one `secretspec.toml`, choose your own provider, then run:
+Declare your inputs first: adapt [`secretspec.toml`](../examples/secretspec.toml),
+merge the [`manifest.yml`](../examples/manifest.yml) fragment, and use
+[`values.env`](../examples/values.env) as a local template. See the
+[configured workflow guide](how-to.md) for the procedure. Choose your own
+provider, then run:
 
 ```sh
 bun run forge:lint
 ```
 
 For local synthetic values, select `SECRETSPEC_PROVIDER=dotenv:values.env` in your
-shell or CI configuration. Keep provider values out of scripts and Git. See the
-[configured workflow guide](how-to.md) for declaration and workflow examples.
+shell or CI configuration. Keep provider values out of scripts and Git.
 
 If a command reports a missing tool, or a step fails after a tool upgrade, run
 `bun run fence-rider doctor` and install a version in the tested range. The
@@ -61,3 +64,38 @@ generated scripts check nothing about `PATH` themselves, so a missing tool shows
 up as the shell's "command not found" when the script runs. No
 fallback binary is used, and no consumer helper or dependency postinstall script
 is needed.
+
+## Add the full script set
+
+Merge the scripts from [the tested package example](../examples/package.json)
+into the app's existing `package.json`, retaining the installed development
+dependency. Obtain permission for the particular app, site and environment
+before running any command that contacts Forge.
+
+```json
+{
+  "variables": "fence-rider variables",
+  "deploy": "cmd=$(fence-rider deploy --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh",
+  "deploy:reviewed": "cmd=$(fence-rider deploy --non-interactive --approve REVIEWED_RULE_FROM_FORGE) && sh -c \"$cmd\" sh",
+  "release": "fence-rider variables && cmd=$(fence-rider deploy --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh",
+  "install:forge": "cmd=$(fence-rider install --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
+  "upgrade:forge": "cmd=$(fence-rider install --upgrade --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
+  "uninstall:forge": "cmd=$(fence-rider uninstall) && sh -c \"$cmd\" sh",
+  "lint:forge": "cmd=$(fence-rider lint) && sh -c \"$cmd\" sh",
+  "tunnel": "cmd=$(fence-rider tunnel) && sh -c \"$cmd\" sh"
+}
+```
+
+`MAJOR_VERSION_RULE` is the documented Forge approval rule. Replace the explicit
+`REVIEWED_RULE_FROM_FORGE` placeholder with a different exact rule reported by
+Forge before using that variant; no second server rule is certified here. The
+automated controlled test establishes distinct-token forwarding, not server
+acceptance. Rules are forwarded policy, not automatic approval of all changes.
+Deployment approval does not grant install scope consent. Keep `--confirm-scopes`,
+`--non-interactive` and `--upgrade` only where that policy is intended.
+
+`release` uploads runtime values with `variables` and then deploys; the `&&`
+stops before deploying if the upload fails. Forge 14.2.0 has no uninstall
+`--non-interactive` flag, so `uninstall:forge` injects no policy: run it only
+with removal authorization. Evidence limits and live blockers are in the
+[consumer acceptance reference](../reference/consumer-workflows.md).

@@ -12,7 +12,7 @@ environment. No vault SDK or Fence Rider code belongs in your deployed app.
 `lint`, `deploy`, `tunnel`, `install` and `uninstall` do not run Forge
 themselves: they print a shell script that runs it under `secretspec run`, and a
 package script executes that script (see the [short
-scripts](docs/how-to/consumer-workflows.md)). `deploy` uploads nothing; run
+scripts](docs/how-to/installation.md#add-the-full-script-set)). `deploy` uploads nothing; run
 `variables` when the runtime values change. `lint` supplies the resolved local
 inputs; `install` and `uninstall` use configured targets and caller-owned
 interaction. **Uninstall changes remote installation state.** Forge output
@@ -65,7 +65,7 @@ Only `runtime` scope members upload; other values stay local. Optional
 ## Installed consumer workflows
 
 Use the [development-dependency setup](docs/how-to/installation.md), then adopt
-[short configured scripts](docs/how-to/consumer-workflows.md) for deploy,
+[short configured scripts](docs/how-to/installation.md#add-the-full-script-set) for deploy,
 variables, deploy, lint, install/upgrade, uninstall, and development tunnel. No
 helper or duplicated key inventory is needed. Controls-only apps need no runtime
 scope or dummy secret. The [CW-01–CW-22 evidence
