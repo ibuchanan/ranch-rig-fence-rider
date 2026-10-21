@@ -64,8 +64,8 @@ evidence record](../reference/deployment.md).
 5. Invoke the binary from the app directory, replacing the executable path:
 
    ```sh
-   SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli variables --environment development
-   cmd=$(SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli deploy --environment development --non-interactive) && SECRETSPEC_PROVIDER=dotenv:values.env sh -c "$cmd" sh
+   SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/fence-rider variables --environment development
+   cmd=$(SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/fence-rider deploy --environment development --non-interactive) && SECRETSPEC_PROVIDER=dotenv:values.env sh -c "$cmd" sh
    ```
 
    The first command writes encrypted `API_TOKEN` to the named app/environment;
@@ -259,7 +259,7 @@ a profile declared within it. SecretSpec reads both itself; without
 directory:
 
 ```sh
-SECRETSPEC_FILE=config.toml SECRETSPEC_PROFILE=release SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli variables -e development
+SECRETSPEC_FILE=config.toml SECRETSPEC_PROFILE=release SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/fence-rider variables -e development
 ```
 
 Define `release` in that file first. Profile and cross-file inheritance,

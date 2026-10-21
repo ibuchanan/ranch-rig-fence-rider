@@ -37,8 +37,8 @@ With Bun 1.4.3 installed, run from this checkout:
 ```sh
 bun install
 bun run build
-./dist/cli --help
-./dist/cli --version
+./dist/fence-rider --help
+./dist/fence-rider --version
 ```
 
 Help and version need no configuration, vault, network, or Forge login.
@@ -52,8 +52,8 @@ remain separate. No workflow downloads tools or logs you in.
 From that app's directory, using the absolute path to the built binary:
 
 ```sh
-SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli variables --environment development
-cmd=$(SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli deploy --environment development --non-interactive) && SECRETSPEC_PROVIDER=dotenv:values.env sh -c "$cmd" sh
+SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/fence-rider variables --environment development
+cmd=$(SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/fence-rider deploy --environment development --non-interactive) && SECRETSPEC_PROVIDER=dotenv:values.env sh -c "$cmd" sh
 ```
 
 **These commands change remote state.** Set up and review the
