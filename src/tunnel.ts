@@ -1,13 +1,13 @@
 import { checkManifest, configure, members } from "./configured";
-import { type CommandSpec, parseForgeArgs } from "./forge-args";
-import { isLocalControl, isOptionValue } from "./policy";
 import { checkInterruption, passthrough } from "./process";
+import {
+  isReservedVariable,
+  parseTunnelOptions,
+  tunnelArgs,
+  tunnelRuntimeVariables,
+  tunnelTarget,
+} from "./tunnel-plan";
 import { runWorkflow } from "./workflow";
-
-function validateTarget(target: string) {
-  if (!isOptionValue(target)) throw new Error("Invalid tunnel environment");
-  return target;
-}
 
 function injectRuntime({
   env,
@@ -15,25 +15,14 @@ function injectRuntime({
   properties,
   values,
 }: Awaited<ReturnType<typeof configure>>) {
-  if (Object.keys(properties).some((key) => key.startsWith("FORGE_USER_VAR_")))
-    throw new Error("Reserved tunnel prefix in application declaration");
-  Object.keys(env)
-    .filter((key) => key.startsWith("FORGE_USER_VAR_"))
-    .forEach((key) => {
-      delete env[key];
-    });
-  const runtime = members(config, "runtime", properties);
-  validateRuntime(runtime);
-  for (const key of runtime) {
-    if (values[key] !== undefined) env[`FORGE_USER_VAR_${key}`] = values[key];
-  }
-}
-
-function validateRuntime(runtime: string[]) {
-  for (const key of runtime) {
-    if (isLocalControl(key))
-      throw new Error("Local control cannot be a tunnel runtime variable");
-  }
+  const variables = tunnelRuntimeVariables(
+    Object.keys(properties),
+    members(config, "runtime", properties),
+    values,
+  );
+  for (const key of Object.keys(env))
+    if (isReservedVariable(key)) delete env[key];
+  Object.assign(env, variables);
 }
 
 export const tunnelUsage = [
@@ -44,32 +33,10 @@ export const tunnelUsage = [
   "No remote variable uploads/deletion, deployment or installation. SecretSpec and Forge must be installed on PATH and authenticated separately.",
 ].join("\n");
 
-// -h is Forge's debug host, so only --help requests wrapper help.
-const tunnelSpec: CommandSpec = {
-  owned: { environment: "e" },
-  help: ["--help"],
-};
-
-function parseOptions(args: string[]) {
-  const { owned, forwarded, help } = parseForgeArgs(
-    tunnelSpec,
-    args,
-    (_name, value) => validateTarget(value),
-  );
-  return { target: owned["environment"], forwarded, help };
-}
-
-function effectiveTarget(
-  explicit: string | undefined,
-  configured: string | undefined,
-) {
-  return validateTarget(explicit ?? configured ?? "development");
-}
-
 export async function tunnel(args: string[]): Promise<number> {
   return runWorkflow(async (workflow) => {
     workflow.stage = "tunnel option validation";
-    const options = parseOptions(args);
+    const options = parseTunnelOptions(args);
     if (options.help) {
       console.log(tunnelUsage);
       return;
@@ -77,14 +44,14 @@ export async function tunnel(args: string[]): Promise<number> {
     const configured = await configure(workflow);
     const { forge, env, config, properties, environment } = configured;
     workflow.stage = "tunnel target validation (development environments only)";
-    const target = effectiveTarget(options.target, environment);
+    const target = tunnelTarget(options.target, environment);
     await checkManifest(config, properties, workflow);
     workflow.stage = "tunnel runtime selection validation";
     injectRuntime(configured);
     workflow.stage = "tunnel";
     await passthrough(
       forge,
-      ["tunnel", "--environment", target, ...options.forwarded],
+      tunnelArgs(target, options.forwarded),
       workflow.signal,
       env,
     );

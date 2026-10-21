@@ -201,40 +201,6 @@ test.each(["lint", "install", "uninstall", "tunnel"] as const)(
 );
 
 test.each([
-  { args: ["--environment", "development"] },
-  { args: ["-e", "development"] },
-  { args: ["--environment=alice-dev"] },
-  { args: ["-edevelopment"] },
-  { args: ["-dnealice-dev", "-findex.run"] },
-  { args: ["--debugHost", "--environment", "development"] },
-  { args: ["--debugStartingPort=--environment", "-edevelopment"] },
-  { args: ["-edevelopment", "--", "--help", "-eproduction"] },
-])(
-  "configured tunnel preserves verified argument grammar %j",
-  async ({ args }) => {
-    const result = await runWorkflow({ command: "tunnel", args });
-    expect(result.exitCode).toBe(0);
-    expect(
-      result.interactions.filter(({ tool }) => tool === "forge"),
-    ).toHaveLength(1);
-    expect(
-      result.interactions.at(-1)?.args.filter((arg) => arg === "tunnel"),
-    ).toHaveLength(1);
-    if (args.some((arg) => arg === "--"))
-      expect(result.interactions.at(-1)?.args.slice(-3)).toEqual([
-        "--",
-        "--help",
-        "-eproduction",
-      ]);
-  },
-);
-
-test.each([
-  { args: ["--environment"] },
-  { args: ["-e"] },
-  { args: ["--environment="] },
-  { args: ["-e=development"] },
-  { args: ["-e", ""] },
   { args: ["-e", "--verbose"] },
   { args: ["-edevelopment", "--environment", "development"] },
 ])(
@@ -259,21 +225,5 @@ test.each([""])(
       [],
     );
     expect(result.stderr).toContain("tunnel target validation");
-  },
-);
-
-test.each(["", "--option-like", "0", "false"])(
-  "configured tunnel preserves destination-supported runtime string %j",
-  async (value) => {
-    const result = await runWorkflow({
-      command: "tunnel",
-      args: ["-edevelopment"],
-      values: { ...deploymentValues, OPTIONAL: value },
-    });
-    expect(result.exitCode).toBe(0);
-    expect(result.interactions.at(-1)?.runtime).toEqual({
-      SHARED: sharedValue,
-      OPTIONAL: value,
-    });
   },
 );

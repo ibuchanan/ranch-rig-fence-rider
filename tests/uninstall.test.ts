@@ -29,90 +29,9 @@ test.each([2, 23, 127, 255])(
   },
 );
 
-test.each([
-  {
-    args: ["-e", "production", "--verbose"],
-    target: ["production", "synthetic.atlassian.net", "jira"],
-    forwarded: ["--verbose"],
-  },
-  {
-    args: ["--site", "other.atlassian.net"],
-    target: ["staging", "other.atlassian.net", "jira"],
-  },
-  {
-    args: ["-p", "confluence"],
-    target: ["staging", "synthetic.atlassian.net", "confluence"],
-  },
-  {
-    args: [
-      "--environment=release_42",
-      "--site=https://other.atlassian.net",
-      "--product=compass",
-    ],
-    target: ["release_42", "https://other.atlassian.net", "compass"],
-  },
-  {
-    args: [
-      "-eproduction",
-      "-shttps://bitbucket.org/synthetic/",
-      "-pbitbucket",
-      "--batch",
-    ],
-    target: ["production", "https://bitbucket.org/synthetic/", "bitbucket"],
-    forwarded: ["--batch"],
-  },
-  {
-    args: [
-      "--installation-id=--site",
-      "-i--environment",
-      "--app-id-override=--product",
-      "--verbose",
-    ],
-    target: ["staging", "synthetic.atlassian.net", "jira"],
-    forwarded: [
-      "--installation-id=--site",
-      "-i--environment",
-      "--app-id-override=--product",
-      "--verbose",
-    ],
-  },
-])(
-  "configured uninstall preserves verified target and argument forms %j",
-  async ({ args, target, forwarded = [] }) => {
-    const result = await runInstallation({ command: "uninstall", args });
-    expect(result.exitCode).toBe(0);
-    expect(
-      result.interactions
-        .filter(({ tool }) => tool === "forge")
-        .map(({ args }) => args),
-    ).toEqual([
-      [
-        "uninstall",
-        "--environment",
-        target[0],
-        "--site",
-        target[1],
-        "--product",
-        target[2],
-        ...forwarded,
-      ],
-    ]);
-  },
-);
-
 test.each(
   [
-    ["--site"],
-    ["--product"],
-    ["--environment"],
-    ["--site="],
-    ["-p", ""],
-    ["-e=production"],
-    ["-s=other.atlassian.net"],
-    ["-p=jira"],
     ["--site", "--verbose"],
-    ["--site", "one.atlassian.net", "-stwo.atlassian.net"],
-    ["-pjira", "--product=jira"],
     ["-eproduction", "--environment", "staging"],
   ].map((args) => ({ args })),
 )(

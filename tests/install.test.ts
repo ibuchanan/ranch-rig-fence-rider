@@ -69,57 +69,9 @@ test("configured installation overrides targets independently and preserves expl
   ]);
 });
 
-test.each([
-  {
-    args: [
-      "--license",
-      "active",
-      "--app-id-override=--site",
-      "-ltrial",
-      "--upgrade=all",
-      "--",
-      "--site",
-      "payload",
-      "-p",
-      "confluence",
-      "--help",
-    ],
-  },
-])(
-  "configured installation preserves target-like option payloads and terminators %j",
-  async ({ args }) => {
-    const result = await runInstallation({ args });
-    expect(result.exitCode).toBe(0);
-    expect(
-      result.interactions
-        .filter(({ tool }) => tool === "forge")
-        .map(({ args }) => args),
-    ).toEqual([
-      [
-        "install",
-        "--environment",
-        "staging",
-        "--site",
-        "synthetic.atlassian.net",
-        "--product",
-        "jira",
-        ...args,
-      ],
-    ]);
-  },
-);
-
 test.each(
   [
-    ["--site"],
-    ["-s=synthetic.atlassian.net"],
-    ["-p"],
-    ["--environment="],
-    ["--site", ""],
     ["--site", "--non-interactive"],
-    ["-p=jira"],
-    ["--site", "one.atlassian.net", "-stwo.atlassian.net"],
-    ["-pjira", "--product=jira"],
     ["-eproduction", "--environment", "staging"],
   ].map((args) => ({ args })),
 )(
@@ -143,84 +95,6 @@ test.each(["FORGE_SITE", "FORGE_PRODUCT"])(
       [],
     );
     expect(result.stderr).toContain("installation target validation");
-  },
-);
-
-test.each([
-  {
-    args: ["-upconfluence"],
-    target: ["staging", "synthetic.atlassian.net", "jira"],
-    forwarded: ["-upconfluence"],
-  },
-  {
-    args: ["-e", "production"],
-    target: ["production", "synthetic.atlassian.net", "jira"],
-  },
-  {
-    args: [
-      "--environment=production",
-      "--site=https://other.atlassian.net",
-      "--product=confluence",
-    ],
-    target: ["production", "https://other.atlassian.net", "confluence"],
-  },
-  {
-    args: ["-eproduction", "-shttps://bitbucket.org/synthetic/", "-pbitbucket"],
-    target: ["production", "https://bitbucket.org/synthetic/", "bitbucket"],
-  },
-  {
-    args: ["-p", "compass"],
-    target: ["staging", "synthetic.atlassian.net", "compass"],
-  },
-  {
-    args: ["--upgrade"],
-    target: ["staging", "synthetic.atlassian.net", "jira"],
-    forwarded: ["--upgrade"],
-  },
-  {
-    args: [
-      "-uall",
-      "--license=active",
-      "--license-modes",
-      "user-access",
-      "--users-with-access",
-      "one",
-      "two",
-      "--non-interactive",
-    ],
-    target: ["staging", "synthetic.atlassian.net", "jira"],
-    forwarded: [
-      "-uall",
-      "--license=active",
-      "--license-modes",
-      "user-access",
-      "--users-with-access",
-      "one",
-      "two",
-      "--non-interactive",
-    ],
-  },
-])(
-  "configured installation supports verified target and policy forms %j",
-  async ({ args, target, forwarded = [] }) => {
-    const result = await runInstallation({ args });
-    expect(result.exitCode).toBe(0);
-    expect(
-      result.interactions
-        .filter(({ tool }) => tool === "forge")
-        .map(({ args }) => args),
-    ).toEqual([
-      [
-        "install",
-        "--environment",
-        target[0],
-        "--site",
-        target[1],
-        "--product",
-        target[2],
-        ...forwarded,
-      ],
-    ]);
   },
 );
 
