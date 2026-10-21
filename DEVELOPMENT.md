@@ -49,9 +49,13 @@ state.
 
 When SecretSpec is on `PATH`, the suite also runs native synthetic dotenv
 integration checks (`tests/integration/native-*.test.ts`). Install SecretSpec
-0.21.1 separately to reproduce that evidence. Without it, native checks are
-skipped: a green controlled suite alone does not certify SecretSpec
-compatibility. POSIX interruption checks are skipped on Windows; Windows
+0.21.1 separately to reproduce that evidence. Without it, `bun run test` skips
+the native checks and prints how many (`tests/support/native-gate.ts`): a green
+controlled suite alone does not certify SecretSpec compatibility. The forced
+gate (`bun run check`, and so the pre-push hook) sets
+`FENCE_RIDER_REQUIRE_NATIVE=1` in the `test:check` script, which turns a missing
+SecretSpec into a failure naming the required version. You need SecretSpec
+0.21.1 on `PATH` to push. POSIX interruption checks are skipped on Windows; Windows
 process-tree cleanup is not certified.
 
 `tests/integration/check.test.ts` exercises validation output and statuses with
@@ -88,7 +92,7 @@ native, interface and blocked live results.
 | `bun run lint` | Biome, formatting, typecheck, and Fallow in parallel |
 | `bun run lint:fallow` | Full Fallow gate; report displayed only on failure |
 | `bun run lint:docs` | All Markdown and spelling checks |
-| `bun run check` | Forced pre-push gate: tests and lint; optional size/pack scripts are currently absent |
+| `bun run check` | Forced pre-push gate: tests (failing if SecretSpec is missing) and lint; optional size/pack scripts are currently absent |
 | `bun run build` | Compiled CLI at `dist/fence-rider` |
 
 Fallow still fails on dead-code, duplication, or health thresholds as before;
