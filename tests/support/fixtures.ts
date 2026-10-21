@@ -203,6 +203,24 @@ export function deploymentEnv(project: string, options: WorkflowOptions) {
   };
 }
 
+let shared: { workspace: string; dir: string } | undefined;
+
+/**
+ * A fake tool, written once per test workspace and linked into every project.
+ * macOS scans a freshly written executable on its first exec, which costs about
+ * 150ms, so a copy per project made that the bulk of every test's time.
+ */
+function sharedTool(tool: string) {
+  if (shared?.workspace !== cli.workspace)
+    shared = {
+      workspace: cli.workspace,
+      dir: mkdtempSync(join(cli.workspace, "fake-tools-")),
+    };
+  const path = join(shared.dir, tool);
+  if (!existsSync(path)) writeTool(path, tool);
+  return path;
+}
+
 function prepareTools(project: string, options: WorkflowOptions) {
   const bin = join(project, "bin");
   mkdirSync(bin);
@@ -213,13 +231,13 @@ function prepareTools(project: string, options: WorkflowOptions) {
   symlinkSync("/usr/bin/sed", join(bin, "sed"));
   for (const tool of ["secretspec", "forge"]) {
     if (options.missingTool === tool) continue;
-    writeTool(join(bin, tool), tool);
     if (options.launchTool === tool)
       writeFileSync(
         join(bin, tool),
         `#!${join(project, "missing-interpreter")}\n${sharedValue}\n`,
         { mode: 0o755 },
       );
+    else symlinkSync(sharedTool(tool), join(bin, tool));
   }
 }
 
