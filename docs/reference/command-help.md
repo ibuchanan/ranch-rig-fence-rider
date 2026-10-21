@@ -91,7 +91,7 @@ No remote variable uploads/deletion, deployment or installation. SecretSpec and 
 ```text
 Usage: fence-rider doctor
 Report the SecretSpec and Forge CLI versions on PATH against the lowest supported and highest tested versions.
-Also reads the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml): it warns about scopes Fence Rider never reads, and when a manifest scope exists it asks SecretSpec (value-free) for its members and checks that manifest.yml declares them.
+Asks SecretSpec (value-free) for the manifest scope's members, including a scope inherited through project.extends, and checks that manifest.yml declares them. Also reads the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml) only to warn about scopes Fence Rider never reads.
 Exits 1 when a tool is missing, unreadable or older than supported, or a manifest scope member is not declared in manifest.yml; a newer version or an unused scope is only a warning.
 Other commands never pre-check versions: a changed tool contract surfaces as that command's failure.
 ```

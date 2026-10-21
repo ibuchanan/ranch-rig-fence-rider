@@ -12,16 +12,16 @@ type Tools = Record<string, string | null>;
 
 type Project = {
   /** Printed by a fake `secretspec check --json --scope manifest`; "fail" exits 1 as for an undefined scope. */
-  report?: string[] | "fail";
+  report?: string[] | "fail" | "undefined";
   /** The manifest.yml in the project, when it has one. */
   manifest?: string;
 };
 
 const checkScript = (report: Project["report"]) =>
-  report === undefined
-    ? ""
-    : report === "fail"
-      ? 'if [ "$1" = check ]; then echo "Invalid scope" >&2; exit 1; fi\n'
+  report === "fail"
+    ? 'if [ "$1" = check ]; then echo "Invalid scope" >&2; exit 1; fi\n'
+    : report === undefined || report === "undefined"
+      ? 'if [ "$1" = check ]; then echo "Scope \'manifest\' is not defined in secretspec.toml" >&2; exit 1; fi\n'
       : `if [ "$1" = check ]; then echo '${JSON.stringify({ schema_version: 1, scope: "manifest", secrets: report.map((name) => ({ name, status: "resolved" })) })}'; exit 0; fi\n`;
 
 /** Run `doctor` with fake tools whose `--version` prints the given text (null: tool absent). */

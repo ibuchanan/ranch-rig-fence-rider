@@ -8,8 +8,8 @@ import { recordingIo } from "../support/main.ts";
 type Tools = Record<string, string | null>;
 
 type Project = {
-  /** Printed by a fake `secretspec check --json --scope manifest`; "fail" exits 1 as for an undefined scope. */
-  report?: string[] | "fail";
+  /** Printed by a fake `secretspec check --json --scope manifest`; "fail" exits 1 for an unrelated error, "undefined" as for a scope no file defines. */
+  report?: string[] | "fail" | "undefined";
   /** The manifest.yml in the project, when it has one. */
   manifest?: string;
 };
@@ -33,10 +33,16 @@ async function runDoctor(
       throw new Error(`ENOENT: no such file or directory, open '${path}'`);
     },
     capture: async (path, callArgs) => {
-      const { report } = project;
-      if (callArgs[0] === "check" && report !== undefined) {
+      const { report = "undefined" } = project;
+      if (callArgs[0] === "check") {
         if (report === "fail")
           throw new CommandFailure("exit status 1", 1, "Invalid scope");
+        if (report === "undefined")
+          throw new CommandFailure(
+            "exit status 1",
+            1,
+            "Scope 'manifest' is not defined in secretspec.toml",
+          );
         return JSON.stringify({
           schema_version: 1,
           scope: "manifest",
@@ -146,16 +152,42 @@ test("doctor warns and skips the scope check when the file cannot be parsed", as
 
 const manifestSpec = spec('[scopes.manifest]\nsecrets = ["A", "B"]\n');
 
-test("doctor skips the manifest check when there is no manifest scope", async () => {
-  const result = await runDoctor(ok, [], spec(""), { report: "fail" });
+test("doctor skips the manifest check when no file defines a manifest scope", async () => {
+  const result = await runDoctor(ok, [], spec(""), { report: "undefined" });
   expect(result.exitCode).toBe(0);
   expect(result.stdout).toContain("Manifest: no manifest scope; check skipped");
 });
 
-test("doctor skips the manifest check without a SecretSpec file", async () => {
-  const result = await runDoctor(ok, [], undefined, { report: "fail" });
+test("doctor skips the manifest check when SecretSpec defines no manifest scope and the file is missing", async () => {
+  const result = await runDoctor(ok, [], undefined, { report: "undefined" });
   expect(result.exitCode).toBe(0);
   expect(result.stdout).toContain("Manifest: no manifest scope; check skipped");
+});
+
+test("doctor checks a manifest scope that only SecretSpec sees, as when inherited", async () => {
+  const result = await runDoctor(ok, [], spec(""), {
+    report: ["A", "B"],
+    manifest: "environment:\n  variables: [A]\n",
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.stdout).toContain(
+    "Manifest: manifest declaration for B failed",
+  );
+});
+
+test("doctor still checks the manifest scope when the file is unparsable or missing", async () => {
+  const project = {
+    report: ["A", "B"],
+    manifest: "environment:\n  variables: [A]\n",
+  };
+  for (const toml of ["not valid TOML = [", undefined]) {
+    const result = await runDoctor(ok, [], toml, project);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain(
+      "Manifest: manifest declaration for B failed",
+    );
+    expect(result.stdout).toContain("scope check skipped");
+  }
 });
 
 test("doctor passes when every manifest scope member is declared in manifest.yml", async () => {
@@ -190,9 +222,7 @@ test("doctor fails when manifest scope members exist but manifest.yml is missing
 test("doctor needs no manifest.yml when the manifest scope has no members", async () => {
   const result = await runDoctor(ok, [], manifestSpec, { report: [] });
   expect(result.exitCode).toBe(0);
-  expect(result.stdout).toContain(
-    "Manifest: manifest scope members are declared",
-  );
+  expect(result.stdout).toContain("Manifest: no manifest scope; check skipped");
 });
 
 test("doctor fails privately when the scope check itself fails", async () => {

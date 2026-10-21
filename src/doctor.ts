@@ -24,7 +24,7 @@ type Dependency = (typeof dependencies)[number];
 export const doctorUsage = [
   "Usage: fence-rider doctor",
   "Report the SecretSpec and Forge CLI versions on PATH against the lowest supported and highest tested versions.",
-  "Also reads the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml): it warns about scopes Fence Rider never reads, and when a manifest scope exists it asks SecretSpec (value-free) for its members and checks that manifest.yml declares them.",
+  "Asks SecretSpec (value-free) for the manifest scope's members, including a scope inherited through project.extends, and checks that manifest.yml declares them. Also reads the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml) only to warn about scopes Fence Rider never reads.",
   "Exits 1 when a tool is missing, unreadable or older than supported, or a manifest scope member is not declared in manifest.yml; a newer version or an unused scope is only a warning.",
   "Other commands never pre-check versions: a changed tool contract surfaces as that command's failure.",
 ].join("\n");
@@ -110,26 +110,21 @@ function scopeLines(file: string, scopes: string[] | undefined) {
 }
 
 /** Check that the manifest scope's members are declared in manifest.yml; the check asks SecretSpec, value-free. */
-async function inspectManifest(
-  secretspec: string | undefined,
-  scopes: string[] | undefined,
-  io: Io,
-) {
-  if (!secretspec || !scopes?.includes("manifest"))
-    return {
-      failed: false,
-      line: "Manifest: no manifest scope; check skipped",
-    };
+async function inspectManifest(secretspec: string | undefined, io: Io) {
+  const skipped = {
+    failed: false,
+    line: "Manifest: no manifest scope; check skipped",
+  };
+  if (!secretspec) return skipped;
   const state = {
     stage: "manifest validation",
     signal: new AbortController().signal,
     io,
   };
   try {
-    await checkManifest(
-      (scope) => scopeMembers(secretspec, scope, state),
-      state,
-    );
+    const names = await scopeMembers(secretspec, "manifest", state);
+    if (!names.length) return skipped;
+    await checkManifest(async () => names, state);
     return {
       failed: false,
       line: "Manifest: manifest scope members are declared in manifest.yml",
@@ -148,7 +143,7 @@ async function inspectAll(io: Io) {
     ...(await Promise.all(
       dependencies.map((dependency) => inspect(dependency, io)),
     )),
-    await inspectManifest(secretspec, scopes, io),
+    await inspectManifest(secretspec, io),
   ];
   return {
     lines: [...checks.map(({ line }) => line), ...scopeLines(file, scopes)],

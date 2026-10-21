@@ -17,7 +17,8 @@ documented. Fence Rider no longer supervises these commands, so their
 interruption tests were removed and exit status and signals belong to
 `secretspec run` and Forge. Lint's manifest-scope check moved to
 `fence-rider doctor`, which runs the value-free
-`secretspec check --json --scope manifest` when the file declares that scope.
+`secretspec check --json --scope manifest`, so a scope inherited through
+`project.extends` is checked too.
 Deploy and tunnel are unchanged. Observed with a stub Forge and the real
 SecretSpec 0.21.1: the generated scripts run, appended arguments reach Forge
 intact, and a refusal stops the guarded form with exit 1.
