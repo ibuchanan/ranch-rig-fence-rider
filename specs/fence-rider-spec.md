@@ -305,8 +305,9 @@ real argument parsing and orchestration without a vault or a live Forge app.
 
 This seam was confirmed and implemented in the CLI test files in `tests/`; it avoids
 private helper tests. Ticket 07 also confirms observable validation-command
-output/status as a seam in `tests/integration/check.test.ts`. Bun is the
-configured test runner. The [acceptance map](../docs/reference/deployment.md#acceptance-traceability)
+output/status as a seam in
+`tests/integration/fake-tools/check-script.test.ts`. Bun is the configured
+test runner. The [acceptance map](../docs/reference/deployment.md#acceptance-traceability)
 records passing checks and the blocked live Forge boundary.
 
 ### Acceptance criteria

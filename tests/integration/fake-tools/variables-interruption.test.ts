@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { processRunning, useBuiltCli, waitUntil } from "../support/cli.ts";
-import { runWorkflow } from "../support/fixtures.ts";
+import { processRunning, useBuiltCli, waitUntil } from "../../support/cli.ts";
+import { runWorkflow } from "../../support/fixtures.ts";
 
 useBuiltCli();
 

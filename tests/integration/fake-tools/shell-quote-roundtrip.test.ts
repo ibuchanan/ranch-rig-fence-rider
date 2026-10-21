@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import fc from "fast-check";
-import { quote } from "../../src/shell.ts";
+import { quote } from "../../../src/shell.ts";
 
 test("every word, however hostile, round-trips through sh as one argument", async () => {
   // A batch of generated cases in one shell, since a spawn per case is slow.

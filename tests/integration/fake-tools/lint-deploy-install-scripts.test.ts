@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { deployScript } from "../../src/deploy.ts";
-import { installScript } from "../../src/install.ts";
-import { lintScript } from "../../src/lint.ts";
-import { quote } from "../../src/shell.ts";
-import { cli, useBuiltCli, waitUntil } from "../support/cli.ts";
+import { deployScript } from "../../../src/deploy.ts";
+import { installScript } from "../../../src/install.ts";
+import { lintScript } from "../../../src/lint.ts";
+import { quote } from "../../../src/shell.ts";
+import { cli, useBuiltCli, waitUntil } from "../../support/cli.ts";
 import {
   type FakeRun,
   runWithFakes,
   startWithFakes,
-} from "../support/shell-fakes.ts";
+} from "../../support/shell-fakes.ts";
 
 useBuiltCli();
 

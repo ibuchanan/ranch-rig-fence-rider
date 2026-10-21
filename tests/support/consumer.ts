@@ -4,6 +4,15 @@ import { join } from "node:path";
 import { cli, root } from "./cli.ts";
 import { prepareProject } from "./fixtures.ts";
 
+/** Build the packed consumer once per group of cases and share it between them. */
+export function once<T>(build: () => Promise<T>): () => Promise<T> {
+  let value: Promise<T> | undefined;
+  return () => {
+    value ??= build();
+    return value;
+  };
+}
+
 export async function packedConsumer() {
   const archive = join(cli.workspace, "fence-rider.tgz");
   const packed = Bun.spawnSync(

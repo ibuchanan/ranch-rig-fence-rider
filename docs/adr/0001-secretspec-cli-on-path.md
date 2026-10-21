@@ -71,7 +71,7 @@ tarball and registry metadata:
   - Published addons are linux x64/arm64 (gnu and musl), darwin-arm64 and
     win32-x64. **There is no darwin-x64 (Intel Mac) package**, which the CLI
     path supports. Windows would be gained.
-  - CLI-output-based tests (`tests/integration/native-*.test.ts`)
+  - CLI-output-based tests (`tests/integration/real-secretspec/`)
     would need re-pointing at the SDK.
 
 **Pivot trigger:** if downstream consumers cannot or will not install a

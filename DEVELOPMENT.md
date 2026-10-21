@@ -19,6 +19,15 @@ Tests live in two tiers under `tests/`, with shared helpers in `tests/support/`.
 | Unit | `tests/unit/` | In-process calls to `main`, with no subprocesses | A fraction of a second for the whole tier |
 | Integration | `tests/integration/` | Real processes: the compiled CLI, fake or real tools on `PATH`, signals, installed packages | Seconds; each file runs in its own worker |
 
+Integration tests are grouped by what they need to run:
+
+| Group | Location | Needs installed | Script |
+| --- | --- | --- | --- |
+| Real SecretSpec | `tests/integration/real-secretspec/` | SecretSpec 0.21.1 on `PATH` | `bun run test:integration:native` |
+| Fake tools | `tests/integration/fake-tools/` | Nothing: the compiled CLI and spawned processes run against fake SecretSpec and Forge on `PATH` | `bun run test:integration:fakes` |
+
+Each file name states its subject and the command it exercises.
+
 Rule of thumb: output and decisions are unit tests; real processes, signals,
 `PATH` and installed packages are integration tests. Start with a unit test and
 move to integration only when the behavior cannot be seen in-process.
@@ -48,7 +57,7 @@ temp directories and avoid fixed ports, a shared cwd, or other shared mutable
 state.
 
 When SecretSpec is on `PATH`, the suite also runs native synthetic dotenv
-integration checks (`tests/integration/native-*.test.ts`). Install SecretSpec
+integration checks (`tests/integration/real-secretspec/`). Install SecretSpec
 0.21.1 separately to reproduce that evidence. Without it, `bun run test` skips
 the native checks and prints how many (`tests/support/native-gate.ts`): a green
 controlled suite alone does not certify SecretSpec compatibility. The forced
@@ -62,13 +71,14 @@ Both fake SecretSpecs, the in-process one (`tests/support/fake-io.ts`) and the
 spawned one (`tests/support/fake-tool.ts`), take the standard profile and the
 schema, export and scope-membership answers from one module,
 `tests/support/secretspec-answers.ts`. The native contract test
-(`tests/integration/native-secretspec-contract.test.ts`) compares those answers
-with what real SecretSpec prints for the same profile, so a change in either
-shows up there rather than as a product break the fakes hide. When you change an
-answer shape, expect that test to fail until the shape matches SecretSpec.
+(`tests/integration/real-secretspec/secretspec-contract.test.ts`) compares
+those answers with what real SecretSpec prints for the same profile, so a
+change in either shows up there rather than as a product break the fakes hide.
+When you change an answer shape, expect that test to fail until the shape
+matches SecretSpec.
 
-`tests/integration/check.test.ts` exercises validation output and statuses with
-isolated tools and passing/failing Bun fixtures. No nested full-suite
+`tests/integration/fake-tools/check-script.test.ts` exercises validation output
+and statuses with isolated tools and passing/failing Bun fixtures. No nested full-suite
 invocation is needed. The acceptance map is in the
 [deployment evidence reference](docs/reference/deployment.md).
 
@@ -76,8 +86,10 @@ invocation is needed. The acceptance map is in the
 
 The package executable requires Bun 1.4.3+, and both the packaged and compiled
 CLIs find SecretSpec and Forge on `PATH`. Packaging tests in
-`tests/integration/packaged-consumer.test.ts` pack a local artifact, install it
-with lifecycle scripts blocked, and invoke its installed executable in isolated
+`tests/integration/fake-tools/packaged-consumer-discovery.test.ts` and
+`tests/integration/real-secretspec/packaged-consumer-scripts.test.ts` pack a
+local artifact, install it with lifecycle scripts blocked, and invoke its
+installed executable in isolated
 consumers with controlled tools. Native installed checks additionally require
 SecretSpec on `PATH`; without it they skip, not pass. They remove
 consumer fixtures and never publish or contact Forge.
@@ -95,7 +107,9 @@ native, interface and blocked live results.
 | `bun run test` | Full test suite with normal passing-test output |
 | `bun run test:check` | Same tests; only failures and totals are displayed |
 | `bun run test:unit` | Unit tier only: in-process, no subprocesses |
-| `bun run test:integration` | Integration tier only: real processes and tools on `PATH` |
+| `bun run test:integration` | Integration tier only: both groups below |
+| `bun run test:integration:native` | Integration tests that need real SecretSpec (`real-secretspec/`) |
+| `bun run test:integration:fakes` | Integration tests that run against fake tools on `PATH` (`fake-tools/`) |
 | `bun run test:coverage` | Coverage report for inspection |
 | `bun run test:watch` | Interactive test feedback |
 | `bun run lint` | Biome, formatting, typecheck, and Fallow in parallel |

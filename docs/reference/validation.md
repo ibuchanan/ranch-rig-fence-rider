@@ -163,7 +163,8 @@ unless explicitly labeled native SecretSpec. This is not live certification.
 
 ## Validation-command regression checks
 
-[Check tests](../../tests/integration/check.test.ts) were added in red-green slices:
+[Check tests](../../tests/integration/fake-tools/check-script.test.ts)
+were added in red-green slices:
 
 - A successful Fallow process originally printed its report. The wrapper
   now emits nothing on success and reproduces stdout/stderr on nonzero exit.

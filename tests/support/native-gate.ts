@@ -9,7 +9,12 @@ import { join } from "node:path";
 const testedVersion = "0.21.1";
 
 if (!Bun.which("secretspec")) {
-  const directory = join(import.meta.dir, "..", "integration");
+  const directory = join(
+    import.meta.dir,
+    "..",
+    "integration",
+    "real-secretspec",
+  );
   const skipped = readdirSync(directory)
     .filter((name) => name.endsWith(".test.ts"))
     .reduce(

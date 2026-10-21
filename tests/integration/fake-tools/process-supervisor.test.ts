@@ -5,8 +5,12 @@ import {
   CommandFailure,
   capture,
   workflowInterruption,
-} from "../../src/process.ts";
-import { makeScratchDir, processRunning, waitUntil } from "../support/cli.ts";
+} from "../../../src/process.ts";
+import {
+  makeScratchDir,
+  processRunning,
+  waitUntil,
+} from "../../support/cli.ts";
 
 // The supervisor is exercised directly with tiny shell children; the compiled
 // CLI tests only need to show that its failures are reported safely.

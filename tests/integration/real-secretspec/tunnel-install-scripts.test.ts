@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { useBuiltCli } from "../support/cli.ts";
+import { useBuiltCli } from "../../support/cli.ts";
 import {
   deploymentSchema,
   deploymentSpec,
@@ -8,7 +8,7 @@ import {
   standardSpec,
   realSecretSpec,
   runScript,
-} from "../support/fixtures.ts";
+} from "../../support/fixtures.ts";
 
 useBuiltCli();
 

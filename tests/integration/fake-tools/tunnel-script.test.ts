@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test";
 import { readdirSync } from "node:fs";
-import { useBuiltCli } from "../support/cli.ts";
+import { useBuiltCli } from "../../support/cli.ts";
 import {
   standardSpec,
   deploymentValues,
   runScript,
   sharedValue,
   type ToolCall,
-} from "../support/fixtures.ts";
+} from "../../support/fixtures.ts";
 
 // Generates the tunnel script with the compiled CLI, then runs it under sh
 // with fake tools on PATH. What the generator decides is covered in-process
@@ -116,7 +116,7 @@ test("a resolved optional runtime member is mapped, even when empty", async () =
   });
 });
 
-// Target refusal is shared code; scripts-run.test.ts runs every refused value.
+// Target refusal is shared code; lint-deploy-install-scripts.test.ts runs every refused value.
 test.each(["-x"])(
   "the tunnel script refuses FORGE_ENVIRONMENT=%j without calling Forge",
   async (target) => {
@@ -157,7 +157,7 @@ test.each([
   },
 );
 
-// Missing SHARED and LOCAL_ONLY run against real SecretSpec in native-tunnel-install.test.ts.
+// Missing SHARED and LOCAL_ONLY run against real SecretSpec in real-secretspec/tunnel-install-scripts.test.ts.
 test.each(["FORGE_ENVIRONMENT"])(
   "the tunnel script requires whole-profile %s despite the target override",
   async (missing) => {
@@ -174,7 +174,7 @@ test.each(["FORGE_ENVIRONMENT"])(
   },
 );
 
-// The exec that passes Forge's status through is shared; scripts-run.test.ts runs four statuses.
+// The exec that passes Forge's status through is shared; lint-deploy-install-scripts.test.ts runs four statuses.
 test.each([23])(
   "the tunnel script exits with Forge's status %i",
   async (exitCode) => {

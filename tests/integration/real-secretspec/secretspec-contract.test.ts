@@ -1,16 +1,16 @@
 import { expect, test } from "bun:test";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { CommandFailure } from "../../src/process";
-import { useBuiltCli } from "../support/cli.ts";
-import { answer } from "../support/fake-io.ts";
+import { CommandFailure } from "../../../src/process";
+import { useBuiltCli } from "../../support/cli.ts";
+import { answer } from "../../support/fake-io.ts";
 import {
   deploymentEnv,
   deploymentValues,
   prepareProject,
   realSecretSpec,
   standardSpec,
-} from "../support/fixtures.ts";
+} from "../../support/fixtures.ts";
 
 useBuiltCli();
 

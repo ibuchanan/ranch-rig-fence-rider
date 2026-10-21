@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test";
 import { readdirSync } from "node:fs";
-import { useBuiltCli } from "../support/cli.ts";
+import { useBuiltCli } from "../../support/cli.ts";
 import {
   deploymentValues,
   hostileValue,
   runWorkflow,
   sharedValue,
-} from "../support/fixtures.ts";
+} from "../../support/fixtures.ts";
 
 // The command's decisions are covered in-process in tests/unit/variables*.test.ts.
 // These run the compiled binary against fake tools on PATH, to check what only a
@@ -65,7 +65,7 @@ test.each(["secretspec", "forge"])(
   },
 );
 
-// The supervisor's branches are tested directly in process-capture.test.ts; one
+// The supervisor's branches are tested directly in process-supervisor.test.ts; one
 // case per ending shows the compiled CLI reports it safely.
 test("an unlaunchable helper reports safe actionable context", async () => {
   const result = await runWorkflow({

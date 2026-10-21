@@ -34,6 +34,8 @@
     "test:check": "FENCE_RIDER_REQUIRE_NATIVE=1 bun run test --only-failures",
     "test:coverage": "bun test --coverage --pass-with-no-tests",
     "test:integration": "bun run --if-present test:native-gate && bun test tests/integration --parallel --timeout 30000 --timings .test-timings.json --update-timings --pass-with-no-tests",
+    "test:integration:fakes": "bun test tests/integration/fake-tools --parallel --timeout 30000 --pass-with-no-tests",
+    "test:integration:native": "bun run --if-present test:native-gate && bun test tests/integration/real-secretspec --parallel --timeout 30000 --pass-with-no-tests",
     "test:native-gate": "bun tests/support/native-gate.ts",
     "test:unit": "bun test tests/unit --pass-with-no-tests",
     "test:watch": "bun test --watch --pass-with-no-tests",

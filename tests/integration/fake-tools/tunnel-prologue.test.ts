@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { tunnelPrologue } from "../../src/tunnel-plan.ts";
+import { tunnelPrologue } from "../../../src/tunnel-plan.ts";
 
 const spawn = (script: string, env: Record<string, string>) =>
   Bun.spawnSync(["/bin/sh", "-c", script], {

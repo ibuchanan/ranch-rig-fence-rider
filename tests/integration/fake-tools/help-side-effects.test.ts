@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { expectNoToolCalls } from "../support/guarantees.ts";
-import { runCli, useBuiltCli } from "../support/cli.ts";
+import { expectNoToolCalls } from "../../support/guarantees.ts";
+import { runCli, useBuiltCli } from "../../support/cli.ts";
 
 // Discovery must never read configuration or call SecretSpec or Forge. runCli
 // poisons secretspec.toml and manifest.yml, puts failing fakes of both tools

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { cli, useBuiltCli } from "../support/cli.ts";
+import { cli, useBuiltCli } from "../../support/cli.ts";
 
 // The checks themselves run in-process in tests/unit/doctor.test.ts. These run
 // the compiled binary against real fake executables, so PATH lookup, spawning
