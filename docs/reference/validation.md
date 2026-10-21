@@ -467,3 +467,23 @@ check uses a native distinct-value set; no thresholds or suppressions changed.
 Bun 1.4.3 and SecretSpec 0.21.1 were observed locally. Forge CLI 14.2.0 evidence
 remains the previously inspected interface, not a new live check. No real
 Forge app, secret provider credentials, remote write, or deployment was used.
+
+## Scope membership delegated to SecretSpec — 2026-10-21
+
+Fence Rider no longer reads `secretspec.toml` or passes `--file`/`--profile`.
+It resolves the whole profile once (`schema`, `export --scope ""`), then asks
+SecretSpec for scope members by name with `check --json --scope manifest` and
+`--scope runtime`, only where a workflow uses them. `project.extends` is no
+longer rejected, scope metadata is no longer validated by the wrapper, and
+`manifest.yml` is read only when the manifest scope has members. A scope the
+file does not define has no members, recognized from SecretSpec's
+"is not defined in secretspec.toml" error text. `doctor` keeps an advisory read
+of `SECRETSPEC_FILE` or `./secretspec.toml` for unused scope names; an
+unparsable file only skips that check with a warning. See
+[ADR 0002](../adr/0002-delegate-scope-membership-to-secretspec.md).
+
+A run now makes up to three SecretSpec resolutions; values still come only from
+the whole-profile export. The earlier entries describing `extends` rejection,
+single-file limits, and one-resolution claims record superseded behavior.
+Native checks against SecretSpec 0.21.1 with synthetic dotenv values observed
+the scoped report and the undefined-scope error.

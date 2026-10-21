@@ -229,16 +229,17 @@ separate authorization in the [validation record](../reference/validation.md).
 
 ## Select a profile, file, or deployment target
 
-Use `SECRETSPEC_FILE` for a different single TOML file and
-`SECRETSPEC_PROFILE` for a profile declared within it:
+Use `SECRETSPEC_FILE` for a different TOML file and `SECRETSPEC_PROFILE` for
+a profile declared within it. SecretSpec reads both itself; without
+`SECRETSPEC_FILE` it finds `secretspec.toml` by walking up from the working
+directory:
 
 ```sh
 SECRETSPEC_FILE=config.toml SECRETSPEC_PROFILE=release SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/cli deploy -e development --non-interactive
 ```
 
-Define `release` in that file first. Native profile inheritance remains
-supported; non-empty or malformed `project.extends` fails before resolution.
-Cross-file specification inheritance is deferred. Provider paths in this
+Define `release` in that file first. Profile and cross-file inheritance,
+including `project.extends`, are resolved by SecretSpec. Provider paths in this
 guide assume the app's working directory.
 
 An explicit `-e TARGET` or `--environment TARGET` wins over the resolved
@@ -248,10 +249,12 @@ A profile named `release` does not select a Forge environment by its name.
 Other Forge options are forwarded to deployment only. `FORGE_SITE` and
 `FORGE_PRODUCT` remain local; they generate no deployment flags or uploads.
 
-The full active profile is resolved once, with no scope filter, even when
-`SECRETSPEC_SCOPE` is set. Unscoped required inputs must resolve too. All
+The full active profile is resolved once for values, with no scope filter, even
+when `SECRETSPEC_SCOPE` is set. Unscoped required inputs must resolve too. All
 resolved application values reach local Forge processes, and shared runtime
-values reuse that same result. Do not declare Forge login credentials in
+values reuse that same result. Scope membership is asked of SecretSpec by name
+only, so up to three SecretSpec resolutions occur per run. Do not declare Forge
+login credentials in
 `runtime`. Existing ambient authentication is retained; provider-private
 state is not collected automatically.
 

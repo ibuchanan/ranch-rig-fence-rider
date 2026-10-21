@@ -1,10 +1,6 @@
-import { specificationPath } from "./configured";
+import { resolve } from "node:path";
 import { capture } from "./process";
-import {
-  parseScopes,
-  recognizedScopes,
-  unrecognizedScopes,
-} from "./resolution";
+import { recognizedScopes, unrecognizedScopes } from "./resolution";
 
 /**
  * Lowest supported and highest tested release of each external tool. The floors
@@ -28,7 +24,7 @@ export const doctorUsage = [
   "Usage: fence-rider doctor",
   "Report the SecretSpec and Forge CLI versions on PATH against the lowest supported and highest tested versions.",
   "Also checks the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml) and warns about scopes Fence Rider never reads.",
-  "Exits 1 when a tool is missing, unreadable or older than supported, or the scopes are malformed; a newer version or an unused scope is only a warning.",
+  "Exits 1 when a tool is missing, unreadable or older than supported; a newer version or an unused scope is only a warning.",
   "Other commands never pre-check versions: a changed tool contract surfaces as that command's failure.",
 ].join("\n");
 
@@ -80,42 +76,41 @@ async function inspect(dependency: Dependency) {
   };
 }
 
-/** Warn about scopes that Fence Rider ignores, where a typo would otherwise pass silently. */
-async function inspectConfiguration() {
-  const file = specificationPath();
-  if (!(await Bun.file(file).exists()))
-    return {
-      failed: false,
-      lines: [`Configuration: no ${file}; scope check skipped`],
-    };
+const unusedScope = (name: string) =>
+  `Configuration: scope "${name}" is not read by Fence Rider (recognized: ${recognizedScopes.join(", ")}); ignore this if another tool uses it`;
+
+/** Names of the `[scopes.*]` tables in a SecretSpec file; undefined when it is missing or unparsable. */
+async function declaredScopes(file: string) {
   try {
-    const config = parseScopes(Bun.TOML.parse(await Bun.file(file).text()));
-    const unused = unrecognizedScopes(config).map(
-      (name) =>
-        `Configuration: scope "${name}" is not read by Fence Rider (recognized: ${recognizedScopes.join(", ")}); ignore this if another tool uses it`,
-    );
-    return {
-      failed: false,
-      lines: unused.length ? unused : [`Configuration: ${file} scopes ok`],
+    const { scopes } = Bun.TOML.parse(await Bun.file(file).text()) as {
+      scopes?: object;
     };
-  } catch (error) {
-    return {
-      failed: true,
-      lines: [
-        `Configuration: ${file} is not usable: ${(error as Error).message}`,
-      ],
-    };
+    return Object.keys(scopes ?? {});
+  } catch {
+    return undefined;
   }
+}
+
+/**
+ * Warn about scopes that Fence Rider ignores, where a typo would otherwise pass
+ * silently. Advisory only: it reads just the named file, so scopes SecretSpec
+ * inherits from other files are not seen.
+ */
+async function inspectConfiguration() {
+  const file = resolve(process.env["SECRETSPEC_FILE"] ?? "secretspec.toml");
+  const scopes = await declaredScopes(file);
+  if (!scopes)
+    return [
+      `Configuration: ${file} missing or unparsable; scope check skipped`,
+    ];
+  const unused = unrecognizedScopes(scopes).map(unusedScope);
+  return unused.length ? unused : [`Configuration: ${file} scopes ok`];
 }
 
 /** Report each external tool's version against its supported range, then check the configuration. */
 export async function doctor(): Promise<number> {
-  const results = [
-    ...(await Promise.all(dependencies.map(inspect))).map(
-      ({ failed, line }) => ({ failed, lines: [line] }),
-    ),
-    await inspectConfiguration(),
-  ];
-  for (const { lines } of results) for (const line of lines) console.log(line);
+  const results = await Promise.all(dependencies.map(inspect));
+  for (const { line } of results) console.log(line);
+  for (const line of await inspectConfiguration()) console.log(line);
   return results.some(({ failed }) => failed) ? 1 : 0;
 }

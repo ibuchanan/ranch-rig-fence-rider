@@ -1,6 +1,5 @@
 import { expect, test } from "bun:test";
 import { readdirSync } from "node:fs";
-import { join } from "node:path";
 import { useBuiltCli } from "./support/cli.ts";
 import {
   deploymentSchema,
@@ -65,26 +64,10 @@ test("deploy resolves once, encrypts only runtime values, then deploys to the co
   const result = await runWorkflow();
   expect(result.exitCode).toBe(0);
   expect(result.interactions.map(({ tool, args }) => [tool, ...args])).toEqual([
-    [
-      "secretspec",
-      "schema",
-      "--file",
-      join(result.project, "secretspec.toml"),
-      "--profile",
-      "default",
-    ],
-    [
-      "secretspec",
-      "export",
-      "--file",
-      join(result.project, "secretspec.toml"),
-      "--profile",
-      "default",
-      "--scope",
-      "",
-      "--format",
-      "json",
-    ],
+    ["secretspec", "schema"],
+    ["secretspec", "export", "--scope", "", "--format", "json"],
+    ["secretspec", "check", "--json", "--scope", "manifest"],
+    ["secretspec", "check", "--json", "--scope", "runtime"],
     [
       "forge",
       "variables",
@@ -166,7 +149,7 @@ test("omitted runtime scope and empty active-profile intersection deploy without
       result.interactions
         .filter(({ tool }) => tool === "secretspec")
         .map(({ args }) => args[0]),
-    ).toEqual(["schema", "export"]);
+    ).toEqual(["schema", "export", "check", "check"]);
   }
 });
 
@@ -180,21 +163,6 @@ test("missing configured target falls back to development for uploads and deploy
   expect(
     forge.map(({ args }) => args[args.indexOf("--environment") + 1]),
   ).toEqual(["development", "development"]);
-});
-
-test("empty extends is accepted without changing the single-file deployment", async () => {
-  const result = await runWorkflow({
-    spec: deploymentSpec.replace(
-      'revision = "1.0"',
-      'revision = "1.0"\nextends = []',
-    ),
-  });
-  expect(result.exitCode).toBe(0);
-  expect(result.interactions.at(-1)?.args).toEqual([
-    "deploy",
-    "--environment",
-    "staging",
-  ]);
 });
 
 test("all encrypted writes complete before exactly one deployment", async () => {

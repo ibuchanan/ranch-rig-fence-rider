@@ -80,7 +80,7 @@ Do not raise thresholds or suppress findings to make a gate pass.
 ## Repository layout
 
 - `src/index.ts`: CLI discovery and command dispatch.
-- `src/configured.ts`: single-file validation, native profile resolution,
+- `src/configured.ts`: native profile resolution, scope membership queries,
   manifest checks, child environments, stdio policy, and process cleanup.
 - `src/deploy.ts`: target options and encrypted deployment lifecycle.
 - `src/lint.ts`: configured lint with live output without redaction and

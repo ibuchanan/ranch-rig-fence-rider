@@ -23,6 +23,8 @@ export class CommandFailure extends Error {
   constructor(
     message: string,
     readonly exitCode = 1,
+    /** The helper's stderr; for matching only, never to be printed. */
+    readonly diagnostic = "",
   ) {
     super(message);
   }
@@ -73,7 +75,7 @@ export async function passthrough(
 type Child = Bun.Subprocess<
   "ignore" | "inherit",
   "pipe" | "inherit",
-  "ignore" | "inherit"
+  "pipe" | "inherit"
 >;
 
 /** Launch with detached process group; `failed.launch` records an asynchronous launch error. */
@@ -108,7 +110,7 @@ function launch(
           ...options,
           stdin: "ignore",
           stdout: "pipe",
-          stderr: "ignore",
+          stderr: "pipe",
         });
   } catch {
     throw new CommandFailure(
@@ -142,12 +144,18 @@ function forwardInterruption(child: Child, signal: AbortSignal) {
   };
 }
 
-function checkExit(child: Child, code: number, launchError: boolean) {
+function checkExit(
+  child: Child,
+  code: number,
+  launchError: boolean,
+  diagnostic: string,
+) {
   if (launchError)
     throw new CommandFailure("executable failed to start; check installation");
   if (child.signalCode !== null)
     throw new CommandFailure(`terminated by ${child.signalCode}`);
-  if (code !== 0) throw new CommandFailure(`exit status ${code}`, code);
+  if (code !== 0)
+    throw new CommandFailure(`exit status ${code}`, code, diagnostic);
 }
 
 /** Shared supervision core: launch, group-kill on interruption, and classify exit. */
@@ -163,14 +171,17 @@ async function supervise(
   const child = launch(tool, args, env, inherit, failed);
   const cleanup = forwardInterruption(child, signal);
   try {
-    const [code, stdout] = await Promise.all([
+    const [code, stdout, diagnostic] = await Promise.all([
       child.exited,
       child.stdout instanceof ReadableStream
         ? new Response(child.stdout).text()
         : "",
+      child.stderr instanceof ReadableStream
+        ? new Response(child.stderr).text()
+        : "",
     ]);
     checkInterruption(signal);
-    checkExit(child, code, failed.launch);
+    checkExit(child, code, failed.launch, diagnostic);
     return stdout;
   } finally {
     await cleanup();

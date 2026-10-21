@@ -110,8 +110,9 @@ behaviors to that local baseline: `manifest` adds a declaration check, and
 
 A variable can be declared once and included in both scopes. Fence Rider's
 contract calls for the same resolved value to reach the local Forge CLI
-process and the remote variable store. This avoids separate provider reads
-producing different values for a shared setting. Scope membership alone
+process and the remote variable store. Values come from a single export, and
+scope membership is asked of SecretSpec by name only, so separate provider
+reads cannot produce different values for a shared setting. Scope membership alone
 does not make a value secret or non-secret.
 
 A variable outside both scopes remains local configuration. In particular,

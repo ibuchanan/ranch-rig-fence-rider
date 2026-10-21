@@ -32,7 +32,7 @@ test("configured lint resolves once, preserves values and arguments, streams res
     result.interactions
       .filter(({ tool }) => tool === "secretspec")
       .map(({ args }) => args[0]),
-  ).toEqual(["schema", "export"]);
+  ).toEqual(["schema", "export", "check"]);
   expect(result.stdout).toContain("synthetic lint result");
   expect(result.stderr).toBe("synthetic lint warning\n");
   expect(result.stdout + result.stderr).not.toContain("synthetic helper noise");

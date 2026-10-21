@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { join } from "node:path";
 import { useBuiltCli } from "./support/cli.ts";
 import {
   deploymentSchema,
@@ -70,15 +69,12 @@ test.skipIf(!realSecretSpec)(
     const native = result.interactions.filter(
       ({ tool }) => tool === "secretspec",
     );
-    expect(native.map(({ args }) => args[0])).toEqual(["schema", "export"]);
-    for (const { args } of native) {
-      expect(args.slice(1, 5)).toEqual([
-        "--file",
-        join(result.project, "selected.toml"),
-        "--profile",
-        "release",
-      ]);
-    }
+    expect(native.map(({ args }) => args[0])).toEqual([
+      "schema",
+      "export",
+      "check",
+    ]);
+    for (const { args } of native) expect(args).not.toContain("--profile");
   },
 );
 
@@ -167,6 +163,6 @@ test.skipIf(!realSecretSpec).each([
       result.interactions
         .filter(({ tool }) => tool === "secretspec")
         .map(({ args }) => args[0]),
-    ).toEqual(["schema", "export"]);
+    ).toEqual(["schema", "export", "check", "check"]);
   },
 );

@@ -1,6 +1,6 @@
 # Variable compatibility contract
 
-Status: single-file configured deploy, lint, install/upgrade, uninstall and
+Status: configured deploy, lint, install/upgrade, uninstall and
 development tunnel are implemented and locally verified as of 2026-10-20.
 The installed Bun package requires SecretSpec and Forge on `PATH`. Authorized live
 Forge verification is blocked. The [consumer evidence map](consumer-workflows.md)
@@ -214,10 +214,11 @@ The deployment boundary has these invariants:
 - All application variables are resolved and validated from the full merged
   active profile before any upload. Unscoped requirements participate, even
   when both recognized scopes are omitted.
-- Each declared value is resolved once for the operation and reused in the
-  local process environment and any runtime upload. Independent scoped
-  resolutions must not supply inconsistent copies of the same variable.
-  One resolution pass is not a vault-wide atomic snapshot.
+- Each declared value is read once, by the whole-profile export, and reused in
+  the local process environment and any runtime upload. Scope membership
+  queries use names only and never supply values, so copies cannot diverge.
+  A run makes up to three SecretSpec resolutions; none is a vault-wide atomic
+  snapshot.
 - Native SecretSpec checks handle supported declaration constraints.
   Fence Rider checks control values, applicable manifest declarations,
   process-safe input, and verified Forge runtime naming/value restrictions.
@@ -229,8 +230,8 @@ The deployment boundary has these invariants:
   cache or temporary file. Local availability includes delegated tooling,
   not logs or automatically generated artifacts.
 
-The implemented boundary uses Bun's TOML parser for single-file metadata,
-native profile schema, and one full export, as specified below. Native
+The implemented boundary uses native profile schema, one full export, and
+value-free scope membership queries, as specified below. Native
 SecretSpec 0.21.1 integration checks verify this combined flow. JSON export
 returns values, not membership; schema returns effective names, types, and
 requiredness, not scope lists. Fence Rider intersects the file's scope lists
@@ -302,47 +303,33 @@ absent from the effective merged specification. Omitting it from the root
 alone does not disable an inherited runtime scope. No disable/delete marker
 was found in the inspected scope overlay implementation.
 
-### Initial single-file support
+### Scope membership is delegated to SecretSpec
 
-The first implementation supports one repository-owned `secretspec.toml`.
-Cross-file specification inheritance through non-empty `project.extends` is
-unsupported and fails before secret resolution or any Forge interaction.
-The diagnostic identifies the unsupported feature without printing values.
-An omitted `extends` or an empty array introduces no inheritance and is
-accepted, subject to native SecretSpec validation. Malformed declarations
-fail rather than being treated as absent.
+Fence Rider does not read `secretspec.toml`. `project.extends`, profile
+inheritance, scope placement, and scope validation are SecretSpec's, so
+cross-file specifications work as SecretSpec resolves them. It passes no
+`--file` or `--profile`; SecretSpec reads `SECRETSPEC_FILE` and
+`SECRETSPEC_PROFILE` from the inherited environment and auto-detects the file.
 
-Native profile inheritance within that file remains supported and is owned
-by SecretSpec. The restriction does not prohibit multiple profiles or
-ordinary provider configuration; it prohibits loading additional variable
-specification files. The upstream composition rules above are background
-for a deferred feature, not requirements to build a graph reader now.
+The metadata boundary is:
 
-The approved metadata boundary is:
+- Resolve the whole profile once: `secretspec schema` for effective names and
+  types, `secretspec export --scope "" --format json` for values.
+- Ask SecretSpec for the members of `manifest` (lint, deploy, tunnel) and
+  `runtime` (deploy, tunnel) with `secretspec check --json --scope NAME`. The
+  report is value-free and includes optional declarations absent from exported
+  values, so the manifest check still covers them. Install and uninstall ask
+  for neither.
+- A scope the file does not define has no members, so a missing runtime scope
+  means no uploads. SecretSpec reports this only as "is not defined in
+  secretspec.toml" on stderr, which Fence Rider matches without printing it.
+- `manifest.yml` is read only when the manifest scope has members.
 
-- Parse the single TOML document with Bun's TOML parser and reject unsupported
-  cross-file inheritance. No additional parser dependency is needed.
-- Read the optional `manifest` and `runtime` scope lists directly from that
-  document. Missing runtime scope means no uploads; no inherited scope can
-  be silently overlooked because non-empty `extends` is rejected.
-- Obtain effective active-profile declaration names from SecretSpec's
-  value-free `schema --profile` interface. Do not reimplement profile merging.
-- Intersect scope members with those names for manifest checks, including
-  optional declarations absent from exported values.
-- Resolve values once through a full-profile JSON export and select runtime
-  uploads from that result. Scope metadata never requires a second provider
-  resolution. Schema and export use the same file and explicit profile.
-
-SecretSpec continues to own declaration validation, profile inheritance,
-provider behavior, and resolution. No custom graph traversal, parent overlays,
-cycle detection, or cross-file caching is part of this release.
-
-Required checks cover omitted and empty `extends`, non-empty and malformed
-`extends` rejection before resolution, native default-profile inheritance
-and its opt-out, omitted scopes, and an optional member absent from exported
-values. These checks pass through the compiled CLI, including native
-SecretSpec integration. Future cross-file support requires a separate
-contract change and upstream metadata support or a fully tested graph reader.
+Required checks cover an undefined scope, an optional member absent from
+exported values, and native default-profile inheritance and its opt-out.
+These checks pass through the compiled CLI, including native SecretSpec
+integration. Decision record:
+[ADR 0002](../adr/0002-delegate-scope-membership-to-secretspec.md).
 
 The child environment retains ordinary process settings and existing
 authentication. Declared names are first removed from the inherited

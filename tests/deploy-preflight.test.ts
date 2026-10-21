@@ -11,39 +11,6 @@ import {
 useBuiltCli();
 
 test.each([
-  { declaration: 'extends = ["parent.toml"]', context: "project.extends" },
-])(
-  "rejects unsupported or malformed inheritance $declaration before helper interaction",
-  async ({ declaration, context }) => {
-    const result = await runWorkflow({
-      spec: deploymentSpec.replace(
-        'revision = "1.0"',
-        `revision = "1.0"\n${declaration}`,
-      ),
-      files: { "parent.toml": deploymentSpec },
-    });
-    expect(result.exitCode).not.toBe(0);
-    expect(result.interactions).toEqual([]);
-    expect(result.stderr).toContain(context);
-  },
-);
-
-test.each(["secrets = []"])(
-  "rejects malformed scope metadata %s before helper interaction",
-  async (metadata) => {
-    const result = await runWorkflow({
-      spec: deploymentSpec.replace(
-        'secrets = ["SHARED", "OPTIONAL"]',
-        metadata,
-      ),
-    });
-    expect(result.exitCode).not.toBe(0);
-    expect(result.interactions).toEqual([]);
-    expect(result.stderr).toContain("scope metadata");
-  },
-);
-
-test.each([
   { name: "null schema", options: { schema: null } },
   {
     name: "numeric property",
@@ -198,10 +165,6 @@ test("omitted manifest scope does not require a manifest file or suppress local 
 test.each([
   { name: "invalid TOML", spec: `not valid TOML ${sharedValue}` },
   { name: "missing specification", env: { SECRETSPEC_FILE: "missing.toml" } },
-  {
-    name: "malformed scope table",
-    spec: `scopes = "invalid"\n${deploymentSpec}`,
-  },
 ])(
   "invalid configuration: $name fails with secret-safe diagnostics",
   async ({ spec, env }) => {

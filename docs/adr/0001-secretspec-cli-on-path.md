@@ -85,6 +85,3 @@ confirming that `report()` plus the SDK's resolved fields carry what
 
 - Consumers are responsible for installing and upgrading SecretSpec; version
   drift is reported by `fence-rider doctor` and otherwise shows up as a failure.
-- `docs/reference/installation.md`, `docs/how-to/installation.md`,
-  `DEVELOPMENT.md`, the top-level help text and the specs still describe the
-  `setup` flow and must be updated when it is removed.

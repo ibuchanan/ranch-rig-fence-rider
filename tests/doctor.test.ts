@@ -120,12 +120,8 @@ test("doctor warns about a scope Fence Rider never reads without failing", async
   );
 });
 
-test("doctor fails when the scopes are malformed", async () => {
-  const result = await runDoctor(
-    ok,
-    [],
-    spec('[scopes.runtime]\nsecrets = ["MISSING"]\n'),
-  );
-  expect(result.exitCode).toBe(1);
-  expect(result.stdout).toContain("is not usable: Malformed scope");
+test("doctor warns and skips the scope check when the file cannot be parsed", async () => {
+  const result = await runDoctor(ok, [], "not valid TOML = [");
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain("missing or unparsable; scope check skipped");
 });

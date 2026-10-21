@@ -1,13 +1,5 @@
-import { resolve } from "node:path";
-import { capture } from "./process";
-import {
-  manifestKeys,
-  members,
-  parseInheritance,
-  parseResolved,
-  parseScopes,
-  type Specification,
-} from "./resolution";
+import { CommandFailure, capture } from "./process";
+import { manifestKeys, parseMembers, parseResolved } from "./resolution";
 import type { Workflow } from "./workflow";
 
 /**
@@ -18,18 +10,39 @@ async function parseManifestKeys() {
   return manifestKeys(Bun.YAML.parse(await Bun.file("manifest.yml").text()));
 }
 
+/** SecretSpec reports a scope the file does not define only as this error text. */
+const undefinedScope = /is not defined in secretspec\.toml/;
+
+/**
+ * Names in one SecretSpec scope, asked of SecretSpec so inheritance and scope
+ * rules stay its own. A scope the file does not define has no members.
+ */
+async function scopeMembers(tool: string, scope: string, state: Workflow) {
+  state.stage = `SecretSpec ${scope} scope membership`;
+  try {
+    const report: unknown = JSON.parse(
+      await capture(tool, ["check", "--json", "--scope", scope], state.signal),
+    );
+    return parseMembers(report);
+  } catch (error) {
+    if (
+      error instanceof CommandFailure &&
+      undefinedScope.test(error.diagnostic)
+    )
+      return [];
+    throw error;
+  }
+}
+
+type ScopeMembers = (scope: string) => Promise<string[]>;
+
 /** Cross-check optional manifest scope metadata, without limiting local delivery. */
-export async function checkManifest(
-  config: Specification,
-  properties: Record<string, unknown>,
-  state: Workflow,
-) {
+export async function checkManifest(members: ScopeMembers, state: Workflow) {
+  const names = await members("manifest");
+  if (!names.length) return;
   state.stage = "manifest validation";
-  if (!config.scopes?.["manifest"]) return;
   const keys = await parseManifestKeys();
-  const missing = members(config, "manifest", properties).find(
-    (key) => !keys.has(key),
-  );
+  const missing = names.find((key) => !keys.has(key));
   if (!missing) return;
   state.stage = `manifest declaration for ${missing}`;
   throw new Error("Manifest declaration is missing");
@@ -42,37 +55,17 @@ function prerequisite(tool: string, state: Workflow) {
   return path;
 }
 
-/** The SecretSpec file in use: SECRETSPEC_FILE, else secretspec.toml in the working directory. */
-export function specificationPath() {
-  return resolve(process.env["SECRETSPEC_FILE"] ?? "secretspec.toml");
-}
-
-async function readConfiguration(state: Workflow) {
-  state.stage = "configuration";
-  const file = specificationPath();
-  const profile = process.env["SECRETSPEC_PROFILE"] ?? "default";
-  const raw: unknown = Bun.TOML.parse(await Bun.file(file).text());
-  state.stage = "project.extends validation (only a single file is supported)";
-  parseInheritance(raw);
-  state.stage = "scope metadata validation";
-  const config = parseScopes(raw);
-  return { config, nativeArgs: ["--file", file, "--profile", profile] };
-}
-
-async function resolveProfile(
-  tool: string,
-  nativeArgs: string[],
-  state: Workflow,
-) {
+/** SecretSpec reads SECRETSPEC_FILE, SECRETSPEC_PROFILE and the provider from the environment itself. */
+async function resolveProfile(tool: string, state: Workflow) {
   state.stage = "SecretSpec schema";
   const schema: unknown = JSON.parse(
-    await capture(tool, ["schema", ...nativeArgs], state.signal),
+    await capture(tool, ["schema"], state.signal),
   );
   state.stage = "SecretSpec resolution";
   const exported: unknown = JSON.parse(
     await capture(
       tool,
-      ["export", ...nativeArgs, "--scope", "", "--format", "json"],
+      ["export", "--scope", "", "--format", "json"],
       state.signal,
     ),
   );
@@ -92,16 +85,11 @@ function forgeEnvironment(
 export async function configure(state: Workflow) {
   const secretspec = prerequisite("secretspec", state);
   const forge = prerequisite("forge", state);
-  const { config, nativeArgs } = await readConfiguration(state);
-  const { properties, values } = await resolveProfile(
-    secretspec,
-    nativeArgs,
-    state,
-  );
+  const { properties, values } = await resolveProfile(secretspec, state);
   const environment = values["FORGE_ENVIRONMENT"];
   return {
     forge,
-    config,
+    scopeMembers: (scope: string) => scopeMembers(secretspec, scope, state),
     properties,
     values,
     environment,

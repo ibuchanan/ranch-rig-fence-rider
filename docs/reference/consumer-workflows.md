@@ -35,7 +35,7 @@ certify real Forge execution under Bun.
 | CW-02 | Installed consumer runs native lint against SecretSpec on `PATH`; missing-tool diagnostics before Forge runs; `doctor` version report | Floors are inferred, not exercised; other platform execution unverified |
 | CW-03 | Required values fail before Forge in compiled native cases and installed controls-only uninstall | Other providers unverified |
 | CW-04 | Deployment shared-values test sees unchanged implicit local values and removes stale absent optional; compiled tests cover empty strings | Broader native providers unverified |
-| CW-05 | Shared value matches local upload args and tunnel prefix mapping from one export; native profile tests count one schema/export | Actual manifest substitution and connected runtime receipt blocked |
+| CW-05 | Shared value matches local upload args and tunnel prefix mapping from one export; native profile tests count one schema/export, with scope checks name-only | Actual manifest substitution and connected runtime receipt blocked |
 | CW-06 | Environment control selection in native compiled tests and installed controls-only cases | Named server environment identity blocked |
 | CW-07 | Installed controls-only install overrides all targets independently; compiled deploy upload/deploy target checks | Actual server destination blocked |
 | CW-08 | Command grammar tests reject duplicates/missing targets and preserve unrelated options | Upstream version range unverified |
@@ -74,8 +74,9 @@ explicitly without SecretSpec on `PATH`; a skipped run is not native evidence.
 
 ## Safety, lifecycle, and support
 
-SecretSpec owns declarations, defaults, provider auth and same-file profile
-inheritance. Fence Rider resolves the full active profile once, removes stale
+SecretSpec owns declarations, defaults, provider auth, profile and file
+inheritance, and scope membership. Fence Rider resolves the full active profile
+once for values, asks SecretSpec for scope members by name, removes stale
 ambient declarations, and delivers all resolved values locally. Optional manifest
 scope only cross-checks applicable native manifest declarations. Explicit runtime
 scope authorizes deployment uploads or tunnel-local injection, not synchronization
@@ -84,9 +85,8 @@ on lint/install/uninstall. A shared value reuses the same export result.
 Deployment validates all selected values before encrypted writes; the following
 deployment activates them under documented Forge lifecycle. Failed writes can
 leave partial updates. There is no automatic rollback, deletion, undeclared
-upload, install, or consent. Only a single TOML specification is supported;
-nonempty/malformed `project.extends` is rejected. Native dotenv/defaults/profile
-checks do not certify other providers or SDK features.
+upload, install, or consent. Native dotenv/defaults/profile checks do not
+certify other providers or SDK features, or cross-file `project.extends`.
 
 Private resolution and upload output is suppressed, not a universal redaction
 system. Lint/install/uninstall/tunnel inherit streams without redaction and

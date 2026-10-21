@@ -1,82 +1,52 @@
 import { describe, expect, test } from "bun:test";
 import {
   manifestKeys,
-  members,
-  parseInheritance,
   parseResolved,
-  parseScopes,
+  parseMembers,
+  unrecognizedScopes,
 } from "../src/resolution.ts";
 import {
   deploymentSchema,
-  deploymentSpec,
   deploymentValues,
   sharedValue,
 } from "./support/fixtures.ts";
 
-const toml = (text: string) => Bun.TOML.parse(text);
-const withProject = (declaration: string) =>
-  toml(
-    deploymentSpec.replace(
-      'revision = "1.0"',
-      `revision = "1.0"\n${declaration}`,
-    ),
-  );
+describe("scope membership", () => {
+  test("names come from the value-free report in order", () => {
+    expect(
+      parseMembers({
+        schema_version: 1,
+        scope: "runtime",
+        secrets: [
+          { name: "OPTIONAL", status: "missing_optional" },
+          { name: "SHARED", status: "resolved" },
+        ],
+      }),
+    ).toEqual(["OPTIONAL", "SHARED"]);
+  });
 
-describe("project.extends", () => {
-  test("absent or empty inheritance is accepted", () => {
-    expect(() => parseInheritance(toml(deploymentSpec))).not.toThrow();
-    expect(() => parseInheritance(withProject("extends = []"))).not.toThrow();
+  test("a scope with no secrets has no members", () => {
+    expect(parseMembers({ secrets: [] })).toEqual([]);
   });
 
   test.each([
-    'extends = ["parent.toml"]',
-    'extends = "parent.toml"',
-    "extends = [42]",
-  ])("%s is rejected", (declaration) => {
-    expect(() => parseInheritance(withProject(declaration))).toThrow(
-      "project.extends",
-    );
+    { report: null },
+    { report: [] },
+    { report: {} },
+    { report: { secrets: "SHARED" } },
+    { report: { secrets: [null] } },
+    { report: { secrets: [{}] } },
+    { report: { secrets: [{ name: 1 }] } },
+  ])("a malformed report $report is rejected", ({ report }) => {
+    expect(() => parseMembers(report)).toThrow("Malformed scope report");
   });
 });
 
-describe("scope metadata", () => {
-  const scoped = (metadata: string) =>
-    toml(deploymentSpec.replace('secrets = ["SHARED", "OPTIONAL"]', metadata));
-
-  test("valid scopes keep their declared secrets", () => {
-    expect(parseScopes(toml(deploymentSpec))).toEqual({
-      scopes: { runtime: { secrets: ["SHARED", "OPTIONAL"] } },
-    });
-  });
-
-  test("a spec without scopes has none", () => {
-    expect(parseScopes({})).toEqual({});
-  });
-
-  test.each([
-    "secrets = []",
-    'secrets = "SHARED"',
-    'secrets = ["SHARED", "SHARED"]',
-    'secrets = [" "]',
-    "secrets = [42]",
-    'secrets = ["UNDECLARED"]',
-    'secrets = ["SHARED"]\nextra = true',
-  ])("malformed metadata %s is rejected", (metadata) => {
-    expect(() => parseScopes(scoped(metadata))).toThrow("Malformed scope");
-  });
-
-  test("a non-table scopes value is rejected", () => {
-    expect(() => parseScopes(toml(`scopes = "invalid"`))).toThrow(
-      "Malformed scopes",
-    );
-  });
-});
-
-describe("members", () => {
-  test("keeps only declarations present in the active profile schema", () => {
-    const config = parseScopes(toml(deploymentSpec));
-    expect(members(config, "runtime", { SHARED: {} })).toEqual(["SHARED"]);
-    expect(members(config, "missing-scope", { SHARED: {} })).toEqual([]);
+describe("recognized scopes", () => {
+  test("only scopes other than manifest and runtime are reported", () => {
+    expect(
+      unrecognizedScopes(["manifest", "api", "runtime", "runtim"]),
+    ).toEqual(["api", "runtim"]);
   });
 });
 

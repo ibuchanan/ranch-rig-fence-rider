@@ -5,6 +5,12 @@ captures the broader wrapper product contract and the next implementation set.
 This document and its AC-01 through AC-18 remain the deployment baseline;
 completed evidence does not certify the newly planned workflows.
 
+Superseded 2026-10-21: Fence Rider no longer reads `secretspec.toml`, rejects
+`project.extends`, or passes `--file`/`--profile`; scope membership is asked of
+SecretSpec (`check --json --scope`). The single-file statements below,
+including AC-18, record the original contract; see
+[ADR 0002](../docs/adr/0002-delegate-scope-membership-to-secretspec.md).
+
 Status: Single-file deployment implemented and locally verified. Live Forge
 verification is blocked pending explicit authorization; see the
 [workflow evidence](../docs/reference/validation.md). Compatibility checks

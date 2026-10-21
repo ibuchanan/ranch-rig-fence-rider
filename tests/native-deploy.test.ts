@@ -48,8 +48,13 @@ test.skipIf(!realSecretSpec)(
     expect(
       result.interactions
         .filter(({ tool }) => tool === "secretspec")
-        .map(({ args }) => args[0]),
-    ).toEqual(["schema", "export"]);
+        .map(({ args }) => args.slice(0, 2)),
+    ).toEqual([
+      ["schema"],
+      ["export", "--scope"],
+      ["check", "--json"],
+      ["check", "--json"],
+    ]);
     const forge = result.interactions.filter(({ tool }) => tool === "forge");
     expect(forge.map(({ args }) => args)).toEqual([
       [
@@ -100,7 +105,7 @@ test.skipIf(!realSecretSpec)(
 );
 
 test.skipIf(!realSecretSpec)(
-  "native profile inheritance uses the same explicit profile for schema and export",
+  "native profile selection through SECRETSPEC_PROFILE applies to the whole resolution",
   async () => {
     const result = await runWorkflow({
       realSecretSpec: realSecretSpec ?? "",
@@ -115,9 +120,13 @@ test.skipIf(!realSecretSpec)(
     const native = result.interactions.filter(
       ({ tool }) => tool === "secretspec",
     );
-    expect(
-      native.map(({ args }) => args[args.indexOf("--profile") + 1]),
-    ).toEqual(["release", "release"]);
+    expect(native.map(({ args }) => args[0])).toEqual([
+      "schema",
+      "export",
+      "check",
+      "check",
+    ]);
+    for (const { args } of native) expect(args).not.toContain("--profile");
     expect(result.interactions.at(-1)?.values).toEqual({
       FORGE_ENVIRONMENT: "production",
       SHARED: "synthetic-release",

@@ -37,7 +37,7 @@ test("canonical environment selects the same target for encrypted uploads and on
     result.interactions
       .filter(({ tool }) => tool === "secretspec")
       .map(({ args }) => args[0]),
-  ).toEqual(["schema", "export"]);
+  ).toEqual(["schema", "export", "check", "check"]);
   for (const call of result.interactions.filter(
     ({ tool }) => tool === "forge",
   )) {
@@ -93,7 +93,7 @@ test("explicit environment overrides the configured target for every Forge comma
     result.interactions
       .filter(({ tool }) => tool === "secretspec")
       .map(({ args }) => args[0]),
-  ).toEqual(["schema", "export"]);
+  ).toEqual(["schema", "export", "check", "check"]);
 });
 
 test.each([

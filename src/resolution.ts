@@ -1,28 +1,11 @@
-/** Pure parsing and validation of SecretSpec configuration and native output. */
-
-export type Specification = {
-  scopes?: Record<string, { secrets: string[] }>;
-};
+/** Pure parsing and validation of SecretSpec native output. */
 
 /** The only scopes Fence Rider reads; any other scope belongs to another consumer. */
 export const recognizedScopes = ["manifest", "runtime"];
 
 /** Names of declared scopes that Fence Rider never reads. */
-export function unrecognizedScopes(config: Specification) {
-  return Object.keys(config.scopes ?? {}).filter(
-    (name) => !recognizedScopes.includes(name),
-  );
-}
-
-/** Select scope declarations present in the effective native profile schema. */
-export function members(
-  config: Specification,
-  scope: string,
-  properties: Record<string, unknown>,
-) {
-  return (config.scopes?.[scope]?.secrets ?? []).filter((key) =>
-    Object.hasOwn(properties, key),
-  );
+export function unrecognizedScopes(scopes: string[]) {
+  return scopes.filter((name) => !recognizedScopes.includes(name));
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -49,69 +32,15 @@ export function manifestKeys(manifest: unknown) {
   return new Set(declarations.map(manifestKey));
 }
 
-function projectExtends(raw: unknown) {
-  const project = isObject(raw) ? raw["project"] : undefined;
-  return isObject(project) ? project["extends"] : undefined;
-}
-
-export function parseInheritance(raw: unknown) {
-  const parents = projectExtends(raw);
-  if (parents === undefined) return;
-  if (!Array.isArray(parents) || parents.length !== 0)
-    throw new Error("Unsupported project.extends inheritance");
-}
-
-function declaredNames(profiles: unknown) {
-  if (profiles === undefined) return new Set<string>();
-  if (!isObject(profiles)) throw new Error("Malformed profiles");
-  return new Set(
-    Object.values(profiles)
-      .filter(isObject)
-      .flatMap((fields) => Object.keys(fields))
-      .filter((key) => key !== "defaults"),
-  );
-}
-
-function scopeSecrets(scope: unknown) {
-  const shaped = isObject(scope) && Object.keys(scope).join() === "secrets";
-  const secrets = shaped ? scope["secrets"] : undefined;
-  if (!Array.isArray(secrets)) throw new Error("Malformed scope: secrets list");
-  return secrets;
-}
-
-function isDistinct(items: unknown[]) {
-  return items.length > 0 && new Set(items).size === items.length;
-}
-
-function isDeclaredName(key: unknown, declared: Set<string>): key is string {
-  return typeof key === "string" && key.trim() !== "" && declared.has(key);
-}
-
-function parseScope(scope: unknown, declared: Set<string>) {
-  const secrets = scopeSecrets(scope);
-  if (!isDistinct(secrets))
-    throw new Error("Malformed scope: empty or duplicate secrets");
-  const names = secrets.filter((key) => isDeclaredName(key, declared));
-  if (names.length !== secrets.length)
-    throw new Error("Malformed scope: undeclared secret");
-  return { secrets: names };
-}
-
-/** Parse scope metadata into the supported subset, rejecting everything else. */
-export function parseScopes(raw: unknown): Specification {
-  const root = isObject(raw) ? raw : {};
-  const scopes = root["scopes"];
-  if (scopes === undefined) return {};
-  if (!isObject(scopes)) throw new Error("Malformed scopes");
-  const declared = declaredNames(root["profiles"]);
-  return {
-    scopes: Object.fromEntries(
-      Object.entries(scopes).map(([name, scope]) => [
-        name,
-        parseScope(scope, declared),
-      ]),
-    ),
-  };
+/** Secret names from `secretspec check --json --scope`, a report that never carries values. */
+export function parseMembers(report: unknown) {
+  const secrets = isObject(report) ? report["secrets"] : undefined;
+  if (!Array.isArray(secrets)) throw new Error("Malformed scope report");
+  return secrets.map((secret) => {
+    const name = isObject(secret) ? secret["name"] : undefined;
+    if (typeof name !== "string") throw new Error("Malformed scope report");
+    return name;
+  });
 }
 
 function isStringType(type: unknown) {

@@ -36,22 +36,36 @@ version remain side-effect-free.
 
 | Setting | Current behavior |
 | --- | --- |
-| Specification | `SECRETSPEC_FILE`, otherwise `secretspec.toml` in the working directory |
-| Profile | `SECRETSPEC_PROFILE`, otherwise explicit `default` |
+| Specification | SecretSpec's own lookup: `SECRETSPEC_FILE`, otherwise auto-detected by walking up from the working directory |
+| Profile | SecretSpec's own selection, including `SECRETSPEC_PROFILE` |
 | Forge target | Explicit `-e` / `--environment`, resolved `FORGE_ENVIRONMENT`, then `development` |
 | Authentication | Existing tool configuration and process environment; no automatic login |
 
 Both prerequisites must be executable on `PATH` before resolution starts.
-Non-empty or malformed `project.extends` and malformed scope metadata fail
-before helper invocation. Empty `extends` is accepted. Native in-file profile
-inheritance is delegated to SecretSpec, not reimplemented.
-
-Schema and export receive the same absolute file and explicit profile:
+Fence Rider does not read or validate `secretspec.toml`: `project.extends`,
+profile inheritance, and scope rules are SecretSpec's. It passes no `--file` or
+`--profile`; the child process inherits `SECRETSPEC_FILE`, `SECRETSPEC_PROFILE`,
+and the provider variables. The whole profile is resolved once:
 
 ```text
-secretspec schema --file FILE --profile PROFILE
-secretspec export --file FILE --profile PROFILE --scope "" --format json
+secretspec schema
+secretspec export --scope "" --format json
 ```
+
+Scope members are then asked of SecretSpec by name only, through its value-free
+report, for the scopes a workflow uses:
+
+```text
+secretspec check --json --scope manifest
+secretspec check --json --scope runtime
+```
+
+`manifest` is asked by lint, deploy, and tunnel; `runtime` by deploy and tunnel;
+install and uninstall ask neither. A scope the file does not define has no
+members; that is recognized from SecretSpec's "is not defined in
+secretspec.toml" error text, the one contract on error text. Values come only
+from the single whole-profile export, so a run makes up to three SecretSpec
+resolutions but no scope check supplies a value.
 
 SecretSpec 0.21.1 schema output contains `properties` and `required` names,
 without resolved values or scope membership. Optional strings have the type
@@ -60,7 +74,7 @@ an absent optional value is omitted, not exported as null. The blank scope
 clears ambient scope selection. A real dotenv test confirms that a missing
 unscoped required value fails full-profile resolution despite an inherited
 `SECRETSPEC_SCOPE=runtime`. Another confirms native default-profile inheritance
-with the same explicit non-default profile for schema and export. A standalone
+for schema and export. A standalone
 profile with `[profiles.release.defaults] inherit = false` excludes inherited
 requirements and permits an empty runtime intersection. It must redeclare
 native-required descriptions; Fence Rider does not merge profile fields.
@@ -68,10 +82,10 @@ native-required descriptions; Fence Rider does not merge profile fields.
 An unknown ambient `SECRETSPEC_SCOPE` is also cleared, not interpreted as an
 explicit request. Fence Rider has no scope-selection option: `runtime` and
 `manifest` are fixed routing metadata, and native export always resolves the
-full profile. Empty scope declarations and undeclared scope members fail
-before native resolution. An empty native profile is invalid, while a profile
+full profile. Scope declaration rules, including empty or undeclared members,
+are enforced by SecretSpec. An empty native profile is invalid, while a profile
 with only absent optional declarations exports `{}` and can deploy without
-uploads. Empty `project.extends` is exercised with the native CLI as well.
+uploads.
 
 The local fixture uses `SECRETSPEC_PROVIDER=dotenv:values.env`, isolated home
 and XDG directories, and synthetic values only. Tests skip the real-SecretSpec
@@ -90,11 +104,11 @@ Native SecretSpec 0.21.1 dotenv checks exercise controls-only profiles,
 explicit overrides, and absent optional cleanup. A required control missing
 from the provider blocks even `-e production` with ambient scope set to
 `runtime`. The existing shared-value integration covers manifest and
-runtime membership using one full export and the same local/upload values.
+runtime membership using one full export for the local/upload values.
 These tests use Bun 1.4.3 and the compiled public CLI, not private helpers.
 
-`src/configured.ts` contains the reused single-file metadata validation,
-native schema/full-export resolution, declared
+`src/configured.ts` contains the native schema/full-export resolution, scope
+membership queries, declared
 optional cleanup, and private subprocess execution. Deployment retains its
 manifest cross-check, option parsing, runtime preflight, encrypted writes,
 status propagation, and interruption lifecycle. No second resolver, provider
@@ -145,8 +159,9 @@ no live app, variable write, or deployment is involved.
 
 ## Selection and destination behavior
 
-The single TOML file supplies scope metadata. Effective membership is its
-intersection with native schema declaration names. All required and exported
+SecretSpec supplies scope membership by name through its value-free
+`check --json --scope` report, already limited to the active profile. All
+required and exported
 values are validated before any upload. Only strings without NUL are accepted;
 structured values are rejected, not coerced. Native schema must describe an
 object with string or nullable-string properties and a valid, unique required

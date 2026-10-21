@@ -173,6 +173,13 @@ credentials and app registration are never supplied automatically.
 
 ### Configuration and delivery
 
+> **Superseded 2026-10-21:** Fence Rider no longer reads `secretspec.toml`,
+> rejects `project.extends`, or passes `--file`/`--profile`. Scope membership is
+> asked of SecretSpec with `check --json --scope`, and inheritance is
+> SecretSpec's ([ADR 0002](../docs/adr/0002-delegate-scope-membership-to-secretspec.md)).
+> The single-specification and cross-file rejection statements below, and the
+> matching non-goal, are historical.
+
 - Retain the single-specification boundary, native in-file profile
   inheritance, and rejection of unsupported cross-file inheritance. No
   provider SDK, alternate schema, custom profile merger, or second variable

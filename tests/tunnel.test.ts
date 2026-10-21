@@ -129,6 +129,8 @@ test("configured tunnel maps only explicit runtime members from one resolution w
   expect(result.interactions.map(({ args }) => args[0])).toEqual([
     "schema",
     "export",
+    "check",
+    "check",
     "tunnel",
   ]);
   expect(result.stdout).toContain("synthetic tunnel result");

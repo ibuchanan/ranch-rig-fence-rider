@@ -14,7 +14,7 @@ caller-owned interaction. **Uninstall changes remote installation state.**
 Forge output streams without redaction; see the
 [workflow contracts](docs/reference/reference.md#configured-uninstall).
 
-**Status:** single-file deployment, lint, installation, and uninstall are
+**Status:** configured deployment, lint, installation, and uninstall are
 locally tested with Bun 1.4.3 and SecretSpec 0.21.1. Forge CLI 14.2.0 interfaces
 have been inspected; live Forge verification is **blocked pending authorization**,
 not certified. This private source project is not published as a package.
@@ -71,7 +71,7 @@ native tool delivery, controlled Forge behavior, and blocked live checks.
 - [Install or upgrade the configured app](docs/how-to/how-to.md#install-or-upgrade-the-configured-app)
 - [Uninstall the configured app](docs/how-to/how-to.md#uninstall-the-configured-app)
 - [Tunnel with configured local runtime values](docs/how-to/how-to.md#tunnel-with-configured-local-runtime-values)
-- [Variable contract and single-file limits](docs/reference/reference.md)
+- [Variable contract and limits](docs/reference/reference.md)
 - [Version evidence and acceptance checks](docs/reference/deployment.md)
 - [Why local, manifest, and runtime differ](docs/explanation/explanation.md)
 - [Development and validation](DEVELOPMENT.md)

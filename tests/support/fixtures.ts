@@ -116,6 +116,14 @@ if (fixture.blockStage === args[0]) {
   });
   setInterval(() => {}, 1000);
   writeFileSync("ready", String(process.pid));
+} else if (tool === "secretspec" && args[0] === "check") {
+  const scope = args[args.indexOf("--scope") + 1];
+  const scopes = Bun.TOML.parse(require("node:fs").readFileSync(process.env.SECRETSPEC_FILE ?? "secretspec.toml", "utf8")).scopes ?? {};
+  if (!Object.hasOwn(scopes, scope)) {
+    console.error("Invalid scope: '" + scope + "' is not defined in secretspec.toml. Available scopes: " + Object.keys(scopes).join(", "));
+    process.exit(1);
+  }
+  console.log(JSON.stringify({ schema_version: 1, scope, secrets: scopes[scope].secrets.filter(name => names.includes(name)).map(name => ({ name, status: "resolved" })) }));
 } else if (tool === "secretspec") console.log((args[0] === "schema" ? fixture.schemaOutput : fixture.exportOutput) ?? JSON.stringify(args[0] === "schema" ? fixture.schema : fixture.values));
 `,
     { mode: 0o755 },

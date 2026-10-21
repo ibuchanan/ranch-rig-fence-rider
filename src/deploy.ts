@@ -12,7 +12,6 @@ import {
   checkInterruption,
   DelegatedFailure,
 } from "./process";
-import { members } from "./resolution";
 import { describeStage, runWorkflow, type Workflow } from "./workflow";
 
 export const deployUsage = [
@@ -49,19 +48,20 @@ async function delegate(run: () => Promise<unknown>) {
 async function performDeployment(options: DeployOptions, workflow: Workflow) {
   if (options.explicitTarget !== undefined)
     workflow.target = options.explicitTarget;
-  const { forge, config, properties, values, environment, env } =
+  const { forge, scopeMembers, values, environment, env } =
     await configure(workflow);
   workflow.stage = "environment target validation";
   workflow.target = validateTarget(
     options.explicitTarget ?? environment ?? "development",
   );
-  await checkManifest(config, properties, workflow);
+  await checkManifest(scopeMembers, workflow);
+  const runtime = await scopeMembers("runtime");
   workflow.stage =
     "runtime selection validation (local controls, empty and leading-dash upload values unsupported)";
   const plan = planDeploy({
     explicitTarget: options.explicitTarget,
     environment,
-    runtime: members(config, "runtime", properties),
+    runtime,
     values,
     forwarded: options.forwarded,
   });

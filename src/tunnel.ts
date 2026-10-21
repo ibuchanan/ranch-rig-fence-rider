@@ -1,6 +1,5 @@
 import { checkManifest, configure } from "./configured";
 import { checkInterruption, passthrough } from "./process";
-import { members } from "./resolution";
 import {
   isReservedVariable,
   parseTunnelOptions,
@@ -10,15 +9,13 @@ import {
 } from "./tunnel-plan";
 import { runWorkflow } from "./workflow";
 
-function injectRuntime({
-  env,
-  config,
-  properties,
-  values,
-}: Awaited<ReturnType<typeof configure>>) {
+function injectRuntime(
+  { env, properties, values }: Awaited<ReturnType<typeof configure>>,
+  runtime: string[],
+) {
   const variables = tunnelRuntimeVariables(
     Object.keys(properties),
-    members(config, "runtime", properties),
+    runtime,
     values,
   );
   for (const key of Object.keys(env))
@@ -43,12 +40,13 @@ export async function tunnel(args: string[]): Promise<number> {
       return;
     }
     const configured = await configure(workflow);
-    const { forge, env, config, properties, environment } = configured;
+    const { forge, env, scopeMembers, environment } = configured;
     workflow.stage = "tunnel target validation (development environments only)";
     const target = tunnelTarget(options.target, environment);
-    await checkManifest(config, properties, workflow);
+    await checkManifest(scopeMembers, workflow);
+    const runtime = await scopeMembers("runtime");
     workflow.stage = "tunnel runtime selection validation";
-    injectRuntime(configured);
+    injectRuntime(configured, runtime);
     workflow.stage = "tunnel";
     await passthrough(
       forge,

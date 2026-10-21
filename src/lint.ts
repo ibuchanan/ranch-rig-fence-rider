@@ -24,8 +24,8 @@ export async function lint(args: string[]): Promise<number> {
     return 0;
   }
   return runWorkflow(async (state) => {
-    const { forge, env, config, properties } = await configure(state);
-    await checkManifest(config, properties, state);
+    const { forge, env, scopeMembers } = await configure(state);
+    await checkManifest(scopeMembers, state);
     state.stage = "lint";
     await passthrough(forge, ["lint", ...forwarded], state.signal, env);
     checkInterruption(state.signal);

@@ -26,6 +26,8 @@ test.each([
     expect(result.interactions.map(({ args }) => args[0])).toEqual([
       "schema",
       "export",
+      "check",
+      "check",
       "tunnel",
     ]);
     expect(result.interactions.at(-1)?.runtime).toEqual({});
@@ -91,6 +93,8 @@ test.each([2, 23, 127, 255])(
     expect(result.interactions.map(({ args }) => args[0])).toEqual([
       "schema",
       "export",
+      "check",
+      "check",
       "tunnel",
     ]);
   },
