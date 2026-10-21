@@ -30,7 +30,12 @@ only skips that check. When the file declares a `manifest` scope and `secretspec
 is on `PATH`, `doctor` also runs the value-free
 `secretspec check --json --scope manifest` and checks that `manifest.yml`
 declares each member, so it reads providers; a missing declaration fails. This
-is the manifest consistency check for lint, which no longer runs it. The lowest
+is the manifest consistency check for lint, which no longer runs it. It likewise
+runs `secretspec check --json --scope runtime` and reports how many members
+`variables` would upload; an undefined or empty `runtime` scope is a warning,
+because `variables` would upload nothing and still exit 0, and a local control
+(`FORGE_ENVIRONMENT`, `FORGE_SITE`, `FORGE_PRODUCT`) among the members is a
+failure, because `variables` refuses it. No value is printed. The lowest
 supported versions (SecretSpec 0.17, Forge CLI 1.3)
 are inferred from the features used, not exercised; the highest tested versions
 are the only exercised baseline, SecretSpec 0.21.1 and Forge 14.2.0. No

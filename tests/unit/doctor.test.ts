@@ -10,6 +10,8 @@ type Tools = Record<string, string | null>;
 type Project = {
   /** Printed by a fake `secretspec check --json --scope manifest`; "fail" exits 1 for an unrelated error, "undefined" as for a scope no file defines. */
   report?: string[] | "fail" | "undefined";
+  /** Same, for `--scope runtime`; defaults to a scope no file defines. */
+  runtime?: string[] | "undefined";
   /** The manifest.yml in the project, when it has one. */
   manifest?: string;
 };
@@ -33,19 +35,22 @@ async function runDoctor(
       throw new Error(`ENOENT: no such file or directory, open '${path}'`);
     },
     capture: async (path, callArgs) => {
-      const { report = "undefined" } = project;
       if (callArgs[0] === "check") {
+        const scope = callArgs.at(-1);
+        const report =
+          (scope === "runtime" ? project.runtime : project.report) ??
+          "undefined";
         if (report === "fail")
           throw new CommandFailure("exit status 1", 1, "Invalid scope");
         if (report === "undefined")
           throw new CommandFailure(
             "exit status 1",
             1,
-            "Scope 'manifest' is not defined in secretspec.toml",
+            `Scope '${scope}' is not defined in secretspec.toml`,
           );
         return JSON.stringify({
           schema_version: 1,
-          scope: "manifest",
+          scope,
           secrets: report.map((name) => ({ name, status: "resolved" })),
         });
       }
@@ -244,4 +249,34 @@ test("doctor skips the manifest check when secretspec is missing", async () => {
   expect(result.exitCode).toBe(1);
   expect(result.stdout).toContain("SecretSpec: not found on PATH");
   expect(result.stdout).toContain("Manifest: no manifest scope; check skipped");
+});
+
+test("doctor reports the runtime member count without a value", async () => {
+  const result = await runDoctor(ok, [], undefined, {
+    runtime: ["A", "B"],
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.stdout).toContain(
+    "Runtime: 2 members would be uploaded by variables",
+  );
+});
+
+test("doctor warns, without failing, when the runtime scope has no members", async () => {
+  for (const runtime of ["undefined", [] as string[]] as const) {
+    const result = await runDoctor(ok, [], undefined, { runtime });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain(
+      "Runtime: scope is undefined or has no members; variables would upload nothing",
+    );
+  }
+});
+
+test("doctor fails and names a local control in the runtime scope", async () => {
+  const result = await runDoctor(ok, [], undefined, {
+    runtime: ["A", "FORGE_SITE"],
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.stdout).toContain(
+    "Runtime: FORGE_SITE is a local control; variables refuses to upload it",
+  );
 });

@@ -4,6 +4,16 @@ Recorded 2026-10-19. Public seams: the compiled CLI subprocess
 and observable validation-command output/status, confirmed by the user.
 No private-function tests or second native proof suite were introduced.
 
+## Doctor reports the runtime scope — 2026-10-21
+
+`fence-rider doctor` runs the value-free
+`secretspec check --json --scope runtime` and reports what `variables` would do
+with the members. Ordinary members report their count and exit 0. An undefined
+or empty scope is a warning, because `variables` would upload nothing and still
+exit 0. A local control (`FORGE_ENVIRONMENT`, `FORGE_SITE`, `FORGE_PRODUCT`)
+among the members is a failure that names it, because `variables` refuses it at
+run time. The report never prints a value. Unit tests cover the three outcomes.
+
 ## Script generators for lint, install and uninstall — 2026-10-21
 
 `fence-rider lint`, `install` and `uninstall` no longer run Forge: each prints one

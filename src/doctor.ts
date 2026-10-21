@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { checkManifest, scopeMembers } from "./configured";
 import type { Io } from "./io";
+import { isLocalControl } from "./policy";
 import { recognizedScopes, unrecognizedScopes } from "./resolution";
 
 /**
@@ -24,8 +25,8 @@ type Dependency = (typeof dependencies)[number];
 export const doctorUsage = [
   "Usage: fence-rider doctor",
   "Report the SecretSpec and Forge CLI versions on PATH against the lowest supported and highest tested versions.",
-  "Asks SecretSpec (value-free) for the manifest scope's members, including a scope inherited through project.extends, and checks that manifest.yml declares them. Also reads the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml) only to warn about scopes Fence Rider never reads.",
-  "Exits 1 when a tool is missing, unreadable or older than supported, or a manifest scope member is not declared in manifest.yml; a newer version or an unused scope is only a warning.",
+  "Asks SecretSpec (value-free) for the manifest scope's members, including a scope inherited through project.extends, and checks that manifest.yml declares them. Likewise asks for the runtime scope's members and reports what variables would upload: an undefined or empty scope is a warning, a local control (FORGE_ENVIRONMENT, FORGE_SITE, FORGE_PRODUCT) among them is a failure. Also reads the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml) only to warn about scopes Fence Rider never reads.",
+  "Exits 1 when a tool is missing, unreadable or older than supported, a manifest scope member is not declared in manifest.yml, or a runtime scope member is a local control; a newer version, an unused scope or an empty runtime scope is only a warning.",
   "Other commands never pre-check versions: a changed tool contract surfaces as that command's failure.",
 ].join("\n");
 
@@ -134,6 +135,40 @@ async function inspectManifest(secretspec: string | undefined, io: Io) {
   }
 }
 
+/** Report what `variables` would do with the runtime scope's members; never prints a value. */
+async function inspectRuntime(secretspec: string | undefined, io: Io) {
+  if (!secretspec)
+    return {
+      failed: false,
+      line: "Runtime: SecretSpec missing; check skipped",
+    };
+  const state = {
+    stage: "runtime scope",
+    signal: new AbortController().signal,
+    io,
+  };
+  try {
+    const names = await scopeMembers(secretspec, "runtime", state);
+    if (!names.length)
+      return {
+        failed: false,
+        line: "Runtime: scope is undefined or has no members; variables would upload nothing",
+      };
+    const control = names.find(isLocalControl);
+    if (control)
+      return {
+        failed: true,
+        line: `Runtime: ${control} is a local control; variables refuses to upload it`,
+      };
+    return {
+      failed: false,
+      line: `Runtime: ${names.length} member${names.length === 1 ? "" : "s"} would be uploaded by variables`,
+    };
+  } catch {
+    return { failed: true, line: `Runtime: ${state.stage} failed` };
+  }
+}
+
 /** The lines of one doctor run, and whether any of them is a failure. */
 async function inspectAll(io: Io) {
   const file = specificationFile(io);
@@ -144,6 +179,7 @@ async function inspectAll(io: Io) {
       dependencies.map((dependency) => inspect(dependency, io)),
     )),
     await inspectManifest(secretspec, io),
+    await inspectRuntime(secretspec, io),
   ];
   return {
     lines: [...checks.map(({ line }) => line), ...scopeLines(file, scopes)],
