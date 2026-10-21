@@ -65,44 +65,35 @@ test.each(["secretspec", "forge"])(
   },
 );
 
-test.each(["secretspec", "forge"])(
-  "unlaunchable %s executable reports safe actionable context",
-  async (launchTool) => {
-    const result = await runWorkflow({
-      launchTool,
-      args: ["-e", "production"],
-    });
-    expect(result.exitCode).not.toBe(0);
-    expect(result.stderr).toContain("unable to launch");
-    expect(result.stderr).toContain("target production");
-    expect(result.stdout).not.toContain("Uploaded");
-  },
-);
+// The supervisor's branches are tested directly in process-capture.test.ts; one
+// case per ending shows the compiled CLI reports it safely.
+test("an unlaunchable helper reports safe actionable context", async () => {
+  const result = await runWorkflow({
+    launchTool: "secretspec",
+    args: ["-e", "production"],
+  });
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr).toContain("unable to launch");
+  expect(result.stderr).toContain("target production");
+  expect(result.stdout).not.toContain("Uploaded");
+});
 
-test.each(["schema", "export", "variables"])(
-  "child signal termination during %s cannot become success",
-  async (failStage) => {
-    const result = await runWorkflow({
-      failStage,
-      failureMode: "signal",
-      args: ["-e", "production"],
-    });
-    expect(result.exitCode).not.toBe(0);
-    expect(result.stderr).toContain("terminated by SIGTERM");
-    expect(result.stderr).toContain("target production");
-    expect(result.stdout).not.toContain("Uploaded");
-  },
-);
+test("a helper killed by a signal cannot become success", async () => {
+  const result = await runWorkflow({
+    failStage: "variables",
+    failureMode: "signal",
+    args: ["-e", "production"],
+  });
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr).toContain("terminated by SIGTERM");
+  expect(result.stderr).toContain("target production");
+  expect(result.stdout).not.toContain("Uploaded");
+});
 
-test.each([2, 127, 255])(
-  "a failed upload with exit status %i is reported as exit 1 without raw helper output",
-  async (exitCode) => {
-    const result = await runWorkflow({ failStage: "variables", exitCode });
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain(`exit status ${exitCode}`);
-    expect(result.stderr).toContain(
-      "Remote variables may already have changed",
-    );
-    expect(result.stderr).not.toContain("synthetic helper noise");
-  },
-);
+test("a failed upload is reported as exit 1 without raw helper output", async () => {
+  const result = await runWorkflow({ failStage: "variables", exitCode: 2 });
+  expect(result.exitCode).toBe(1);
+  expect(result.stderr).toContain("exit status 2");
+  expect(result.stderr).toContain("Remote variables may already have changed");
+  expect(result.stderr).not.toContain("synthetic helper noise");
+});

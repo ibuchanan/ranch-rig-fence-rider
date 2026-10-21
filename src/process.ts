@@ -79,7 +79,11 @@ function launch(
 }
 
 /** Forward interruption to the child's process group, escalating to SIGKILL; returns cleanup. */
-function forwardInterruption(child: Child, signal: AbortSignal) {
+function forwardInterruption(
+  child: Child,
+  signal: AbortSignal,
+  escalationMs: number,
+) {
   let escalation: ReturnType<typeof setTimeout> | undefined;
   const terminate = (kind: NodeJS.Signals) => {
     try {
@@ -91,7 +95,7 @@ function forwardInterruption(child: Child, signal: AbortSignal) {
   };
   const interrupt = () => {
     terminate(signal.reason);
-    escalation ??= setTimeout(() => terminate("SIGKILL"), 1_000);
+    escalation ??= setTimeout(() => terminate("SIGKILL"), escalationMs);
   };
   signal.addEventListener("abort", interrupt, { once: true });
   return async () => {
@@ -123,11 +127,13 @@ export async function capture(
   args: string[],
   signal: AbortSignal,
   env = process.env,
+  /** How long a helper may ignore an interruption before SIGKILL. */
+  escalationMs = 1_000,
 ) {
   checkInterruption(signal);
   const failed = { launch: false };
   const child = launch(tool, args, env, failed);
-  const cleanup = forwardInterruption(child, signal);
+  const cleanup = forwardInterruption(child, signal, escalationMs);
   try {
     const [code, stdout, diagnostic] = await Promise.all([
       child.exited,
