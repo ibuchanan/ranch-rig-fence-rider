@@ -182,7 +182,8 @@ not establish server acceptance, encryption at rest, or runtime activation.
 
 ## Acceptance traceability
 
-All named checks below are in [the public suite](../../tests/).
+All named checks below are in [the public suite](../../tests/). The
+[acceptance criteria](acceptance-criteria.md) define each ID.
 Names identify tests rather than unstable line numbers. Each AC has passing
 local evidence; references to Forge mean controlled subprocess observations
 unless explicitly labeled native SecretSpec. This is not live certification.

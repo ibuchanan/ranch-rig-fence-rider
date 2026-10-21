@@ -160,7 +160,9 @@ Do not raise thresholds or suppress findings to make a gate pass.
 - `tests/unit/`, `tests/integration/`: the two test tiers; `tests/support/`
   holds shared fixtures, fakes and runners.
 - `docs/`: task guides, reference, and architectural explanation.
-- `specs/fence-rider-spec.md`: product contract and AC-01 through AC-18.
+- `specs/`: planned future work; see `specs/README.md`. Current behavior is
+  documented in `docs/`, with scenario IDs in
+  `docs/reference/acceptance-criteria.md`.
 
 Never use real credentials in test fixtures. Live Forge checks require a
 separately authorized named disposable app, environment, allowed changes,

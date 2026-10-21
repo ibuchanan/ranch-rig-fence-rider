@@ -83,7 +83,9 @@ controlled Forge behavior, and blocked live checks.
 - [Version evidence and acceptance checks](docs/reference/deployment.md)
 - [Why local, manifest, and runtime differ](docs/explanation/explanation.md)
 - [Development and validation](DEVELOPMENT.md)
-- [Product specification](specs/fence-rider-spec.md)
+- [What Fence Rider is for, and where it stops](docs/explanation/scope-and-boundaries.md)
+- [Acceptance criteria](docs/reference/acceptance-criteria.md)
+- [Planned future work](specs/README.md)
 
 The [original exploration](specs/SecretSpec%20Atlassian%20Forge%20Integration%20Guide.md)
 is historical input, not installation or provider guidance.

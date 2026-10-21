@@ -196,6 +196,7 @@ evidence](../reference/consumer-workflows.md).
 
 ## Related material
 
+- [What Fence Rider is for, and where it stops](scope-and-boundaries.md)
 - [Variable compatibility reference](../reference/reference.md)
 - [SecretSpec scopes](https://secretspec.dev/concepts/scopes/)
 - [Forge manifest variables][manifest]

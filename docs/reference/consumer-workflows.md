@@ -1,7 +1,7 @@
 # Configured consumer workflow acceptance
 
-Recorded 2026-10-20 for configured consumer acceptance. The [whole-concept
-planning spec][plan] defines CW-01–CW-22; the [implemented contract][contract]
+Recorded 2026-10-20 for configured consumer acceptance. The [acceptance
+criteria][plan] define CW-01–CW-22; the [implemented contract][contract]
 defines current behavior. The original deployment AC-01–AC-18 record remains in
 [validation](validation.md). That record and the rows below predate [ADR
 0007](../adr/0007-split-variables-from-generated-forge-commands.md): read deploy
@@ -125,7 +125,7 @@ The original deployment live blocker is preserved. Local completion is not a
 release-readiness or live-compatibility pass. Use the [workflow how-to][guide]
 for procedures and the [validation log](validation.md) for command outcomes.
 
-[plan]: ../../specs/configured-forge-workflows-spec.md
+[plan]: acceptance-criteria.md
 [contract]: reference.md
 [tests]: ../../tests/
 [delivery]: installation.md
