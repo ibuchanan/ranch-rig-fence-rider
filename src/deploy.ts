@@ -17,7 +17,7 @@ import { describeStage, runWorkflow, type Workflow } from "./workflow";
 
 export const deployUsage = [
   "Usage: fence-rider deploy [-e, --environment TARGET] [Forge options]",
-  "Target: explicit option, resolved FORGE_ENVIRONMENT (FORGE_ENV legacy alias), then development.",
+  "Target: explicit option, resolved FORGE_ENVIRONMENT, then development.",
   "Conflicting resolved names fail even with an explicit target.",
   "SecretSpec and Forge must be installed on PATH and authenticated separately.",
 ].join("\n");

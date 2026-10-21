@@ -91,14 +91,11 @@ test.each([
   },
 );
 
-test("deployment help documents canonical migration without resolving secrets", async () => {
+test("deployment help documents the environment control without resolving secrets", async () => {
   const result = await runCli(["deploy", "--help"], true);
   expect(result.exitCode).toBe(0);
   expect(result.stdout).toContain("FORGE_ENVIRONMENT");
-  expect(result.stdout).toContain("FORGE_ENV legacy alias");
-  expect(result.stdout).toContain(
-    "Conflicting resolved names fail even with an explicit target.",
-  );
+  expect(result.stdout).not.toContain("FORGE_ENV legacy alias");
   expect(result.stderr).toBe("");
 });
 

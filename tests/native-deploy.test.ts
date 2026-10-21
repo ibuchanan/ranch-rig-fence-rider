@@ -1,8 +1,6 @@
 import { expect, test } from "bun:test";
 import { useBuiltCli } from "./support/cli.ts";
 import {
-  canonicalSchema,
-  canonicalSpec,
   deploymentSchema,
   deploymentSpec,
   realSecretSpec,
@@ -16,7 +14,7 @@ test.skipIf(!realSecretSpec)(
   async () => {
     const result = await runWorkflow({
       realSecretSpec: realSecretSpec ?? "",
-      spec: canonicalSpec.replace('default = "staging"', "required = true"),
+      spec: deploymentSpec.replace('default = "staging"', "required = true"),
       args: ["-e", "production"],
       env: {
         SECRETSPEC_PROVIDER: "dotenv:values.env",
@@ -35,38 +33,13 @@ test.skipIf(!realSecretSpec)(
 );
 
 test.skipIf(!realSecretSpec)(
-  "native conflicting environment defaults fail before Forge",
+  "native SecretSpec schema and full dotenv export share FORGE_ENVIRONMENT values and omit absent optionals",
   async () => {
     const result = await runWorkflow({
       realSecretSpec: realSecretSpec ?? "",
-      spec: canonicalSpec.replace(
-        "[profiles.default]",
-        '[profiles.default]\nFORGE_ENV = { description = "Legacy target", default = "synthetic-conflict" }',
-      ),
-      env: { SECRETSPEC_PROVIDER: "dotenv:values.env" },
-      dotenv:
-        "SHARED=synthetic-native-shared\nLOCAL_ONLY=synthetic-native-local\n",
-    });
-    expect(result.exitCode).not.toBe(0);
-    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
-      [],
-    );
-    expect(result.stderr).toContain("FORGE_ENVIRONMENT and FORGE_ENV conflict");
-    expect(result.stdout).toBe("");
-    expect(result.stderr).not.toContain("synthetic-conflict");
-    expect(result.stderr).not.toContain("synthetic-native");
-  },
-);
-
-test.skipIf(!realSecretSpec).each(["FORGE_ENV", "FORGE_ENVIRONMENT"])(
-  "native SecretSpec schema and full dotenv export share %s values and omit absent optionals",
-  async (control) => {
-    const result = await runWorkflow({
-      realSecretSpec: realSecretSpec ?? "",
-      spec: `${deploymentSpec.replaceAll("FORGE_ENV", control)}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`,
+      spec: `${deploymentSpec}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`,
       manifest: "environment:\n  variables: [SHARED]\n",
-      schema:
-        control === "FORGE_ENVIRONMENT" ? canonicalSchema : deploymentSchema,
+      schema: deploymentSchema,
       env: { SECRETSPEC_PROVIDER: "dotenv:values.env" },
       dotenv:
         "SHARED=synthetic-native-shared\nLOCAL_ONLY=synthetic-native-local\n",
@@ -92,7 +65,7 @@ test.skipIf(!realSecretSpec).each(["FORGE_ENV", "FORGE_ENVIRONMENT"])(
     ]);
     for (const call of forge) {
       expect(call.values).toEqual({
-        [control]: "staging",
+        FORGE_ENVIRONMENT: "staging",
         SHARED: "synthetic-native-shared",
         LOCAL_ONLY: "synthetic-native-local",
       });
@@ -131,7 +104,7 @@ test.skipIf(!realSecretSpec)(
   async () => {
     const result = await runWorkflow({
       realSecretSpec: realSecretSpec ?? "",
-      spec: `${deploymentSpec}\n[profiles.release]\nFORGE_ENV = { description = "Release target", default = "production" }\n`,
+      spec: `${deploymentSpec}\n[profiles.release]\nFORGE_ENVIRONMENT = { description = "Release target", default = "production" }\n`,
       env: {
         SECRETSPEC_PROVIDER: "dotenv:values.env",
         SECRETSPEC_PROFILE: "release",
@@ -146,7 +119,7 @@ test.skipIf(!realSecretSpec)(
       native.map(({ args }) => args[args.indexOf("--profile") + 1]),
     ).toEqual(["release", "release"]);
     expect(result.interactions.at(-1)?.values).toEqual({
-      FORGE_ENV: "production",
+      FORGE_ENVIRONMENT: "production",
       SHARED: "synthetic-release",
       LOCAL_ONLY: "synthetic-local",
     });
@@ -158,7 +131,7 @@ test.skipIf(!realSecretSpec)(
   async () => {
     const result = await runWorkflow({
       realSecretSpec: realSecretSpec ?? "",
-      spec: `${deploymentSpec}\n[profiles.release.defaults]\ninherit = false\n[profiles.release]\nFORGE_ENV = { description = "Standalone target", default = "production" }\nLOCAL_ONLY = { description = "Standalone value", required = true }\n`,
+      spec: `${deploymentSpec}\n[profiles.release.defaults]\ninherit = false\n[profiles.release]\nFORGE_ENVIRONMENT = { description = "Standalone target", default = "production" }\nLOCAL_ONLY = { description = "Standalone value", required = true }\n`,
       env: {
         SECRETSPEC_PROVIDER: "dotenv:values.env",
         SECRETSPEC_PROFILE: "release",
@@ -174,7 +147,7 @@ test.skipIf(!realSecretSpec)(
       ["deploy", "--environment", "production"],
     ]);
     expect(forge[0]?.values).toEqual({
-      FORGE_ENV: "production",
+      FORGE_ENVIRONMENT: "production",
       LOCAL_ONLY: "synthetic-standalone",
     });
   },
@@ -201,7 +174,7 @@ test.skipIf(!realSecretSpec)(
     expect(forge).toHaveLength(2);
     for (const call of forge) {
       expect(call.values).toEqual({
-        FORGE_ENV: "staging",
+        FORGE_ENVIRONMENT: "staging",
         SHARED: "synthetic-native-shared",
         LOCAL_ONLY: "synthetic-native-local",
       });
@@ -243,7 +216,7 @@ test.skipIf(!realSecretSpec).each([
     ]);
     for (const call of forge)
       expect(call.values).toEqual({
-        FORGE_ENV: "staging",
+        FORGE_ENVIRONMENT: "staging",
         SHARED: runtime,
         LOCAL_ONLY: local,
       });

@@ -11,7 +11,7 @@ name = "fence-rider-test"
 revision = "1.0"
 
 [profiles.default]
-FORGE_ENV = { description = "Deployment target", default = "staging" }
+FORGE_ENVIRONMENT = { description = "Deployment target", default = "staging" }
 SHARED = { description = "Shared application value", required = true }
 LOCAL_ONLY = { description = "Local application value", required = true }
 OPTIONAL = { description = "Absent optional value", required = false }
@@ -21,7 +21,7 @@ secrets = ["SHARED", "OPTIONAL"]
 `;
 
 export const deploymentValues = {
-  FORGE_ENV: "staging",
+  FORGE_ENVIRONMENT: "staging",
   SHARED: sharedValue,
   LOCAL_ONLY: "synthetic local-only",
 };
@@ -29,12 +29,12 @@ export const deploymentValues = {
 export const deploymentSchema = {
   type: "object",
   properties: {
-    FORGE_ENV: { type: "string" },
+    FORGE_ENVIRONMENT: { type: "string" },
     SHARED: { type: "string" },
     LOCAL_ONLY: { type: "string" },
     OPTIONAL: { type: ["string", "null"] },
   },
-  required: ["FORGE_ENV", "SHARED", "LOCAL_ONLY"],
+  required: ["FORGE_ENVIRONMENT", "SHARED", "LOCAL_ONLY"],
 };
 
 export type ToolCall = {
@@ -237,44 +237,22 @@ export async function runWorkflow(options: WorkflowOptions = {}) {
   }
 }
 
-export const canonicalSpec = deploymentSpec.replaceAll(
-  "FORGE_ENV",
-  "FORGE_ENVIRONMENT",
-);
-
-export const canonicalSchema = {
-  ...deploymentSchema,
-  properties: {
-    FORGE_ENVIRONMENT: { type: "string" },
-    SHARED: { type: "string" },
-    LOCAL_ONLY: { type: "string" },
-    OPTIONAL: { type: ["string", "null"] },
-  },
-  required: ["FORGE_ENVIRONMENT", "SHARED", "LOCAL_ONLY"],
-};
-
-export const canonicalValues = {
-  FORGE_ENVIRONMENT: "staging",
-  SHARED: sharedValue,
-  LOCAL_ONLY: "synthetic local-only",
-};
-
-export const installationSpec = canonicalSpec.replace(
+export const installationSpec = deploymentSpec.replace(
   "[profiles.default]",
   '[profiles.default]\nFORGE_SITE = { description = "Installation site", default = "synthetic.atlassian.net" }\nFORGE_PRODUCT = { description = "Installation product", default = "jira" }',
 );
 
 export const installationSchema = {
-  ...canonicalSchema,
+  ...deploymentSchema,
   properties: {
-    ...canonicalSchema.properties,
+    ...deploymentSchema.properties,
     FORGE_SITE: { type: "string" },
     FORGE_PRODUCT: { type: "string" },
   },
 };
 
 export const installationValues = {
-  ...canonicalValues,
+  ...deploymentValues,
   FORGE_SITE: "synthetic.atlassian.net",
   FORGE_PRODUCT: "jira",
 };

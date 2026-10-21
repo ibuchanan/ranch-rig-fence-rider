@@ -17,9 +17,9 @@ const installPolicy = {
 export function installUsage(command: InstallCommand) {
   return [
     `Usage: fence-rider ${command} [-e, --environment TARGET] [-s, --site URL] [-p, --product PRODUCT] [Forge options]`,
-    "Targets: explicit option, then resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT (FORGE_ENV legacy alias). Only environment falls back to development.",
+    "Targets: explicit option, then resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT. Only environment falls back to development.",
     "Site and product are required; Forge validates their values.",
-    "The whole profile must resolve; conflicting environment aliases fail even with overrides.",
+    "The whole profile must resolve, even when options override its values.",
     installPolicy[command],
     "No runtime uploads, variable deletion or deployment.",
     "Forge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.",

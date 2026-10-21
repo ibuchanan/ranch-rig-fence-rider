@@ -21,7 +21,7 @@ Exact rules and compatibility evidence belong in the
 ## Local variables guide the development workflow
 
 Local variables are consumed by tools running on a workstation or CI runner.
-For example, Fence Rider can use `FORGE_ENV` to choose a deployment target.
+For example, Fence Rider can use `FORGE_ENVIRONMENT` to choose a deployment target.
 That value controls an operation; the deployed app does not need to receive
 it merely because the deployment tool did.
 

@@ -172,16 +172,3 @@ export function parseResolved(schema: unknown, exported: unknown) {
     values[key] = parseValue(key, value, properties);
   return { properties, values };
 }
-
-function differ(a: string | undefined, b: string | undefined) {
-  return a !== undefined && b !== undefined && a !== b;
-}
-
-/** Canonical FORGE_ENVIRONMENT with FORGE_ENV as a legacy alias; conflicting names fail. */
-export function configuredEnvironment(values: Record<string, string>) {
-  const current = values["FORGE_ENVIRONMENT"];
-  const legacy = values["FORGE_ENV"];
-  if (differ(current, legacy))
-    throw new Error("Conflicting environment controls");
-  return current ?? legacy;
-}

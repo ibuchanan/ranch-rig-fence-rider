@@ -10,8 +10,8 @@ Consumer acceptance integrates the installed package from dependency delivery,
 not the older deployment-only workflow. Three incremental native installed
 checks execute the checked-in `docs/examples` configuration/scripts: deploy with
 explicit approval, a distinct approval-token variant, install, upgrade, uninstall,
-lint and tunnel; controls-only configuration verifies fallback/overrides, legacy
-selection, alias conflict and whole-profile requiredness without dummy secrets.
+lint and tunnel; controls-only configuration verifies fallback/overrides
+and whole-profile requiredness without dummy secrets.
 All run real SecretSpec through the local packed artifact with controlled Forge.
 The [CW-01–CW-22 map](consumer-workflows.md) records exact evidence boundaries.
 
@@ -428,6 +428,13 @@ environment observation is not reported as connected runtime delivery.
 Dependency provisioning and packed consumer acceptance remain separate work.
 
 [tunnel-guide]: ../how-to/how-to.md#tunnel-with-configured-local-runtime-values
+
+## Environment control simplified — 2026-10-21
+
+The `FORGE_ENV` legacy alias and its conflict check were removed;
+`FORGE_ENVIRONMENT` is the only environment control, and `FORGE_ENV` is an
+ordinary application variable. The 2026-10-19 entry below records the earlier
+alias behavior.
 
 ## Configured deployment — 2026-10-19
 

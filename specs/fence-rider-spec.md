@@ -206,7 +206,8 @@ sample implementation is usable as written.
 
 ### Target and argument contract
 
-- Preserve the intent of the exploration's local defaults: `FORGE_ENV`,
+- Preserve the intent of the exploration's local defaults: `FORGE_ENV`
+  (since renamed `FORGE_ENVIRONMENT`, with no alias),
   `FORGE_SITE`, and `FORGE_PRODUCT`. Confirm their representation against
   SecretSpec's supported configuration model.
 - Resolve the Forge environment in this order: explicit command option,

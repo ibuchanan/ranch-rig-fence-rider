@@ -329,7 +329,7 @@ test.skipIf(!realSecretSpec)(
 );
 
 test.skipIf(!realSecretSpec)(
-  "installed controls-only consumer uses defaults, overrides and legacy controls without dummy credentials",
+  "installed controls-only consumer uses defaults, and overrides without dummy credentials",
   async () => {
     const project = await packedConsumer();
     const example = await Bun.file(
@@ -356,7 +356,7 @@ test.skipIf(!realSecretSpec)(
       {
         script: "install:forge",
         declarations:
-          'FORGE_ENV = { description = "Legacy", default = "staging" }\n',
+          'FORGE_ENVIRONMENT = { description = "Target", default = "staging" }\n',
         args: [
           "--site",
           "override.atlassian.net",
@@ -382,16 +382,9 @@ test.skipIf(!realSecretSpec)(
       {
         script: "tunnel",
         declarations:
-          'FORGE_ENV = { description = "Legacy", default = "alice-dev" }\n',
+          'FORGE_ENVIRONMENT = { description = "Target", default = "alice-dev" }\n',
         args: [],
         expected: ["tunnel", "--environment", "alice-dev"],
-      },
-      {
-        script: "lint:forge",
-        declarations:
-          'FORGE_ENV = { description = "Legacy", default = "staging" }\nFORGE_ENVIRONMENT = { description = "Canonical", default = "production" }\n',
-        args: [],
-        expected: null,
       },
       {
         script: "uninstall:forge",

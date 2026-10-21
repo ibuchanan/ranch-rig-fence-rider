@@ -57,7 +57,7 @@ test("configured tunnel checks manifest declarations before starting and reuses 
   expect(match.interactions.at(-1)?.values["SHARED"]).toBe(sharedValue);
 });
 
-test.each(["SHARED", "LOCAL_ONLY", "FORGE_ENV"])(
+test.each(["SHARED", "LOCAL_ONLY", "FORGE_ENVIRONMENT"])(
   "configured tunnel requires whole-profile %s despite target override",
   async (missing) => {
     const values: Record<string, string> = { ...deploymentValues };

@@ -2,8 +2,7 @@ import { expect, test } from "bun:test";
 import { join } from "node:path";
 import { useBuiltCli } from "./support/cli.ts";
 import {
-  canonicalSchema,
-  canonicalSpec,
+  deploymentSchema,
   deploymentSpec,
   realSecretSpec,
   runWorkflow,
@@ -39,14 +38,14 @@ test.skipIf(!realSecretSpec).each(["SHARED", "LOCAL_ONLY"])(
 test.skipIf(!realSecretSpec)(
   "native configured lint delivers a selected inherited profile, shared manifest value, and cleared optionals once",
   async () => {
-    const spec = `${canonicalSpec.replace("[scopes.runtime]", '[profiles.release]\nLOCAL_ONLY = { description = "Local override", default = "synthetic-release" }\n\n[scopes.runtime]')}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`;
+    const spec = `${deploymentSpec.replace("[scopes.runtime]", '[profiles.release]\nLOCAL_ONLY = { description = "Local override", default = "synthetic-release" }\n\n[scopes.runtime]')}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`;
     const result = await runWorkflow({
       command: "lint",
       realSecretSpec: realSecretSpec ?? "",
       spec,
       files: { "selected.toml": spec },
       manifest: "environment:\n  variables: [SHARED]\n",
-      schema: canonicalSchema,
+      schema: deploymentSchema,
       env: {
         SECRETSPEC_FILE: "selected.toml",
         SECRETSPEC_PROFILE: "release",
@@ -126,22 +125,6 @@ test.skipIf(!realSecretSpec).each([
     args: [],
   },
   {
-    name: "legacy",
-    declarations:
-      'FORGE_ENV = { description = "Legacy target", default = "staging" }',
-    env: {},
-    target: "staging",
-    args: [],
-  },
-  {
-    name: "matching dual",
-    declarations:
-      'FORGE_ENVIRONMENT = { description = "Canonical target", default = "staging" }\nFORGE_ENV = { description = "Legacy target", default = "staging" }',
-    env: {},
-    target: "staging",
-    args: [],
-  },
-  {
     name: "canonical override",
     declarations:
       'FORGE_ENVIRONMENT = { description = "Canonical target", default = "staging" }',
@@ -163,7 +146,7 @@ test.skipIf(!realSecretSpec).each([
     const result = await runWorkflow({
       realSecretSpec: realSecretSpec ?? "",
       spec: `[project]\nname = "synthetic-controls"\nrevision = "1.0"\n[profiles.default]\n${declarations}\n`,
-      schema: { properties: { FORGE_ENVIRONMENT: {}, FORGE_ENV: {} } },
+      schema: { properties: { FORGE_ENVIRONMENT: {} } },
       env: { SECRETSPEC_PROVIDER: "dotenv:values.env", ...env },
       dotenv: "",
       args,

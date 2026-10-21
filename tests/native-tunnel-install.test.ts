@@ -2,8 +2,8 @@ import { expect, test } from "bun:test";
 import { join } from "node:path";
 import { useBuiltCli } from "./support/cli.ts";
 import {
-  canonicalSchema,
-  canonicalSpec,
+  deploymentSchema,
+  deploymentSpec,
   installationSpec,
   realSecretSpec,
   runInstallation,
@@ -17,22 +17,6 @@ test.skipIf(!realSecretSpec).each([
     name: "canonical",
     declarations:
       'FORGE_ENVIRONMENT = { description = "Target", default = "development" }',
-    args: [],
-    pass: true,
-    target: "development",
-  },
-  {
-    name: "legacy named development",
-    declarations:
-      'FORGE_ENV = { description = "Target", default = "alice-dev" }',
-    args: [],
-    pass: true,
-    target: "alice-dev",
-  },
-  {
-    name: "matching aliases",
-    declarations:
-      'FORGE_ENVIRONMENT = { description = "Target", default = "development" }\nFORGE_ENV = { description = "Legacy", default = "development" }',
     args: [],
     pass: true,
     target: "development",
@@ -54,14 +38,6 @@ test.skipIf(!realSecretSpec).each([
     target: "development",
   },
   {
-    name: "conflict despite override",
-    declarations:
-      'FORGE_ENVIRONMENT = { description = "Target", default = "staging" }\nFORGE_ENV = { description = "Legacy", default = "production" }',
-    args: ["-edevelopment"],
-    pass: false,
-    target: "unused",
-  },
-  {
     name: "required despite override",
     declarations:
       'FORGE_ENVIRONMENT = { description = "Target", required = true }',
@@ -80,7 +56,6 @@ test.skipIf(!realSecretSpec).each([
       schema: {
         properties: {
           FORGE_ENVIRONMENT: {},
-          FORGE_ENV: {},
           FORGE_SITE: {},
           FORGE_PRODUCT: {},
         },
@@ -105,13 +80,13 @@ test.skipIf(!realSecretSpec).each([
 test.skipIf(!realSecretSpec)(
   "native configured tunnel shares one inherited profile resolution with local manifest and runtime destinations",
   async () => {
-    const spec = `${canonicalSpec.replace("[scopes.runtime]", '[profiles.localdev]\nFORGE_ENVIRONMENT = { description = "Target", default = "development" }\nLOCAL_ONLY = { description = "Local override", default = "synthetic-local-dev" }\n\n[scopes.runtime]')}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`;
+    const spec = `${deploymentSpec.replace("[scopes.runtime]", '[profiles.localdev]\nFORGE_ENVIRONMENT = { description = "Target", default = "development" }\nLOCAL_ONLY = { description = "Local override", default = "synthetic-local-dev" }\n\n[scopes.runtime]')}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`;
     const result = await runWorkflow({
       command: "tunnel",
       realSecretSpec: realSecretSpec ?? "",
       spec,
       files: { "selected.toml": spec },
-      schema: canonicalSchema,
+      schema: deploymentSchema,
       manifest: "environment:\n  variables: [SHARED]\n",
       dotenv: "SHARED=synthetic-native-shared\nOPTIONAL=\n",
       env: {
@@ -159,8 +134,8 @@ test.skipIf(!realSecretSpec).each(["SHARED", "LOCAL_ONLY"])(
       command: "tunnel",
       args: ["-edevelopment"],
       realSecretSpec: realSecretSpec ?? "",
-      spec: canonicalSpec,
-      schema: canonicalSchema,
+      spec: deploymentSpec,
+      schema: deploymentSchema,
       dotenv:
         missing === "SHARED"
           ? "LOCAL_ONLY=synthetic-local\n"
@@ -184,8 +159,8 @@ test.skipIf(!realSecretSpec)(
       command: "tunnel",
       args: ["-edevelopment"],
       realSecretSpec: realSecretSpec ?? "",
-      spec: canonicalSpec,
-      schema: canonicalSchema,
+      spec: deploymentSpec,
+      schema: deploymentSchema,
       dotenv:
         "SHARED=synthetic-native-shared\nLOCAL_ONLY=synthetic-native-local\n",
       env: {
@@ -216,21 +191,6 @@ test.skipIf(!realSecretSpec).each(
       pass: true,
     },
     {
-      name: "legacy",
-      declarations: 'FORGE_ENV = { default = "staging" }',
-      target: "staging",
-      args: [],
-      pass: true,
-    },
-    {
-      name: "matching aliases",
-      declarations:
-        'FORGE_ENVIRONMENT = { default = "staging" }\nFORGE_ENV = { default = "staging" }',
-      target: "staging",
-      args: [],
-      pass: true,
-    },
-    {
       name: "explicit override",
       declarations: 'FORGE_ENVIRONMENT = { default = "staging" }',
       target: "production",
@@ -243,14 +203,6 @@ test.skipIf(!realSecretSpec).each(
       target: "development",
       args: [],
       pass: true,
-    },
-    {
-      name: "conflicting aliases despite override",
-      declarations:
-        'FORGE_ENVIRONMENT = { default = "staging" }\nFORGE_ENV = { default = "production" }',
-      target: "unused",
-      args: ["-edevelopment"],
-      pass: false,
     },
     {
       name: "required environment despite override",
@@ -275,7 +227,6 @@ test.skipIf(!realSecretSpec).each(
       schema: {
         properties: {
           FORGE_ENVIRONMENT: {},
-          FORGE_ENV: {},
           FORGE_SITE: {},
           FORGE_PRODUCT: {},
         },

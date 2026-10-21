@@ -1,7 +1,6 @@
 import { resolve } from "node:path";
 import { capture } from "./process";
 import {
-  configuredEnvironment,
   manifestKeys,
   members,
   parseInheritance,
@@ -94,9 +93,7 @@ export async function configure(state: Workflow) {
     nativeArgs,
     state,
   );
-  state.stage =
-    "environment control validation (FORGE_ENVIRONMENT and FORGE_ENV conflict)";
-  const environment = configuredEnvironment(values);
+  const environment = values["FORGE_ENVIRONMENT"];
   return {
     forge,
     config,

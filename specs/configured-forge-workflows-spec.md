@@ -206,6 +206,12 @@ credentials and app registration are never supplied automatically.
 
 ### Target names and precedence
 
+> **Superseded 2026-10-21:** the `FORGE_ENV` legacy alias and its conflict
+> check were removed. `FORGE_ENVIRONMENT` is the only environment control, and
+> `FORGE_ENV` is an ordinary application variable. The alias bullets and
+> scenarios below (CW-06, CW-15, the non-goal and planning-policy mentions) are
+> historical.
+
 - Make `FORGE_ENVIRONMENT` canonical alongside `FORGE_SITE` and
   `FORGE_PRODUCT`. Retain `FORGE_ENV` as a documented legacy alias during
   this iteration. Protect both environment names against runtime selection.

@@ -137,7 +137,7 @@ describe("encrypted uploads", () => {
     expect(result.uploads).toEqual([]);
   });
 
-  test.each(["FORGE_ENVIRONMENT", "FORGE_ENV", "FORGE_SITE", "FORGE_PRODUCT"])(
+  test.each(["FORGE_ENVIRONMENT", "FORGE_SITE", "FORGE_PRODUCT"])(
     "local control %s cannot be uploaded",
     (key) => {
       expect(() =>

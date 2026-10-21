@@ -20,7 +20,7 @@ Live Forge compatibility is not yet certified; see the
    revision = "1.0"
 
    [profiles.default]
-   FORGE_ENV = { description = "Deployment target", default = "development" }
+   FORGE_ENVIRONMENT = { description = "Deployment target", default = "development" }
    SERVICE_URL = { description = "Service endpoint", required = true }
    API_TOKEN = { description = "Runtime credential", required = true }
    OPTIONAL = { description = "Optional runtime setting", required = false }
@@ -134,8 +134,7 @@ the [output and input policy](../reference/reference.md#output-and-input-policy)
 Override individual targets with `--site URL`, `--product PRODUCT`, and
 `--environment TARGET`. Each wins over its resolved control independently.
 Only environment falls back to `development`; absent site/product fails rather
-than opening a target picker. Canonical `FORGE_ENVIRONMENT` and legacy
-`FORGE_ENV` must agree when both resolve. SecretSpec profile names never select
+than opening a target picker. SecretSpec profile names never select
 Forge environments. Explicit targets do not waive required declarations.
 
 Installation and upgrade do not upload, delete, or activate changed runtime
@@ -166,7 +165,7 @@ verified grammar, products, and the separate live-verification blocker.
    ```
 
 Override individual targets explicitly with `--site URL`, `--product PRODUCT`,
-and `--environment TARGET`. Defaults and alias checks match installation.
+and `--environment TARGET`. Defaults match installation.
 Missing required app credentials still block uninstall despite explicit targets;
 use native optional declarations or a suitable profile for legitimate absence.
 
@@ -199,7 +198,7 @@ the app's prerequisites. Named targets must already be development environments.
    need no runtime scope. Match optional manifest-scope declarations.
 2. Supply values through your authenticated provider. For synthetic dotenv
    use, keep the values file ignored and set `SECRETSPEC_PROVIDER=dotenv:values.env`.
-   Explicit targets do not bypass required values or conflicting aliases.
+   Explicit targets do not bypass required values.
 3. Add a short script alongside the other app scripts:
 
    ```json
@@ -243,9 +242,7 @@ Cross-file specification inheritance is deferred. Provider paths in this
 guide assume the app's working directory.
 
 An explicit `-e TARGET` or `--environment TARGET` wins over the resolved
-canonical `FORGE_ENVIRONMENT` (or legacy `FORGE_ENV`), then `development`.
-Conflicting resolved aliases fail even with an explicit override.
-Attached `-eTARGET` and
+`FORGE_ENVIRONMENT`, then `development`. Attached `-eTARGET` and
 `--environment=TARGET` are accepted; repeated or missing targets are errors.
 A profile named `release` does not select a Forge environment by its name.
 Other Forge options are forwarded to deployment only. `FORGE_SITE` and

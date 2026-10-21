@@ -100,7 +100,7 @@ describe("runtime variables", () => {
     },
   );
 
-  test.each(["FORGE_ENVIRONMENT", "FORGE_ENV", "FORGE_SITE", "FORGE_PRODUCT"])(
+  test.each(["FORGE_ENVIRONMENT", "FORGE_SITE", "FORGE_PRODUCT"])(
     "local control %s cannot be a runtime variable",
     (key) => {
       expect(() =>

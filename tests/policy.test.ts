@@ -14,12 +14,7 @@ test("any value with a leading dash is rejected", () => {
 });
 
 test("local controls are exactly the environment, site and product selectors", () => {
-  for (const key of [
-    "FORGE_ENVIRONMENT",
-    "FORGE_ENV",
-    "FORGE_SITE",
-    "FORGE_PRODUCT",
-  ])
+  for (const key of ["FORGE_ENVIRONMENT", "FORGE_SITE", "FORGE_PRODUCT"])
     expect(isLocalControl(key)).toBe(true);
   for (const key of ["FORGE_TOKEN", "forge_site", "SITE"])
     expect(isLocalControl(key)).toBe(false);

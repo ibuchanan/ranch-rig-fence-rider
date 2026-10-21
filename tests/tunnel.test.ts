@@ -17,7 +17,7 @@ import {
 
 useBuiltCli();
 
-test.each(["FORGE_ENVIRONMENT", "FORGE_ENV", "FORGE_SITE", "FORGE_PRODUCT"])(
+test.each(["FORGE_ENVIRONMENT", "FORGE_SITE", "FORGE_PRODUCT"])(
   "configured tunnel rejects runtime selection of %s",
   async (control) => {
     const result = await runWorkflow({
@@ -25,7 +25,7 @@ test.each(["FORGE_ENVIRONMENT", "FORGE_ENV", "FORGE_SITE", "FORGE_PRODUCT"])(
       spec: deploymentSpec
         .replace(
           "[profiles.default]",
-          `[profiles.default]\n${control === "FORGE_ENV" ? "" : `${control} = { description = "Protected control" }`}`,
+          `[profiles.default]\n${control === "FORGE_ENVIRONMENT" ? "" : `${control} = { description = "Protected control" }`}`,
         )
         .replace('["SHARED", "OPTIONAL"]', `["SHARED", "${control}"]`),
       schema: {
@@ -37,7 +37,7 @@ test.each(["FORGE_ENVIRONMENT", "FORGE_ENV", "FORGE_SITE", "FORGE_PRODUCT"])(
       },
       values: {
         ...deploymentValues,
-        FORGE_ENV: "development",
+        FORGE_ENVIRONMENT: "development",
         [control]: "development",
       },
     });
@@ -108,7 +108,7 @@ test("configured tunnel rejects reserved prefix declarations rather than losing 
 test("configured tunnel maps only explicit runtime members from one resolution without writes", async () => {
   const result = await runWorkflow({
     command: "tunnel",
-    values: { ...deploymentValues, FORGE_ENV: "development" },
+    values: { ...deploymentValues, FORGE_ENVIRONMENT: "development" },
     env: {
       OPTIONAL: "stale",
       FORGE_USER_VAR_SHARED: "stale shared",
@@ -122,7 +122,7 @@ test("configured tunnel maps only explicit runtime members from one resolution w
     {
       tool: "forge",
       args: ["tunnel", "--environment", "development"],
-      values: { ...deploymentValues, FORGE_ENV: "development" },
+      values: { ...deploymentValues, FORGE_ENVIRONMENT: "development" },
       runtime: { SHARED: sharedValue },
     },
   ]);
@@ -218,7 +218,7 @@ test.each([""])(
   async (target) => {
     const result = await runWorkflow({
       command: "tunnel",
-      values: { ...deploymentValues, FORGE_ENV: target },
+      values: { ...deploymentValues, FORGE_ENVIRONMENT: target },
     });
     expect(result.exitCode).toBe(1);
     expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(

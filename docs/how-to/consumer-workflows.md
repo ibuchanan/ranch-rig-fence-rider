@@ -98,8 +98,6 @@ FORGE_PRODUCT = { description = "Product", default = "jira" }
 No scope or dummy credential is needed. Deployment performs no variable writes.
 For legitimate absence use native optional declarations or a suitable profile;
 all commands still require every required declaration in the active profile.
-Legacy `FORGE_ENV` works alone; matching aliases work, but conflicts fail even
-when a CLI override supplies a target.
 
 ## Handle output and limits
 

@@ -36,7 +36,7 @@ certify real Forge execution under Bun.
 | CW-03 | Required values fail before Forge in compiled native cases and installed controls-only uninstall | Other providers unverified |
 | CW-04 | Deployment shared-values test sees unchanged implicit local values and removes stale absent optional; compiled tests cover empty strings | Broader native providers unverified |
 | CW-05 | Shared value matches local upload args and tunnel prefix mapping from one export; native profile tests count one schema/export | Actual manifest substitution and connected runtime receipt blocked |
-| CW-06 | Canonical, legacy, matching and conflicting aliases in native compiled tests; installed legacy/conflict cases | Named server environment identity blocked |
+| CW-06 | Environment control selection in native compiled tests and installed controls-only cases | Named server environment identity blocked |
 | CW-07 | Installed controls-only install overrides all targets independently; compiled deploy upload/deploy target checks | Actual server destination blocked |
 | CW-08 | Command grammar tests reject duplicates/missing targets and preserve unrelated options | Upstream version range unverified |
 | CW-09 | Installed lint script gets all inputs and live output; only one lint call with no injected target or writes | Real Forge manifest acceptance blocked |
@@ -64,8 +64,8 @@ variants, install, upgrade, caller-controlled uninstall, lint, and tunnel.
 `REVIEWED_RULE_FROM_FORGE` is an explicit replacement placeholder, not a verified
 server rule. Only distinct-rule argument forwarding is established for it.
 `installed controls-only consumer ...` covers environment fallback, explicit
-site/product/environment overrides, legacy targeting, conflict failure, and
-whole-profile requiredness without runtime scope or dummy credential.
+site/product/environment overrides and whole-profile requiredness without
+runtime scope or dummy credential.
 
 These are incremental acceptance checks on completed behavior slices. The script
 fixture was missing on the first failing run, then supplied and executed. No new

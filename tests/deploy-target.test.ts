@@ -1,9 +1,6 @@
 import { expect, test } from "bun:test";
 import { useBuiltCli } from "./support/cli.ts";
 import {
-  canonicalSchema,
-  canonicalSpec,
-  canonicalValues,
   deploymentSchema,
   deploymentSpec,
   deploymentValues,
@@ -15,9 +12,9 @@ useBuiltCli();
 
 test("canonical environment selects the same target for encrypted uploads and one deployment", async () => {
   const result = await runWorkflow({
-    spec: canonicalSpec,
-    schema: canonicalSchema,
-    values: canonicalValues,
+    spec: deploymentSpec,
+    schema: deploymentSchema,
+    values: deploymentValues,
   });
   expect(result.exitCode).toBe(0);
   expect(
@@ -44,74 +41,21 @@ test("canonical environment selects the same target for encrypted uploads and on
   for (const call of result.interactions.filter(
     ({ tool }) => tool === "forge",
   )) {
-    expect(call.values).toEqual(canonicalValues);
+    expect(call.values).toEqual(deploymentValues);
   }
 });
 
-test.each([{ args: [] }, { args: ["--environment", "production"] }])(
-  "conflicting environment names fail before Forge even with override %j",
+test.each([
+  { name: "short override", args: ["-e", "production"] },
+  { name: "long override", args: ["--environment=production"] },
+  { name: "configured default", args: [] },
+])(
+  "$name environment control preserves selection and child values",
   async ({ args }) => {
     const result = await runWorkflow({
-      spec: canonicalSpec.replace(
-        "[profiles.default]",
-        '[profiles.default]\nFORGE_ENV = { description = "Legacy target" }',
-      ),
-      schema: {
-        ...canonicalSchema,
-        properties: {
-          ...canonicalSchema.properties,
-          FORGE_ENV: { type: "string" },
-        },
-      },
-      values: { ...canonicalValues, FORGE_ENV: "conflicting-synthetic-target" },
-      args,
-    });
-    expect(result.exitCode).not.toBe(0);
-    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
-      [],
-    );
-    expect(result.interactions.map(({ args }) => args[0])).toEqual([
-      "schema",
-      "export",
-    ]);
-    expect(result.stderr).toContain("FORGE_ENVIRONMENT and FORGE_ENV conflict");
-    expect(result.stdout).toBe("");
-    expect(result.stderr).not.toContain("conflicting-synthetic-target");
-    expect(result.stderr).not.toContain(
-      "Remote variables may already have changed",
-    );
-  },
-);
-
-test.each([
-  { name: "canonical", legacy: false, args: ["-e", "production"] },
-  { name: "matching dual", legacy: true, args: [] },
-  {
-    name: "matching dual override",
-    legacy: true,
-    args: ["--environment=production"],
-  },
-])(
-  "$name environment controls preserve selection and child values",
-  async ({ legacy, args }) => {
-    const result = await runWorkflow({
-      spec: legacy
-        ? canonicalSpec.replace(
-            "[profiles.default]",
-            '[profiles.default]\nFORGE_ENV = { description = "Legacy target" }',
-          )
-        : canonicalSpec,
-      schema: {
-        ...canonicalSchema,
-        properties: {
-          ...canonicalSchema.properties,
-          ...(legacy ? { FORGE_ENV: { type: "string" } } : {}),
-        },
-      },
-      values: {
-        ...canonicalValues,
-        ...(legacy ? { FORGE_ENV: "staging" } : {}),
-      },
+      spec: deploymentSpec,
+      schema: deploymentSchema,
+      values: deploymentValues,
       args,
     });
     expect(result.exitCode).toBe(0);
@@ -122,10 +66,7 @@ test.each([
       args.length ? ["production", "production"] : ["staging", "staging"],
     );
     expect(forge.map(({ args }) => args[0])).toEqual(["variables", "deploy"]);
-    expect(forge.at(-1)?.values).toEqual({
-      ...canonicalValues,
-      ...(legacy ? { FORGE_ENV: "staging" } : {}),
-    });
+    expect(forge.at(-1)?.values).toEqual(deploymentValues);
   },
 );
 

@@ -93,10 +93,10 @@ test("preflight failures retain a validated explicit target without leaking inva
 test("validates every resolved value and required declaration before the first upload", async () => {
   for (const values of [
     { ...deploymentValues, OPTIONAL: { secret: sharedValue } },
-    { FORGE_ENV: "staging", SHARED: sharedValue },
+    { FORGE_ENVIRONMENT: "staging", SHARED: sharedValue },
     { ...deploymentValues, OPTIONAL: "bad\u0000value" },
     { ...deploymentValues, UNDECLARED: sharedValue },
-    { ...deploymentValues, FORGE_ENV: "--unsafe-target" },
+    { ...deploymentValues, FORGE_ENVIRONMENT: "--unsafe-target" },
   ]) {
     const result = await runWorkflow({ values });
     expect(result.exitCode).not.toBe(0);
@@ -137,7 +137,7 @@ test("rejects control-variable upload selection and unsupported runtime inputs b
     {
       spec: deploymentSpec.replace(
         '["SHARED", "OPTIONAL"]',
-        '["SHARED", "FORGE_ENV"]',
+        '["SHARED", "FORGE_ENVIRONMENT"]',
       ),
     },
     { values: { ...deploymentValues, OPTIONAL: "" } },

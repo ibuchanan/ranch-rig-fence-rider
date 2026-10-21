@@ -111,14 +111,14 @@ test("deploy resolves once, encrypts only runtime values, then deploys to the co
   ]);
 });
 
-test.each(["FORGE_ENVIRONMENT", "FORGE_ENV", "FORGE_SITE", "FORGE_PRODUCT"])(
+test.each(["FORGE_ENVIRONMENT", "FORGE_SITE", "FORGE_PRODUCT"])(
   "%s cannot be selected for upload even with an explicit target",
   async (control) => {
     const result = await runWorkflow({
       spec: deploymentSpec
         .replace(
           "[profiles.default]",
-          `[profiles.default]\n${control === "FORGE_ENV" ? "" : `${control} = { required = true }`}`,
+          `[profiles.default]\n${control === "FORGE_ENVIRONMENT" ? "" : `${control} = { required = true }`}`,
         )
         .replace('["SHARED", "OPTIONAL"]', `["SHARED", "${control}"]`),
       schema: {

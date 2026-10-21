@@ -163,7 +163,7 @@ name = "sample-forge-app"
 revision = "1.0"
 
 [profiles.default]
-FORGE_ENV = { description = "Forge environment", default = "development" }
+FORGE_ENVIRONMENT = { description = "Forge environment", default = "development" }
 SERVICE_URL = { description = "External service URL", required = true }
 API_KEY = { description = "External service credential", required = true }
 
@@ -174,7 +174,7 @@ secrets = ["SERVICE_URL"]
 secrets = ["SERVICE_URL", "API_KEY"]
 ```
 
-`FORGE_ENV` needs no scope. `SERVICE_URL` is both a checked manifest input
+`FORGE_ENVIRONMENT` needs no scope. `SERVICE_URL` is both a checked manifest input
 and a remote runtime variable. `API_KEY` is also locally available, but only
 runtime membership authorizes its upload. Omitting `manifest` would not
 prevent the local `SERVICE_URL` from supplying a Forge substitution.
@@ -186,21 +186,16 @@ Selecting a profile does not automatically select a same-named environment.
 
 | Local control | Meaning | Deployment treatment |
 | --- | --- | --- |
-| `FORGE_ENVIRONMENT` | Canonical configured Forge environment | Used after an explicit CLI environment option and before the `development` fallback |
-| `FORGE_ENV` | Legacy environment alias | Accepted alone or with a matching resolved `FORGE_ENVIRONMENT` |
+| `FORGE_ENVIRONMENT` | Configured Forge environment | Used after an explicit CLI environment option and before the `development` fallback |
 | `FORGE_SITE` | Site default for install/uninstall | Validated when declared; not injected as an unsupported deployment option |
 | `FORGE_PRODUCT` | Product default for install/uninstall | Validated when declared; not injected as an unsupported deployment option |
 
 These controls need no named scope. Selecting any of them for runtime upload
-fails before the first write, including both environment names. Defaults are
+fails before the first write. Defaults are
 native SecretSpec declaration fields, not a second configuration format.
 
-`FORGE_ENVIRONMENT` is canonical; `FORGE_ENV` remains supported for existing
-specifications. Either name alone works. When both resolve, their strings must
-match exactly. Conflicting resolved names fail before any Forge command, even
-with an explicit environment option. There is no alias migration precedence.
-Absent optional controls do not conflict with present values or retain stale
-inherited values. Existing examples using `FORGE_ENV` remain valid.
+`FORGE_ENVIRONMENT` is the only environment control; there is no alias.
+Absent optional controls do not retain stale inherited values.
 
 Validation covers the whole active profile, not only the command's selected
 values. Required declarations remain subject to SecretSpec validation even
@@ -476,12 +471,11 @@ and delegates exactly one installation with inherited application values,
 ordinary settings, and existing authentication. It performs no runtime upload,
 remote deletion, deployment, or optional manifest declaration cross-check.
 Controls-only profiles work. Installation does not activate changed runtime
-values. SecretSpec requiredness and environment-alias conflicts still apply
-with explicit target overrides.
+values. SecretSpec requiredness still applies with explicit target overrides.
 
 | Target | Selection order | Validation |
 | --- | --- | --- |
-| Environment | Explicit option, resolved `FORGE_ENVIRONMENT` / `FORGE_ENV`, `development` | Alphanumeric first character, then alphanumeric, underscore, or hyphen |
+| Environment | Explicit option, resolved `FORGE_ENVIRONMENT`, `development` | Alphanumeric first character, then alphanumeric, underscore, or hyphen |
 | Site | Explicit option, resolved `FORGE_SITE`; no fallback | Nonempty HTTP(S) URL or hostname, without whitespace, controls, or credentials |
 | Product | Explicit option, resolved `FORGE_PRODUCT`; no fallback | Case-insensitive Jira, Confluence, Compass, or Bitbucket |
 
@@ -535,7 +529,7 @@ cross-check and deployment-only runtime checks do not apply.
 
 Environment/site/product use the [installation target contract](#configured-installation):
 explicit option, resolved control, then `development` for environment only.
-Both environment aliases must agree even with an override. Missing effective
+Missing effective
 site/product fails without target-selection prompts. Separated short/long,
 long-equals, and attached-short target forms normalize to one effective option
 per field. Invalid, empty, missing, short-equals, and repeated targets fail

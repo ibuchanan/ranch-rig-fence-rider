@@ -28,7 +28,7 @@ function injectRuntime({
 
 export const tunnelUsage = [
   "Usage: fence-rider tunnel [-e, --environment TARGET] [Forge options]",
-  "Target: explicit option, resolved FORGE_ENVIRONMENT (FORGE_ENV legacy alias), then development. Forge supports tunnels only for development environments.",
+  "Target: explicit option, resolved FORGE_ENVIRONMENT, then development. Forge supports tunnels only for development environments.",
   "Resolve the whole profile once; check optional manifest declarations. Runtime members alone map to FORGE_USER_VAR_<name>; empty strings are supported. Ambient prefixed values are removed; declarations using that reserved prefix are rejected.",
   "Forge input/output streams live and unredacted; app logs may expose values. -h is debug host, not help; use --help.",
   "No remote variable uploads/deletion, deployment or installation. SecretSpec and Forge must be installed on PATH and authenticated separately.",

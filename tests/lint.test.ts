@@ -64,7 +64,7 @@ test("configured lint checks manifest declarations including absent optionals be
   ).toEqual([["lint"]]);
 });
 
-test.each(["SHARED", "LOCAL_ONLY", "FORGE_ENV"])(
+test.each(["SHARED", "LOCAL_ONLY", "FORGE_ENVIRONMENT"])(
   "configured lint requires the whole profile including %s",
   async (missing) => {
     const values: Record<string, string> = { ...deploymentValues };

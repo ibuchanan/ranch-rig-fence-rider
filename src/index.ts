@@ -9,9 +9,7 @@ Usage: fence-rider <command> [options]
 Supported workflows:
 ${workflowListing}
 
-Deployment target: explicit option, resolved FORGE_ENVIRONMENT
-(FORGE_ENV legacy alias), then development.
-Conflicting resolved names fail even with an explicit target.
+Deployment target: explicit option, resolved FORGE_ENVIRONMENT, then development.
 
 Discovery:
   help, --help, -h       Show this help
