@@ -638,16 +638,15 @@ authorized or run. See the [procedure][tunnel-guide] and [validation record](val
 
 ## Verification ownership
 
-Contract decisions are recorded in ticket 01. Its completion does not depend
-on further executable proofs and does not certify upstream compatibility.
-The deployment implementation in ticket 03 verifies the native schema/export
-path with synthetic values and controlled Forge tooling. Ticket 05 extends
-those checks for native inheritance, optional and empty values, inherited
-environments, and invalid inputs. Ticket 04 verifies option handling, and
-ticket 06 verifies failure behavior.
+Contract decisions are recorded in this reference. Their completion does not
+depend on further executable proofs and does not certify upstream compatibility.
+The deployment implementation verifies the native schema/export path with
+synthetic values and controlled Forge tooling, extended for native inheritance,
+optional and empty values, inherited environments, and invalid inputs. Separate
+checks verify option handling and failure behavior.
 
-Ticket 07 reuses implementation checks and owns explicitly authorized live
-Forge validation and supported-version reporting. Existing exploratory
+Final acceptance reuses implementation checks and owns explicitly authorized
+live Forge validation and supported-version reporting. Existing exploratory
 checks are optional supporting evidence, not prerequisites. If observed
 behavior conflicts with a contract rule, that specific rule returns for
 review; unresolved evidence does not create a separate proof-work phase.

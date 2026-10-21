@@ -1,13 +1,13 @@
 # Workflow validation record
 
-Recorded 2026-10-19 for ticket 07. Public seams: the compiled CLI subprocess
+Recorded 2026-10-19. Public seams: the compiled CLI subprocess
 and observable validation-command output/status, confirmed by the user.
 No private-function tests or second native proof suite were introduced.
 
-## Configured consumer acceptance ticket 07 — 2026-10-20
+## Configured consumer acceptance — 2026-10-20
 
-Ticket 07 integrates the installed package from configured-workflows ticket 06,
-not the older deployment-only ticket set. Three incremental native installed
+Consumer acceptance integrates the installed package from dependency delivery,
+not the older deployment-only workflow. Three incremental native installed
 checks execute the checked-in `docs/examples` configuration/scripts: deploy with
 explicit approval, a distinct approval-token variant, install, upgrade, uninstall,
 lint and tunnel; controls-only configuration verifies fallback/overrides, legacy
@@ -22,7 +22,7 @@ No authorization for a named disposable app/site/environment or exact operations
 was supplied, so manifest substitution, encrypted storage/activation, real
 installation/upgrade, connected tunnel receipt, uninstall and cleanup remain
 **blocked**. Prior deployment live blockers are preserved. Direct anonymous
-GitHub setup and unexercised platforms retain ticket 06's limitations.
+GitHub setup and unexercised platforms retain the dependency delivery limitations.
 
 Validation resumed with explicit user permission after the temporary shell
 blocker. Fresh full suite: **405 pass / 2866 assertions / zero failures**, with
@@ -36,7 +36,7 @@ external URL availability is not certified. The final native-enabled forced
 scripts are absent). Real local tarball installation is exercised by the tests.
 Live claims above remain blocked.
 
-## Dependency delivery ticket 06 — 2026-10-20
+## Dependency delivery — 2026-10-20
 
 Added the installed Bun executable, package allowlist/platform metadata, and
 explicit verified SecretSpec setup. Red–green public tests cover absent bin
@@ -122,7 +122,7 @@ on failure rather than rerunning analysis.
 ## Live Forge verification — blocked
 
 The user explicitly selected **record as blocked**. No Forge command was
-run or live app contacted during ticket 07. No app ID, environment, permitted
+run or live app contacted during this validation. No app ID, environment, permitted
 synthetic variables, deployment, or cleanup scope has been authorized.
 
 Missing evidence: server-side acceptance and encrypted storage metadata for
@@ -146,7 +146,7 @@ duplication passed. Baseline documentation lint reported 81 issues, including
 scaffold policy documents, the placeholder README, product spec table
 formatting, and the unchanged historical exploration.
 
-| Ticket 07 command | Result |
+| Command | Result |
 | --- | --- |
 | `bun run test:check` | PASS: 156 tests, zero failures, 1293 assertions; all installed native checks ran |
 | `bun run check` | FAIL: same seven pre-existing Fallow health thresholds; tests pass, passing case names hidden, full Fallow failure report retained |
@@ -167,8 +167,7 @@ and analysis categories remain unchanged. The pre-existing explanation,
 reference, product specification, and configuration formatting changes are
 preserved and included rather than left uncommitted.
 
-A clean Git working tree is separate from a green validation gate. The local
-scratch ticket records completion and the remaining live blocker; this
+A clean Git working tree is separate from a green validation gate. This
 tracked page preserves the results in the commit.
 
 ## Fallow cleanup follow-up — 2026-10-19
@@ -219,7 +218,7 @@ continues to identify this guide as historical input, not current guidance.
 156 tests and 1293 assertions. No application code, validation configuration,
 dependency, or Forge authorization changed. Live verification remains blocked.
 
-## Configured lint ticket 02 — 2026-10-19
+## Configured lint — 2026-10-19
 
 `fence-rider lint [Forge options]` uses one full active-profile export, local
 value delivery, stale optional cleanup, and the shared optional manifest check.
@@ -257,7 +256,7 @@ No dependency, inventory, resolver, provisioning, general runner, later
 workflow, live app contact, or remote mutation was added. Live verification
 remains blocked pending separate named authorization.
 
-## Configured installation ticket 03 — 2026-10-19
+## Configured installation — 2026-10-19
 
 Implemented at the approved compiled public CLI seam. Red-before-green slices
 established one configured install, independent overrides, payload/terminator
@@ -302,10 +301,10 @@ and live site acceptance remain separately blocked evidence, not passing
 checks. Short install/upgrade scripts and explicit authorization warnings are
 in [the consumer guide](../how-to/how-to.md#install-or-upgrade-the-configured-app).
 Uninstall, tunnel, dependency delivery, and final consumer acceptance remain
-separate tickets. Existing user specification edits are excluded from this
-implementation commit; ignored scratch records remain local.
+separate work. Existing user specification edits are excluded from this
+implementation commit.
 
-## Configured uninstall ticket 04 — 2026-10-19
+## Configured uninstall — 2026-10-19
 
 Implemented at the approved compiled public CLI seam. Red-before-green slices
 established configured delegation, uninstall-specific required-value grammar,
@@ -349,12 +348,12 @@ that uninstall changes remote installation state. No live uninstall, app/site
 contact, registration, upload, deployment, or cleanup was authorized or run.
 Real terminal-specific prompts and Windows process-tree behavior remain
 unverified. Tunnel, dependency delivery, and final consumer acceptance remain
-separate tickets. Existing user specification edits are excluded from the
-implementation commit; scratch completion records remain local and ignored.
+separate work. Existing user specification edits are excluded from the
+implementation commit.
 
 [uninstall-guide]: ../how-to/how-to.md#uninstall-the-configured-app
 
-## Configured tunnel ticket 05 — 2026-10-20
+## Configured tunnel — 2026-10-20
 
 Implemented `fence-rider tunnel` at the approved compiled public CLI seam.
 Red-before-green slices cover explicit runtime prefix mapping/stale cleanup,
@@ -403,8 +402,7 @@ The [procedure][tunnel-guide] supplies prerequisites and a short app script;
 the [contract](reference.md#configured-tunnel) specifies destination-specific
 empty-string support, reserved-prefix collision handling, and live Forge/app
 logs without redaction. Inspection archives are removed, not committed.
-Scratch ticket completion is local and ignored; durable evidence is recorded
-here. Existing user specification edits remain excluded from the implementation
+Durable evidence is recorded here. Existing user specification edits remain excluded from the implementation
 commit.
 
 **Connected runtime receipt: blocked pending separate authorization.** No live
@@ -413,11 +411,11 @@ installation, or live cleanup was authorized or run. An authorized disposable
 development app and approved boolean-only observation of explicit runtime
 members (and absence of an unselected member) are still needed. Ordinary child
 environment observation is not reported as connected runtime delivery.
-Dependency provisioning and packed consumer acceptance remain tickets 06/07.
+Dependency provisioning and packed consumer acceptance remain separate work.
 
 [tunnel-guide]: ../how-to/how-to.md#tunnel-with-configured-local-runtime-values
 
-## Configured deployment ticket 01 — 2026-10-19
+## Configured deployment — 2026-10-19
 
 `FORGE_ENVIRONMENT` is canonical for deployment; `FORGE_ENV` remains a legacy
 alias. Either alone and matching dual values work. Conflicting resolved values

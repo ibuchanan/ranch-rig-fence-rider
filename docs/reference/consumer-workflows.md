@@ -1,7 +1,6 @@
 # Configured consumer workflow acceptance
 
-Recorded 2026-10-20 for configured-workflows ticket 07, not the older deployment
-validation ticket with the same number. The [whole-concept planning spec][plan]
+Recorded 2026-10-20 for configured consumer acceptance. The [whole-concept planning spec][plan]
 defines CW-01–CW-22; the [implemented contract][contract] defines current behavior.
 The original deployment AC-01–AC-18 record remains in [validation](validation.md).
 

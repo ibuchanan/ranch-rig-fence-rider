@@ -1,6 +1,6 @@
 # Deployment compatibility evidence
 
-Tickets 03–07 implemented and locally validated `fence-rider deploy [options]`
+The implementation locally validated `fence-rider deploy [options]`
 on 2026-10-18 and 2026-10-19. This page records interface evidence; the
 [variable contract](reference.md) contains the routing policy.
 
@@ -80,7 +80,7 @@ No provider SDK, vault credentials, or network provider is used.
 
 ## Environment-name migration — 2026-10-19
 
-Configured-workflows ticket 01 adds `FORGE_ENVIRONMENT` as the canonical
+The configured workflows add `FORGE_ENVIRONMENT` as the canonical
 control. `FORGE_ENV` remains a supported legacy alias. Either alone selects
 the configured target; matching resolved names are accepted. Conflicting
 strings fail before any Forge command, including with an explicit override.
@@ -102,7 +102,7 @@ manifest cross-check, option parsing, runtime preflight, encrypted writes,
 status propagation, and interruption lifecycle. No second resolver, provider
 SDK, variable inventory, shell evaluator, or general command framework is added.
 
-This ticket does not implement lint, installation, uninstall, tunnel, or
+This change does not implement lint, installation, uninstall, tunnel, or
 package/executable provisioning. SecretSpec and Forge remain separately
 available prerequisites. Forge CLI 14.2.0 interface evidence is unchanged;
 no live Forge contact or mutation is part of these checks.
@@ -243,7 +243,7 @@ explicitly leave their process group, termination of Fence Rider that cannot
 be handled such as `SIGKILL`, and operating-system failure are outside this cleanup
 contract. Cleanup cannot undo remote writes or cancel work already accepted
 by a remote service. Authorized live Forge acceptance and activation checks
-remain ticket 07.
+remain outstanding.
 
 ## Sources
 
