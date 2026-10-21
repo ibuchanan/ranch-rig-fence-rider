@@ -1,12 +1,11 @@
 import { checkManifest, configure, members } from "./configured";
 import { type CommandSpec, parseForgeArgs } from "./forge-args";
-import { isEnvironmentName, isLocalControl } from "./policy";
+import { isLocalControl, isOptionValue } from "./policy";
 import { checkInterruption, passthrough } from "./process";
 import { runWorkflow } from "./workflow";
 
 function validateTarget(target: string) {
-  if (["staging", "production"].includes(target) || !isEnvironmentName(target))
-    throw new Error("Unsupported tunnel environment");
+  if (!isOptionValue(target)) throw new Error("Invalid tunnel environment");
   return target;
 }
 
@@ -39,19 +38,16 @@ function validateRuntime(runtime: string[]) {
 
 export const tunnelUsage = [
   "Usage: fence-rider tunnel [-e, --environment TARGET] [Forge options]",
-  "Target: explicit option, resolved FORGE_ENVIRONMENT (FORGE_ENV legacy alias), then development. Only development environments are supported; named environments must already be development environments. Staging/production are rejected.",
+  "Target: explicit option, resolved FORGE_ENVIRONMENT (FORGE_ENV legacy alias), then development. Forge supports tunnels only for development environments.",
   "Resolve the whole profile once; check optional manifest declarations. Runtime members alone map to FORGE_USER_VAR_<name>; empty strings are supported. Ambient prefixed values are removed; declarations using that reserved prefix are rejected.",
   "Forge input/output streams live and unredacted; app logs may expose values. -h is debug host, not help; use --help.",
   "No remote variable uploads/deletion, deployment or installation. SecretSpec and Forge must be installed on PATH and authenticated separately.",
 ].join("\n");
 
-// Forge 14.2.0: -h is debug host, so only --help requests wrapper help.
+// -h is Forge's debug host, so only --help requests wrapper help.
 const tunnelSpec: CommandSpec = {
   owned: { environment: "e" },
-  required: ["--url", "--local-port", "--debugFunctionHandlers", "-u", "-f"],
-  optional: ["--debugHost", "--debugStartingPort", "-h", "-p"],
   help: ["--help"],
-  grouped: "dn",
 };
 
 function parseOptions(args: string[]) {

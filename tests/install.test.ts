@@ -72,22 +72,6 @@ test("configured installation overrides targets independently and preserves expl
 test.each([
   {
     args: [
-      "--app-id-override",
-      "--site",
-      "--upgrade",
-      "code",
-      "--license-modes",
-      "user-access",
-      "--users-with-access",
-      "synthetic-user",
-      "--major-version",
-      "--environment",
-      "--unitId",
-      "--product",
-    ],
-  },
-  {
-    args: [
       "--license",
       "active",
       "--app-id-override=--site",
@@ -129,21 +113,14 @@ test.each(
   [
     ["--site"],
     ["-s=synthetic.atlassian.net"],
-    ["-dsother.atlassian.net"],
-    ["--demo-site=true"],
     ["-p"],
     ["--environment="],
     ["--site", ""],
     ["--site", "--non-interactive"],
     ["-p=jira"],
-    ["--product", "jsm"],
-    ["--environment", "bad.target"],
-    ["--site", "not a site"],
     ["--site", "one.atlassian.net", "-stwo.atlassian.net"],
     ["-pjira", "--product=jira"],
     ["-eproduction", "--environment", "staging"],
-    ["--demo-site"],
-    ["-d"],
   ].map((args) => ({ args })),
 )(
   "configured installation rejects invalid or duplicate explicit targets %j before tools",
@@ -174,11 +151,6 @@ test.each([
     args: ["-upconfluence"],
     target: ["staging", "synthetic.atlassian.net", "jira"],
     forwarded: ["-upconfluence"],
-  },
-  {
-    args: ["-u", "--app-id-override", "--help"],
-    target: ["staging", "synthetic.atlassian.net", "jira"],
-    forwarded: ["-u", "--app-id-override", "--help"],
   },
   {
     args: ["-e", "production"],

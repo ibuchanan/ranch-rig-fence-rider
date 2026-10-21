@@ -191,11 +191,8 @@ test.each([
   { args: ["--environment", "--non-interactive"] },
   { args: ["-e", "--"] },
   { args: ["-e=production"] },
-  { args: ["--environment", sharedValue] },
-  { args: ["--environment=bad.target"] },
   { args: ["-e", "production", "--environment=staging"] },
   { args: ["--environment=production", "-eproduction"] },
-  { args: ["-feproduction", "--environment", "production"] },
 ])(
   "invalid or duplicate target %j fails before any tool call",
   async ({ args }) => {
@@ -204,14 +201,11 @@ test.each([
     expect(result.interactions).toEqual([]);
     expect(result.stderr).toContain("environment option validation");
     expect(result.stdout).toBe("");
-    expect(result.stderr).not.toContain("bad.target");
   },
 );
 
 test.each([
   { args: ["--", "--environment", "production", "-e", "other"] },
-  { args: ["--tag", "--environment", "--non-interactive"] },
-  { args: ["-t", "-e", "--non-interactive"] },
   {
     args: [
       "--tag=--environment=production",
@@ -239,44 +233,6 @@ test.each([
       sharedValue,
     ],
     ["deploy", "--environment", "staging", ...args],
-  ]);
-});
-
-test("variadic approval consumes its first required value even when it resembles a target", async () => {
-  const result = await runWorkflow({
-    args: ["--approve", "--environment", "--non-interactive"],
-  });
-  expect(result.exitCode).toBe(0);
-  expect(result.interactions.at(-1)?.args).toEqual([
-    "deploy",
-    "--environment",
-    "staging",
-    "--approve",
-    "--environment",
-    "--non-interactive",
-  ]);
-});
-
-test("grouped short flags cannot hide a conflicting deployment target", async () => {
-  const result = await runWorkflow({
-    args: ["-feproduction", "--non-interactive"],
-  });
-  expect(result.exitCode).toBe(0);
-  expect(
-    result.interactions
-      .filter(({ tool }) => tool === "forge")
-      .map(({ args }) => args),
-  ).toEqual([
-    [
-      "variables",
-      "set",
-      "--encrypt",
-      "--environment",
-      "production",
-      "SHARED",
-      sharedValue,
-    ],
-    ["deploy", "--environment", "production", "-f", "--non-interactive"],
   ]);
 });
 

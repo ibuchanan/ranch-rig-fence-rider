@@ -13,10 +13,7 @@ export const lintUsage = [
 
 const lintSpec: CommandSpec = {
   owned: {},
-  required: ["--approve"],
-  optional: [],
   help: ["--help", "-h"],
-  grouped: "",
 };
 
 /** Run configured Forge lint with inherited input and unredacted live output. */

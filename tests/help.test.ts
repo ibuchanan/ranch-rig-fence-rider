@@ -88,7 +88,6 @@ test.each([
 test.each([
   { args: ["deploy", "--environment", "production", "--help"] },
   { args: ["deploy", "--non-interactive", "-h"] },
-  { args: ["deploy", "-fh"] },
 ])(
   "deployment help with options %j stays side-effect-free",
   async ({ args }) => {

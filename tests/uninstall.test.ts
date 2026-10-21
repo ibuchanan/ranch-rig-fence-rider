@@ -8,40 +8,6 @@ import {
 
 useBuiltCli();
 
-test("configured uninstall preserves installation-id payloads rather than consuming target-like values", async () => {
-  const args = [
-    "--verbose",
-    "--installation-id",
-    "--site",
-    "-i",
-    "--environment",
-    "--app-id-override",
-    "--product",
-    "--",
-    "--site",
-    "payload",
-    "--help",
-  ];
-  const result = await runInstallation({ command: "uninstall", args });
-  expect(result.exitCode).toBe(0);
-  expect(
-    result.interactions
-      .filter(({ tool }) => tool === "forge")
-      .map(({ args }) => args),
-  ).toEqual([
-    [
-      "uninstall",
-      "--environment",
-      "staging",
-      "--site",
-      "synthetic.atlassian.net",
-      "--product",
-      "jira",
-      ...args,
-    ],
-  ]);
-});
-
 test.each([2, 23, 127, 255])(
   "configured uninstall preserves numeric status %i with uninstall-specific diagnostics",
   async (exitCode) => {
@@ -110,11 +76,6 @@ test.each([
       "--verbose",
     ],
   },
-  {
-    args: ["--installation-id", "--help", "--", "-h"],
-    target: ["staging", "synthetic.atlassian.net", "jira"],
-    forwarded: ["--installation-id", "--help", "--", "-h"],
-  },
 ])(
   "configured uninstall preserves verified target and argument forms %j",
   async ({ args, target, forwarded = [] }) => {
@@ -150,11 +111,6 @@ test.each(
     ["-s=other.atlassian.net"],
     ["-p=jira"],
     ["--site", "--verbose"],
-    ["--site", "not a site"],
-    ["--site", "https://user:pass@example.atlassian.net"],
-    ["--site", "file:///tmp/site"],
-    ["--product", "jsm"],
-    ["--environment", "bad.target"],
     ["--site", "one.atlassian.net", "-stwo.atlassian.net"],
     ["-pjira", "--product=jira"],
     ["-eproduction", "--environment", "staging"],

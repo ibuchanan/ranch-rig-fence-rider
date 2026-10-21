@@ -1,6 +1,6 @@
 import { checkManifest, configure, members } from "./configured";
 import { type CommandSpec, parseForgeArgs } from "./forge-args";
-import { isEnvironmentName, isLocalControl } from "./policy";
+import { isLocalControl, isOptionValue } from "./policy";
 import {
   CommandFailure,
   capture,
@@ -10,7 +10,7 @@ import {
 import { describeStage, runWorkflow, type Workflow } from "./workflow";
 
 function validateTarget(target: string) {
-  if (typeof target !== "string" || !isEnvironmentName(target))
+  if (typeof target !== "string" || !isOptionValue(target))
     throw new Error("Invalid Forge target");
   return target;
 }
@@ -25,7 +25,7 @@ function validateRuntime(names: string[], values: Record<string, string>) {
 }
 
 function validateUploadValue(value: string) {
-  if (value === "" || value.startsWith("-"))
+  if (!isOptionValue(value))
     throw new Error("Unsupported Forge positional value");
 }
 
@@ -38,10 +38,7 @@ export const deployUsage = [
 
 const deploySpec: CommandSpec = {
   owned: { environment: "e" },
-  required: ["--tag", "-t", "--approve"],
-  optional: [],
   help: ["--help", "-h"],
-  grouped: "f",
 };
 
 function parseDeployOptions(args: string[]) {

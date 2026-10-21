@@ -133,8 +133,8 @@ test("configured lint treats child signal termination as failure", async () => {
   expect(result.stderr).toContain("terminated by SIGTERM");
 });
 
-test("configured lint without manifest scope needs no manifest and preserves target-like payloads", async () => {
-  const args = ["--approve", "--help", "--", "-h"];
+test("configured lint without manifest scope needs no manifest and forwards arguments after the terminator", async () => {
+  const args = ["--verbose", "--", "--help", "-h"];
   const result = await runWorkflow({ command: "lint", manifest: null, args });
   expect(result.exitCode).toBe(0);
   expect(

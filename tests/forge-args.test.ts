@@ -3,10 +3,7 @@ import { type CommandSpec, parseForgeArgs } from "../src/forge-args";
 
 const spec: CommandSpec = {
   owned: { environment: "e", site: "s" },
-  required: ["--tag", "-t"],
-  optional: ["--host", "-p"],
   help: ["--help", "-h"],
-  grouped: "fd",
 };
 
 test("owned options accept separated, long-equals and attached-short values", () => {
@@ -19,10 +16,10 @@ test("owned options accept separated, long-equals and attached-short values", ()
     expect(parseForgeArgs(spec, args).owned).toEqual({ environment: "dev" });
 });
 
-test("grouped boolean flags before an owned short option stay forwarded", () => {
-  expect(parseForgeArgs(spec, ["-fdedev", "--x"])).toEqual({
-    owned: { environment: "dev" },
-    forwarded: ["-fd", "--x"],
+test("Forge options, including grouped short flags, are forwarded unparsed", () => {
+  expect(parseForgeArgs(spec, ["-fdedev", "--tag", "x", "-v"])).toEqual({
+    owned: {},
+    forwarded: ["-fdedev", "--tag", "x", "-v"],
     help: false,
   });
 });
@@ -37,19 +34,11 @@ test("a short equals value for an owned option is rejected", () => {
   expect(() => parseForgeArgs(spec, ["-e=dev"])).toThrow("short equals");
 });
 
-test("required values consume switch-looking payloads; optional values do not", () => {
-  expect(
-    parseForgeArgs(spec, ["--tag", "--help", "-fp", "-e"]).forwarded,
-  ).toEqual(["--tag", "--help", "-fp"]);
-  expect(parseForgeArgs(spec, ["-p", "v", "-ft", "--help"])).toEqual({
-    owned: {},
-    forwarded: ["-p", "v", "-ft", "--help"],
-    help: false,
-  });
-});
-
-test("help flags, including grouped short help, stop parsing", () => {
-  for (const args of [["--help", "-e"], ["-fh"], ["-h", "--environment"]])
+test("help flags stop parsing", () => {
+  for (const args of [
+    ["--help", "-e"],
+    ["-h", "--environment"],
+  ])
     expect(parseForgeArgs(spec, args).help).toBe(true);
 });
 
@@ -59,11 +48,6 @@ test("everything after the terminator is forwarded untouched", () => {
     forwarded: ["--", "-h", "-esite"],
     help: false,
   });
-});
-
-test("rejected options fail before being forwarded", () => {
-  const rejecting = { ...spec, rejected: /^--demo$/ };
-  expect(() => parseForgeArgs(rejecting, ["--demo"])).toThrow("Unsupported");
 });
 
 test("owned values are validated as they are read", () => {

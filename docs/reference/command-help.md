@@ -29,9 +29,9 @@ SecretSpec and Forge must be installed on PATH and authenticated separately.
 ```text
 Usage: fence-rider install [-e, --environment TARGET] [-s, --site URL] [-p, --product PRODUCT] [Forge options]
 Targets: explicit option, then resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT (FORGE_ENV legacy alias). Only environment falls back to development.
-Site and product are required. Products: Jira, Confluence, Compass, Bitbucket (workspace URL).
+Site and product are required; Forge validates their values.
 The whole profile must resolve; conflicting environment aliases fail even with overrides.
-Use --upgrade [all|code], --confirm-scopes and --non-interactive only when intended. Demo-site targeting is unsupported.
+Use --upgrade [all|code], --confirm-scopes and --non-interactive only when intended.
 No runtime uploads, variable deletion or deployment.
 Forge input/output is inherited, live and unredacted. SecretSpec and Forge must be installed on PATH and authenticated separately.
 ```
@@ -41,7 +41,7 @@ Forge input/output is inherited, live and unredacted. SecretSpec and Forge must 
 ```text
 Usage: fence-rider uninstall [-e, --environment TARGET] [-s, --site URL] [-p, --product PRODUCT] [Forge options]
 Targets: explicit option, then resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT (FORGE_ENV legacy alias). Only environment falls back to development.
-Site and product are required. Products: Jira, Confluence, Compass, Bitbucket (workspace URL).
+Site and product are required; Forge validates their values.
 The whole profile must resolve; conflicting environment aliases fail even with overrides.
 Uninstall changes remote installation state; Forge owns remaining interaction. Forge 14.2.0 does not support --non-interactive. No upgrade, consent, approval or confirmation switches are injected.
 No runtime uploads, variable deletion or deployment.
@@ -52,7 +52,7 @@ Forge input/output is inherited, live and unredacted. SecretSpec and Forge must 
 
 ```text
 Usage: fence-rider tunnel [-e, --environment TARGET] [Forge options]
-Target: explicit option, resolved FORGE_ENVIRONMENT (FORGE_ENV legacy alias), then development. Only development environments are supported; named environments must already be development environments. Staging/production are rejected.
+Target: explicit option, resolved FORGE_ENVIRONMENT (FORGE_ENV legacy alias), then development. Forge supports tunnels only for development environments.
 Resolve the whole profile once; check optional manifest declarations. Runtime members alone map to FORGE_USER_VAR_<name>; empty strings are supported. Ambient prefixed values are removed; declarations using that reserved prefix are rejected.
 Forge input/output streams live and unredacted; app logs may expose values. -h is debug host, not help; use --help.
 No remote variable uploads/deletion, deployment or installation. SecretSpec and Forge must be installed on PATH and authenticated separately.

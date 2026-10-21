@@ -54,14 +54,6 @@ test.skipIf(!realSecretSpec).each([
     target: "development",
   },
   {
-    name: "unsupported staging",
-    declarations:
-      'FORGE_ENVIRONMENT = { description = "Target", default = "staging" }',
-    args: [],
-    pass: false,
-    target: "unused",
-  },
-  {
     name: "conflict despite override",
     declarations:
       'FORGE_ENVIRONMENT = { description = "Target", default = "staging" }\nFORGE_ENV = { description = "Legacy", default = "production" }',

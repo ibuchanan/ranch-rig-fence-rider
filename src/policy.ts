@@ -1,5 +1,3 @@
-const environmentName = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
-
 // Selectors fence-rider consumes locally; never uploaded or injected as runtime.
 const localControls = [
   "FORGE_ENVIRONMENT",
@@ -8,8 +6,9 @@ const localControls = [
   "FORGE_PRODUCT",
 ];
 
-export function isEnvironmentName(value: string): boolean {
-  return environmentName.test(value);
+/** Forge validates target names; only reject values that would parse as an option. */
+export function isOptionValue(value: string): boolean {
+  return value !== "" && !value.startsWith("-");
 }
 
 export function isLocalControl(key: string): boolean {

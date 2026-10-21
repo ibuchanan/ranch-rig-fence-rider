@@ -1,71 +1,25 @@
 import { configure } from "./configured";
 import { type CommandSpec, parseForgeArgs } from "./forge-args";
-import { isEnvironmentName } from "./policy";
+import { isOptionValue } from "./policy";
 import { checkInterruption, passthrough } from "./process";
 import { runWorkflow } from "./workflow";
 
-function validateValue(value: string | undefined): string {
-  if (!value || value.startsWith("-") || /[\s\p{Cc}]/u.test(value))
+function validateTarget(candidate: string | undefined): string {
+  if (!candidate || !isOptionValue(candidate))
     throw new Error("Missing or invalid installation target");
-  return value;
+  return candidate;
 }
 
-function validateSite(value: string) {
-  const url = new URL(value.includes("://") ? value : `https://${value}`);
-  if (!/^https?:$/.test(url.protocol) || `${url.username}${url.password}`)
-    throw new Error("Invalid site URL");
-}
-
-function validateEnvironment(value: string) {
-  if (!isEnvironmentName(value)) throw new Error("Invalid target");
-}
-
-function validateProduct(value: string) {
-  if (!/^(jira|confluence|compass|bitbucket)$/i.test(value))
-    throw new Error("Invalid target");
-}
-
-const targetValidators = {
-  environment: validateEnvironment,
-  site: validateSite,
-  product: validateProduct,
+const installSpec: CommandSpec = {
+  owned: { environment: "e", site: "s", product: "p" },
+  help: ["--help", "-h"],
 };
 
-type TargetName = keyof typeof targetValidators;
-
-function validateTarget(
-  name: TargetName,
-  candidate: string | undefined,
-): string {
-  const value = validateValue(candidate);
-  targetValidators[name](value);
-  return value;
-}
-
-const installSpecs: Record<"install" | "uninstall", CommandSpec> = {
-  // Forge 14.2.0 required-value options consume even switch-looking payloads.
-  install: {
-    owned: { environment: "e", site: "s", product: "p" },
-    required: ["--app-id-override", "--major-version", "--unitId"],
-    optional: [],
-    help: ["--help", "-h"],
-    grouped: "",
-    rejected: /^--demo-site(?:=|$)|^-[dh]*d/,
-  },
-  uninstall: {
-    owned: { environment: "e", site: "s", product: "p" },
-    required: ["--app-id-override", "--installation-id", "-i"],
-    optional: [],
-    help: ["--help", "-h"],
-    grouped: "",
-  },
-};
-
-function parseTargets(args: string[], command: "install" | "uninstall") {
+function parseTargets(args: string[]) {
   const { owned, forwarded, help } = parseForgeArgs(
-    installSpecs[command],
+    installSpec,
     args,
-    (name, value) => validateTarget(name as TargetName, value),
+    (_name, value) => validateTarget(value),
   );
   return { targets: owned, forwarded, help };
 }
@@ -81,13 +35,13 @@ function effectiveTargets(
     product: values["FORGE_PRODUCT"],
   };
   return Object.entries({ ...defaults, ...targets }).flatMap(
-    ([name, value]) => [`--${name}`, validateTarget(name as TargetName, value)],
+    ([name, value]) => [`--${name}`, validateTarget(value)],
   );
 }
 
 const installPolicy = {
   install:
-    "Use --upgrade [all|code], --confirm-scopes and --non-interactive only when intended. Demo-site targeting is unsupported.",
+    "Use --upgrade [all|code], --confirm-scopes and --non-interactive only when intended.",
   uninstall:
     "Uninstall changes remote installation state; Forge owns remaining interaction. Forge 14.2.0 does not support --non-interactive. No upgrade, consent, approval or confirmation switches are injected.",
 };
@@ -96,7 +50,7 @@ export function installUsage(command: "install" | "uninstall") {
   return [
     `Usage: fence-rider ${command} [-e, --environment TARGET] [-s, --site URL] [-p, --product PRODUCT] [Forge options]`,
     "Targets: explicit option, then resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT (FORGE_ENV legacy alias). Only environment falls back to development.",
-    "Site and product are required. Products: Jira, Confluence, Compass, Bitbucket (workspace URL).",
+    "Site and product are required; Forge validates their values.",
     "The whole profile must resolve; conflicting environment aliases fail even with overrides.",
     installPolicy[command],
     "No runtime uploads, variable deletion or deployment.",
@@ -112,7 +66,7 @@ export async function install(
   const operation = command === "install" ? "installation" : "uninstallation";
   return runWorkflow(async (workflow) => {
     workflow.stage = `${operation} option validation`;
-    const { targets, forwarded, help } = parseTargets(args, command);
+    const { targets, forwarded, help } = parseTargets(args);
     if (help) {
       console.log(installUsage(command));
       return;
