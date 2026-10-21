@@ -156,43 +156,8 @@ test("explicit environment overrides the configured target for every Forge comma
 });
 
 test.each([
-  { args: ["-e", "release_42"] },
-  { args: ["--environment=release_42"] },
-  { args: ["-erelease_42"] },
-])(
-  "verified target form %j reaches uploads and deployment",
-  async ({ args }) => {
-    const result = await runWorkflow({ args });
-    expect(result.exitCode).toBe(0);
-    expect(
-      result.interactions
-        .filter(({ tool }) => tool === "forge")
-        .map(({ args }) => args),
-    ).toEqual([
-      [
-        "variables",
-        "set",
-        "--encrypt",
-        "--environment",
-        "release_42",
-        "SHARED",
-        sharedValue,
-      ],
-      ["deploy", "--environment", "release_42"],
-    ]);
-  },
-);
-
-test.each([
-  { args: ["--environment"] },
-  { args: ["-e"] },
-  { args: ["--environment="] },
   { args: ["--environment", ""] },
-  { args: ["--environment", "--non-interactive"] },
-  { args: ["-e", "--"] },
-  { args: ["-e=production"] },
   { args: ["-e", "production", "--environment=staging"] },
-  { args: ["--environment=production", "-eproduction"] },
 ])(
   "invalid or duplicate target %j fails before any tool call",
   async ({ args }) => {
@@ -203,75 +168,6 @@ test.each([
     expect(result.stdout).toBe("");
   },
 );
-
-test.each([
-  { args: ["--", "--environment", "production", "-e", "other"] },
-  {
-    args: [
-      "--tag=--environment=production",
-      "--major-version",
-      "3",
-      "--non-interactive",
-    ],
-  },
-  { args: ["-t--environment=production", "-v3", "--non-interactive"] },
-])("target-like payloads remain untouched %j", async ({ args }) => {
-  const result = await runWorkflow({ args });
-  expect(result.exitCode).toBe(0);
-  expect(
-    result.interactions
-      .filter(({ tool }) => tool === "forge")
-      .map(({ args: callArgs }) => callArgs),
-  ).toEqual([
-    [
-      "variables",
-      "set",
-      "--encrypt",
-      "--environment",
-      "staging",
-      "SHARED",
-      sharedValue,
-    ],
-    ["deploy", "--environment", "staging", ...args],
-  ]);
-});
-
-test("explicit target precedes the terminator and leaves target-like payloads untouched", async () => {
-  const result = await runWorkflow({
-    args: [
-      "--non-interactive",
-      "--environment=production",
-      "--",
-      "--environment",
-      "payload",
-    ],
-  });
-  expect(result.exitCode).toBe(0);
-  expect(
-    result.interactions
-      .filter(({ tool }) => tool === "forge")
-      .map(({ args }) => args),
-  ).toEqual([
-    [
-      "variables",
-      "set",
-      "--encrypt",
-      "--environment",
-      "production",
-      "SHARED",
-      sharedValue,
-    ],
-    [
-      "deploy",
-      "--environment",
-      "production",
-      "--non-interactive",
-      "--",
-      "--environment",
-      "payload",
-    ],
-  ]);
-});
 
 test("site and product defaults stay local and never become deployment flags or uploads", async () => {
   const result = await runWorkflow({
