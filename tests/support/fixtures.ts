@@ -7,7 +7,6 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { quote } from "../../src/shell.ts";
 import { cli } from "./cli.ts";
 
 export const sharedValue =
@@ -294,13 +293,13 @@ const installationSchema = {
   },
 };
 
-export const installationValues = {
+const installationValues = {
   ...deploymentValues,
   FORGE_SITE: "synthetic.atlassian.net",
   FORGE_PRODUCT: "jira",
 };
 
-export const installationOptions = {
+const installationOptions = {
   spec: installationSpec,
   schema: installationSchema,
   values: installationValues,
@@ -369,36 +368,6 @@ export async function runScript(input: ScriptOptions) {
     },
   );
   return { ...(await finishScript(generated.project, child)), generated };
-}
-
-/**
- * Run the documented package.json idiom,
- * `cmd=$(fence-rider <command> …) && sh -c "$cmd" sh`, with fence-rider on PATH.
- */
-export async function runIdiom(input: ScriptOptions) {
-  const options = withDefaults(input);
-  const project = prepareProject(options);
-  symlinkSync(cli.executable, join(project, "bin", "fence-rider"));
-  const generate = [options.command, ...(options.generate ?? [])]
-    .map(quote)
-    .join(" ");
-  const child = Bun.spawn(
-    [
-      "/bin/sh",
-      "-c",
-      `cmd=$(fence-rider ${generate}) && sh -c "$cmd" sh "$@"`,
-      "sh",
-      ...(options.appended ?? []),
-    ],
-    {
-      cwd: project,
-      env: deploymentEnv(project, options),
-      stdin: "ignore",
-      stdout: "pipe",
-      stderr: "pipe",
-    },
-  );
-  return finishScript(project, child);
 }
 
 export const realSecretSpec = Bun.which("secretspec");

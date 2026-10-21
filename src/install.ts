@@ -44,21 +44,24 @@ done
 exec forge "$command" --environment "$environment" --site "$site" --product "$product" "$@"
 `;
 
-/** Print the script that runs one installation lifecycle command with the profile in its environment. */
+/** The script that runs one installation lifecycle command with the profile in its environment, or the usage text for help; throws on a refusal. */
+export function installScript(args: string[], command: InstallCommand) {
+  const { forwarded, help } = parseInstallOptions(args);
+  if (help) return installUsage(command);
+  return underSecretSpec([
+    "sh",
+    "-c",
+    targetScript,
+    "sh",
+    command,
+    ...forwarded,
+  ]);
+}
+
+/** Print what installScript builds. */
 export function install(
   args: string[],
   command: InstallCommand = "install",
 ): number {
-  return emit(() => {
-    const { forwarded, help } = parseInstallOptions(args);
-    if (help) return installUsage(command);
-    return underSecretSpec([
-      "sh",
-      "-c",
-      targetScript,
-      "sh",
-      command,
-      ...forwarded,
-    ]);
-  });
+  return emit(() => installScript(args, command));
 }

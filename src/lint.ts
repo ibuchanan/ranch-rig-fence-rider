@@ -17,11 +17,14 @@ const lintSpec: CommandSpec = {
   help: ["--help", "-h"],
 };
 
-/** Print the script that runs Forge lint with the profile in its environment. */
+/** The script that runs Forge lint with the profile in its environment, or the usage text for help; throws on a refusal. */
+export function lintScript(args: string[]) {
+  const { forwarded, help } = parseForgeArgs(lintSpec, args);
+  if (help) return lintUsage;
+  return underSecretSpec(["forge", "lint", ...forwarded]);
+}
+
+/** Print what lintScript builds. */
 export function lint(args: string[]): number {
-  return emit(() => {
-    const { forwarded, help } = parseForgeArgs(lintSpec, args);
-    if (help) return lintUsage;
-    return underSecretSpec(["forge", "lint", ...forwarded]);
-  });
+  return emit(() => lintScript(args));
 }
