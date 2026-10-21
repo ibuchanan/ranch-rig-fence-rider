@@ -31,8 +31,10 @@ test("variables resolves once and encrypts only runtime values through real help
       sharedValue,
     ],
   ]);
-  for (const call of result.interactions.filter(({ tool }) => tool === "forge"))
-    expect(call.values).toEqual(deploymentValues);
+  const forgeCalls = result.interactions.filter(({ tool }) => tool === "forge");
+  expect(forgeCalls.map(({ values }) => values)).toEqual(
+    forgeCalls.map(() => deploymentValues),
+  );
   expect(readdirSync(result.project).sort()).toEqual([
     "bin",
     "manifest.yml",

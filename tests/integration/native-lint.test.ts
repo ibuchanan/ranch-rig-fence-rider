@@ -70,7 +70,7 @@ test.skipIf(!realSecretSpec)(
       ({ tool }) => tool === "secretspec",
     );
     expect(native.map(({ args }) => args[0])).toEqual(["run"]);
-    for (const { args } of native) expect(args).not.toContain("--profile");
+    expect(native.flatMap(({ args }) => args)).not.toContain("--profile");
   },
 );
 

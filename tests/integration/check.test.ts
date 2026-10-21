@@ -32,9 +32,10 @@ async function fixture(
   }
 }
 
-test("Fallow check hides successful reports but preserves failure details and status", async () => {
-  const { scripts } = await Bun.file(join(root, "package.json")).json();
-  for (const status of [0, 1, 2]) {
+test.each([0, 1, 2])(
+  "Fallow check exiting %i hides a successful report but preserves failure details and status",
+  async (status) => {
+    const { scripts } = await Bun.file(join(root, "package.json")).json();
     const result = await fixture(
       { "lint:check:fallow": scripts["lint:check:fallow"] },
       {
@@ -49,12 +50,13 @@ test("Fallow check hides successful reports but preserves failure details and st
       expect(result.output).toContain("SYNTHETIC_FALLOW_REPORT\n");
       expect(result.output).toContain("SYNTHETIC_FALLOW_DIAGNOSTIC\n");
     }
-  }
-});
+  },
+);
 
-test("check hides passing tests while keeping failures, totals, and failure status", async () => {
-  const { scripts } = await Bun.file(join(root, "package.json")).json();
-  for (const fails of [false, true]) {
+test.each([false, true])(
+  "check with failing test: %p hides passing tests while keeping failures, totals, and failure status",
+  async (fails) => {
+    const { scripts } = await Bun.file(join(root, "package.json")).json();
     const result = await fixture(
       { test: scripts.test, "test:check": scripts["test:check"] },
       {
@@ -69,5 +71,5 @@ test("check hides passing tests while keeping failures, totals, and failure stat
     expect(result.output).toContain("1 pass");
     expect(result.output).toContain(fails ? "1 fail" : "0 fail");
     if (fails) expect(result.output).toContain("(fail) synthetic failing case");
-  }
-});
+  },
+);

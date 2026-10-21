@@ -7,7 +7,7 @@ import { runCli, useBuiltCli } from "../support/cli.ts";
 // evidence; what the help says is covered in-process by help.test.ts.
 useBuiltCli();
 
-test.each([
+const discoveryArgs: string[][] = [
   [],
   ["--help"],
   ["--version"],
@@ -19,12 +19,16 @@ test.each([
   ["uninstall", "--help"],
   ["tunnel", "-d", "-h", "127.0.0.1", "--help"],
   ["unknown-command"],
-])(
-  "discovery %j stays free of configuration and tool calls",
-  async (...args) => {
-    for (const toolsAvailable of [false, true]) {
-      const result = await runCli(args, toolsAvailable);
-      expect(result.exitCode).toBe(args[0] === "unknown-command" ? 1 : 0);
-    }
+];
+
+test.each(
+  discoveryArgs.flatMap((args) =>
+    [false, true].map((toolsAvailable) => ({ args, toolsAvailable })),
+  ),
+)(
+  "discovery $args stays free of configuration and tool calls (tools available: $toolsAvailable)",
+  async ({ args, toolsAvailable }) => {
+    const result = await runCli(args, toolsAvailable);
+    expect(result.exitCode).toBe(args[0] === "unknown-command" ? 1 : 0);
   },
 );

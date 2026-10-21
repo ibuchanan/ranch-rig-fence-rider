@@ -2,21 +2,20 @@ import { expect, test } from "bun:test";
 import { deploymentValues } from "../support/fixtures.ts";
 import { runInProcess } from "../support/fake-io.ts";
 
-test("resolution and upload failures never report success or leak helper output", async () => {
-  for (const failStage of ["schema", "export", "variables"]) {
+test.each([
+  ["schema", "SecretSpec schema"],
+  ["export", "SecretSpec resolution"],
+  ["variables", "staging"],
+])(
+  "%s failure never reports success or leaks helper output",
+  async (failStage, expected) => {
     const result = await runInProcess({ failStage });
     expect(result.exitCode).not.toBe(0);
     expect(result.stdout).not.toContain("Uploaded");
     expect(result.stderr).not.toContain("synthetic helper noise");
-    expect(result.stderr).toContain(
-      failStage === "schema"
-        ? "SecretSpec schema"
-        : failStage === "export"
-          ? "SecretSpec resolution"
-          : "staging",
-    );
-  }
-});
+    expect(result.stderr).toContain(expected);
+  },
+);
 
 test.each(["secretspec", "forge"])(
   "unlaunchable %s executable reports safe actionable context",

@@ -67,13 +67,13 @@ test.skipIf(!realSecretSpec)(
         "synthetic-native-shared",
       ],
     ]);
-    for (const call of forge) {
-      expect(call.values).toEqual({
+    expect(forge.map(({ values }) => values)).toEqual([
+      {
         FORGE_ENVIRONMENT: "staging",
         SHARED: "synthetic-native-shared",
         LOCAL_ONLY: "synthetic-native-local",
-      });
-    }
+      },
+    ]);
     expect(result.stdout + result.stderr).not.toContain("synthetic-native");
   },
 );
@@ -125,7 +125,7 @@ test.skipIf(!realSecretSpec)(
       "check",
       "check",
     ]);
-    for (const { args } of native) expect(args).not.toContain("--profile");
+    expect(native.flatMap(({ args }) => args)).not.toContain("--profile");
     expect(result.interactions.at(-1)?.values).toEqual({
       FORGE_ENVIRONMENT: "production",
       SHARED: "synthetic-release",
@@ -175,14 +175,13 @@ test.skipIf(!realSecretSpec)(
     });
     const forge = result.interactions.filter(({ tool }) => tool === "forge");
     expect(forge).toHaveLength(1);
-    for (const call of forge) {
-      expect(call.values).toEqual({
+    expect(forge.map(({ values }) => values)).toEqual([
+      {
         FORGE_ENVIRONMENT: "staging",
         SHARED: "synthetic-native-shared",
         LOCAL_ONLY: "synthetic-native-local",
-      });
-      expect(call.values).not.toHaveProperty("OPTIONAL");
-    }
+      },
+    ]);
     expect(result.stdout + result.stderr).not.toContain("synthetic-stale");
   },
 );
@@ -216,12 +215,9 @@ test.skipIf(!realSecretSpec).each([
         runtime,
       ],
     ]);
-    for (const call of forge)
-      expect(call.values).toEqual({
-        FORGE_ENVIRONMENT: "staging",
-        SHARED: runtime,
-        LOCAL_ONLY: local,
-      });
+    expect(forge.map(({ values }) => values)).toEqual([
+      { FORGE_ENVIRONMENT: "staging", SHARED: runtime, LOCAL_ONLY: local },
+    ]);
   },
 );
 

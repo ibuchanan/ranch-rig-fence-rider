@@ -6,14 +6,13 @@ const spec: CommandSpec = {
   help: ["--help", "-h"],
 };
 
-test("owned options accept separated, long-equals and attached-short values", () => {
-  for (const args of [
-    ["--environment", "dev"],
-    ["--environment=dev"],
-    ["-edev"],
-    ["-e", "dev"],
-  ])
-    expect(parseForgeArgs(spec, args).owned).toEqual({ environment: "dev" });
+test.each([
+  [["--environment", "dev"]],
+  [["--environment=dev"]],
+  [["-edev"]],
+  [["-e", "dev"]],
+])("owned option accepts %j", (args) => {
+  expect(parseForgeArgs(spec, args).owned).toEqual({ environment: "dev" });
 });
 
 test("Forge options, including grouped short flags, are forwarded unparsed", () => {
@@ -34,13 +33,12 @@ test("a short equals value for an owned option is rejected", () => {
   expect(() => parseForgeArgs(spec, ["-e=dev"])).toThrow("short equals");
 });
 
-test("help flags stop parsing", () => {
-  for (const args of [
-    ["--help", "-e"],
-    ["-h", "--environment"],
-  ])
+test.each([[["--help", "-e"]], [["-h", "--environment"]]])(
+  "help flag stops parsing for %j",
+  (args) => {
     expect(parseForgeArgs(spec, args).help).toBe(true);
-});
+  },
+);
 
 test("everything after the terminator is forwarded untouched", () => {
   expect(parseForgeArgs(spec, ["-edev", "--", "-h", "-esite"])).toEqual({

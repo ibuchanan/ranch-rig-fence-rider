@@ -7,17 +7,15 @@ import {
 } from "../support/fixtures.ts";
 import { runInProcess } from "../support/fake-io.ts";
 
-test("variables refuses Forge options before any tool call", async () => {
-  for (const args of [
-    ["--non-interactive"],
-    ["--", "-x"],
-    ["-e", "production", "--verbose"],
-  ]) {
-    const result = await runInProcess({ args });
-    expect(result.exitCode).toBe(1);
-    expect(result.interactions).toEqual([]);
-    expect(result.stderr).toContain("environment option validation");
-  }
+test.each([
+  [["--non-interactive"]],
+  [["--", "-x"]],
+  [["-e", "production", "--verbose"]],
+])("variables %j refuses Forge options before any tool call", async (args) => {
+  const result = await runInProcess({ args });
+  expect(result.exitCode).toBe(1);
+  expect(result.interactions).toEqual([]);
+  expect(result.stderr).toContain("environment option validation");
 });
 
 test.each(["secretspec", "forge"])(
@@ -50,11 +48,11 @@ test("variables resolves once and encrypts only runtime values for the configure
       sharedValue,
     ],
   ]);
-  for (const call of result.interactions.filter(
-    ({ tool }) => tool === "forge",
-  )) {
-    expect(call.values).toEqual(deploymentValues);
-  }
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "forge")
+      .map(({ values }) => values),
+  ).toEqual([deploymentValues]);
   expect(result.stdout + result.stderr).not.toContain("synthetic local-only");
 });
 
@@ -96,23 +94,27 @@ test("variables emits safe stage progress without forwarding helper streams", as
   expect(result.stdout + result.stderr).not.toContain("synthetic helper noise");
 });
 
-test("omitted runtime scope and empty active-profile intersection upload nothing and delete nothing", async () => {
-  for (const spec of [
-    deploymentSpec.split("[scopes.runtime]")[0],
-    `${deploymentSpec.replace('["SHARED", "OPTIONAL"]', '["OTHER_PROFILE_VALUE"]')}\n[profiles.other]\nOTHER_PROFILE_VALUE = { description = "Not active" }\n`,
-  ]) {
-    const result = await runInProcess({ spec: spec ?? "" });
-    expect(result.exitCode).toBe(0);
-    expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
-      [],
-    );
-    expect(result.stdout).toContain("Uploaded 0 runtime variable(s).");
-    expect(
-      result.interactions
-        .filter(({ tool }) => tool === "secretspec")
-        .map(({ args }) => args[0]),
-    ).toEqual(["schema", "export", "check", "check"]);
-  }
+test.each([
+  {
+    name: "omitted runtime scope",
+    spec: deploymentSpec.split("[scopes.runtime]")[0] ?? "",
+  },
+  {
+    name: "empty active-profile intersection",
+    spec: `${deploymentSpec.replace('["SHARED", "OPTIONAL"]', '["OTHER_PROFILE_VALUE"]')}\n[profiles.other]\nOTHER_PROFILE_VALUE = { description = "Not active" }\n`,
+  },
+])("$name uploads nothing and deletes nothing", async ({ spec }) => {
+  const result = await runInProcess({ spec });
+  expect(result.exitCode).toBe(0);
+  expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
+    [],
+  );
+  expect(result.stdout).toContain("Uploaded 0 runtime variable(s).");
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "secretspec")
+      .map(({ args }) => args[0]),
+  ).toEqual(["schema", "export", "check", "check"]);
 });
 
 test("missing configured target falls back to development for uploads", async () => {

@@ -34,11 +34,11 @@ test("canonical environment selects the target for encrypted uploads", async () 
       .filter(({ tool }) => tool === "secretspec")
       .map(({ args }) => args[0]),
   ).toEqual(["schema", "export", "check", "check"]);
-  for (const call of result.interactions.filter(
-    ({ tool }) => tool === "forge",
-  )) {
-    expect(call.values).toEqual(deploymentValues);
-  }
+  expect(
+    result.interactions
+      .filter(({ tool }) => tool === "forge")
+      .map(({ values }) => values),
+  ).toEqual([deploymentValues]);
 });
 
 test.each([

@@ -42,11 +42,13 @@ test.each(workflows)(
   },
 );
 
-test("top-level help lists every supported workflow", async () => {
-  const result = await runMain(["--help"]);
-  for (const command of workflows)
+test.each(workflows)(
+  "top-level help lists the %s workflow",
+  async (command) => {
+    const result = await runMain(["--help"]);
     expect(result.stdout).toMatch(new RegExp(`^  ${command} {2,}\\S`, "m"));
-});
+  },
+);
 
 test.each(["--version", "-V"])(
   "%s prints the package version",

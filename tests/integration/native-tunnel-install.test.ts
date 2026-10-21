@@ -123,7 +123,7 @@ test.skipIf(!realSecretSpec)(
       "check",
       "run",
     ]);
-    for (const { args } of native) expect(args).not.toContain("--profile");
+    expect(native.flatMap(({ args }) => args)).not.toContain("--profile");
   },
 );
 

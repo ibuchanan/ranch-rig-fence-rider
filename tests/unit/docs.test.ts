@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { root } from "../support/cli.ts";
 import { runMain } from "../support/main.ts";
 
@@ -35,15 +35,20 @@ test.each(commands)(
   },
 );
 
-test("usage text lives only in the command help page", async () => {
-  const others = markdownFiles(docsRoot).filter((file) => file !== helpPage);
-  for (const command of commands) {
+const otherDocs = markdownFiles(docsRoot).filter((file) => file !== helpPage);
+const usageCases = commands.flatMap((command) =>
+  otherDocs.map((file) => [command, relative(root, file)] as const),
+);
+
+test.each(usageCases)(
+  "usage text for %s does not appear in %s",
+  async (command, file) => {
     const help = await runMain(["help", command]);
-    for (const line of help.stdout.trimEnd().split("\n")) {
-      for (const file of others)
-        expect(readFileSync(file, "utf8").replace(/\s+/g, " ")).not.toContain(
-          line.replace(/\s+/g, " "),
-        );
-    }
-  }
-});
+    const page = readFileSync(join(root, file), "utf8").replace(/\s+/g, " ");
+    const repeated = help.stdout
+      .trimEnd()
+      .split("\n")
+      .filter((line) => page.includes(line.replace(/\s+/g, " ")));
+    expect(repeated).toEqual([]);
+  },
+);
