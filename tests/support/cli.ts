@@ -12,6 +12,17 @@ import { fileURLToPath } from "node:url";
 
 export const root = fileURLToPath(new URL("../../", import.meta.url));
 
+/**
+ * Where tests make their temporary directories. They stay inside the
+ * repository so parallel repository checks can be told to skip them, and under
+ * one ignored `tmp/` so they come and go out of sight.
+ */
+export function makeScratchDir(prefix: string) {
+  const parent = join(root, "tmp");
+  mkdirSync(parent, { recursive: true });
+  return mkdtempSync(join(parent, prefix));
+}
+
 // Each test file gets its own workspace and compiled CLI so files can run in
 // parallel worker processes without sharing a cwd or any other mutable state.
 export const cli = { workspace: "", executable: "" };
@@ -58,7 +69,7 @@ async function sharedExecutable() {
 
 export function useBuiltCli() {
   beforeAll(async () => {
-    cli.workspace = mkdtempSync(join(root, "tmp_rovo_cli-"));
+    cli.workspace = makeScratchDir("cli-");
     cli.executable = await sharedExecutable();
   }, 60_000);
 

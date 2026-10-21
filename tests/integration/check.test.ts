@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { makeScratchDir } from "../support/cli.ts";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -10,7 +11,7 @@ async function fixture(
   files: Record<string, string>,
   command: string,
 ) {
-  const directory = mkdtempSync(join(root, "tmp_rovo_check-"));
+  const directory = makeScratchDir("check-");
   try {
     writeFileSync(join(directory, "package.json"), JSON.stringify({ scripts }));
     for (const [name, content] of Object.entries(files))
