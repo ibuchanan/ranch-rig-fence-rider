@@ -38,7 +38,12 @@ runs `secretspec check --json --scope runtime` and reports how many members
 `variables` would upload; an undefined or empty `runtime` scope is a warning,
 because `variables` would upload nothing and still exit 0, and a local control
 (`FORGE_ENVIRONMENT`, `FORGE_SITE`, `FORGE_PRODUCT`) among the members is a
-failure, because `variables` refuses it. No value is printed. The lowest
+failure, because `variables` refuses it. Finally it warns, by name only, about
+exported values that can shadow a generated command: declared keys and local
+controls, which `secretspec run` leaves in place for unresolved optional
+declarations, and `FORGE_USER_VAR_*` names containing characters other than
+letters, digits and underscores, which `tunnel` cannot clear. This check is
+advisory and never changes the exit status. No value is printed. The lowest
 supported versions (SecretSpec 0.17, Forge CLI 1.3)
 are inferred from the features used, not exercised; the highest tested versions
 are the only exercised baseline, SecretSpec 0.21.1 and Forge 14.2.0. No

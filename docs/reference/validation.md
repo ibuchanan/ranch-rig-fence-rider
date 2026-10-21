@@ -4,6 +4,16 @@ Recorded 2026-10-19. Public seams: the compiled CLI subprocess
 and observable validation-command output/status, confirmed by the user.
 No private-function tests or second native proof suite were introduced.
 
+## Doctor warns about ambient shadowing — 2026-10-21
+
+`fence-rider doctor` compares the exported environment with the declared keys,
+the local controls (`FORGE_ENVIRONMENT`, `FORGE_SITE`, `FORGE_PRODUCT`) and the
+`FORGE_USER_VAR_*` names that `tunnel` cannot clear. Each match is an
+`Environment: <name> is exported` warning; a clean environment reports
+`Environment: no ambient shadowing`. The check is advisory: it never changes
+the exit status and never prints a value. Unit tests assert that a value does
+not appear in the output.
+
 ## Doctor validates the schema — 2026-10-21
 
 `fence-rider doctor` runs `secretspec schema`, which carries no values, through

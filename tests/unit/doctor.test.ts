@@ -1,5 +1,5 @@
 import { basename } from "node:path";
-import { expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { main } from "../../src/cli";
 import type { Io } from "../../src/io";
 import { CommandFailure } from "../../src/process";
@@ -14,6 +14,8 @@ type Project = {
   runtime?: string[] | "undefined";
   /** Printed by a fake `secretspec schema`; defaults to one valid string declaration. */
   schema?: object | "fail";
+  /** The exported environment; defaults to empty. */
+  env?: Record<string, string>;
   /** The manifest.yml in the project, when it has one. */
   manifest?: string;
 };
@@ -28,7 +30,7 @@ async function runDoctor(
   const recorded = recordingIo();
   const io: Io = {
     ...recorded.io,
-    env: {},
+    env: project.env ?? {},
     which: (tool) => (tools[tool] ? `/fake/bin/${tool}` : null),
     readFile: async (path) => {
       if (path.endsWith("secretspec.toml") && toml !== undefined) return toml;
@@ -333,4 +335,37 @@ test("doctor reports a SecretSpec failure reading the schema without its stderr"
   expect(result.exitCode).toBe(1);
   expect(result.stdout).toContain("Schema: SecretSpec schema failed");
   expect(result.stdout + result.stderr).not.toContain("Invalid schema");
+});
+
+describe("ambient shadowing", () => {
+  const secret = "s3cr3t-value";
+
+  test("doctor reports a clean environment", async () => {
+    const result = await runDoctor(ok);
+    expect(result.stdout).toContain("Environment: no ambient shadowing");
+  });
+
+  test("doctor warns about an exported declared key or local control, by name", async () => {
+    const result = await runDoctor(ok, [], undefined, {
+      env: { A: secret, FORGE_SITE: secret, UNRELATED: secret },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Environment: A is exported");
+    expect(result.stdout).toContain("Environment: FORGE_SITE is exported");
+    expect(result.stdout).not.toContain("UNRELATED");
+    expect(result.stdout).not.toContain(secret);
+    expect(result.stderr).not.toContain(secret);
+  });
+
+  test("doctor warns only about FORGE_USER_VAR_ names tunnel cannot clear", async () => {
+    const result = await runDoctor(ok, [], undefined, {
+      env: { "FORGE_USER_VAR_A-B": secret, FORGE_USER_VAR_OK: secret },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain(
+      "Environment: FORGE_USER_VAR_A-B is exported",
+    );
+    expect(result.stdout).not.toContain("FORGE_USER_VAR_OK");
+    expect(result.stdout).not.toContain(secret);
+  });
 });

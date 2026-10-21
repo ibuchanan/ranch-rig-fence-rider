@@ -1,7 +1,8 @@
 import { resolve } from "node:path";
 import { checkManifest, schemaNames, scopeMembers } from "./configured";
 import type { Io } from "./io";
-import { isLocalControl } from "./policy";
+import { isLocalControl, localControls } from "./policy";
+import { tunnelClears } from "./tunnel-plan";
 import { recognizedScopes, unrecognizedScopes } from "./resolution";
 
 /**
@@ -25,8 +26,8 @@ type Dependency = (typeof dependencies)[number];
 export const doctorUsage = [
   "Usage: fence-rider doctor",
   "Report the SecretSpec and Forge CLI versions on PATH against the lowest supported and highest tested versions.",
-  "Reads SecretSpec's declared schema, which carries no values, and applies the rules variables applies when it resolves the profile: every name is letters, digits and underscores and does not start with a digit, and every declaration is a string or string-or-null. Asks SecretSpec (value-free) for the manifest scope's members, including a scope inherited through project.extends, and checks that manifest.yml declares them. Likewise asks for the runtime scope's members and reports what variables would upload: an undefined or empty scope is a warning, a local control (FORGE_ENVIRONMENT, FORGE_SITE, FORGE_PRODUCT) among them is a failure. Also reads the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml) only to warn about scopes Fence Rider never reads.",
-  "Exits 1 when a tool is missing, unreadable or older than supported, the schema has an unsupported name or type, a manifest scope member is not declared in manifest.yml, or a runtime scope member is a local control; a newer version, an unused scope or an empty runtime scope is only a warning.",
+  "Reads SecretSpec's declared schema, which carries no values, and applies the rules variables applies when it resolves the profile: every name is letters, digits and underscores and does not start with a digit, and every declaration is a string or string-or-null. Asks SecretSpec (value-free) for the manifest scope's members, including a scope inherited through project.extends, and checks that manifest.yml declares them. Likewise asks for the runtime scope's members and reports what variables would upload: an undefined or empty scope is a warning, a local control (FORGE_ENVIRONMENT, FORGE_SITE, FORGE_PRODUCT) among them is a failure. Warns, by name only, about values already exported in the shell that can change a generated command: declared keys and local controls, which secretspec run leaves in place for unresolved optional declarations, and FORGE_USER_VAR_ names that tunnel cannot clear; this is advisory and never prints a value. Also reads the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml) only to warn about scopes Fence Rider never reads.",
+  "Exits 1 when a tool is missing, unreadable or older than supported, the schema has an unsupported name or type, a manifest scope member is not declared in manifest.yml, or a runtime scope member is a local control; a newer version, an unused scope, an empty runtime scope or ambient shadowing is only a warning.",
   "Other commands never pre-check versions: a changed tool contract surfaces as that command's failure.",
 ].join("\n");
 
@@ -189,6 +190,35 @@ async function inspectSchema(secretspec: string | undefined, io: Io) {
   }
 }
 
+/**
+ * Warn, by name only, about exported values that can change a generated
+ * command: declared keys and local controls, which `secretspec run` leaves in
+ * place when an optional declaration is unresolved, and FORGE_USER_VAR_ names
+ * that `tunnel` cannot clear. Advisory; never prints a value.
+ */
+async function inspectAmbient(secretspec: string | undefined, io: Io) {
+  const state = {
+    stage: "SecretSpec schema",
+    signal: new AbortController().signal,
+    io,
+  };
+  const declared = secretspec
+    ? await schemaNames(secretspec, state).catch(() => [])
+    : [];
+  const shadowing = new Set([...declared, ...localControls]);
+  const names = Object.keys(io.env).filter(
+    (name) =>
+      shadowing.has(name) ||
+      (name.startsWith("FORGE_USER_VAR_") && !tunnelClears(name)),
+  );
+  return names.length
+    ? names.map(
+        (name) =>
+          `Environment: ${name} is exported and may shadow a generated command; unset it if that is unintended`,
+      )
+    : ["Environment: no ambient shadowing"];
+}
+
 /** The lines of one doctor run, and whether any of them is a failure. */
 async function inspectAll(io: Io) {
   const file = specificationFile(io);
@@ -203,7 +233,11 @@ async function inspectAll(io: Io) {
     await inspectRuntime(secretspec, io),
   ];
   return {
-    lines: [...checks.map(({ line }) => line), ...scopeLines(file, scopes)],
+    lines: [
+      ...checks.map(({ line }) => line),
+      ...scopeLines(file, scopes),
+      ...(await inspectAmbient(secretspec, io)),
+    ],
     failed: checks.some(({ failed }) => failed),
   };
 }

@@ -21,6 +21,10 @@ export function parseTunnelOptions(args: string[]) {
   return { target: owned["environment"], forwarded, help };
 }
 
+/** Whether the prologue's cleanup loop can see and unset this ambient name. */
+export const tunnelClears = (name: string) =>
+  /^FORGE_USER_VAR_[A-Za-z0-9_]*$/.test(name);
+
 const isReserved = (name: string) => name.startsWith(reservedPrefix);
 
 /**
