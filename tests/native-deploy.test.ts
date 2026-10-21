@@ -34,18 +34,15 @@ test.skipIf(!realSecretSpec)(
   },
 );
 
-test
-  .skipIf(!realSecretSpec)
-  .each([{ args: [] }, { args: ["-e", "production"] }])(
-  "native conflicting environment defaults fail before Forge with %j",
-  async ({ args }) => {
+test.skipIf(!realSecretSpec)(
+  "native conflicting environment defaults fail before Forge",
+  async () => {
     const result = await runWorkflow({
       realSecretSpec: realSecretSpec ?? "",
       spec: canonicalSpec.replace(
         "[profiles.default]",
         '[profiles.default]\nFORGE_ENV = { description = "Legacy target", default = "synthetic-conflict" }',
       ),
-      args,
       env: { SECRETSPEC_PROVIDER: "dotenv:values.env" },
       dotenv:
         "SHARED=synthetic-native-shared\nLOCAL_ONLY=synthetic-native-local\n",

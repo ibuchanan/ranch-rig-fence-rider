@@ -9,6 +9,7 @@ import {
 } from "./secretspec";
 import {
   manifestKeys,
+  configuredEnvironment,
   members,
   parseInheritance,
   parseResolved,
@@ -96,18 +97,6 @@ function forgeEnvironment(
   const env = { ...process.env };
   for (const key of Object.keys(properties)) delete env[key];
   return Object.assign(env, values);
-}
-
-function differ(a: string | undefined, b: string | undefined) {
-  return a !== undefined && b !== undefined && a !== b;
-}
-
-function configuredEnvironment(values: Record<string, string>) {
-  const current = values["FORGE_ENVIRONMENT"];
-  const legacy = values["FORGE_ENV"];
-  if (differ(current, legacy))
-    throw new Error("Conflicting environment controls");
-  return current ?? legacy;
 }
 
 export async function configure(state: Workflow) {

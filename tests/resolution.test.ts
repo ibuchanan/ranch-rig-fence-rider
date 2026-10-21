@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  configuredEnvironment,
   manifestKeys,
   members,
   parseInheritance,
@@ -223,5 +224,29 @@ describe("manifest declarations", () => {
     expect(() =>
       manifestKeys({ environment: { variables: "SHARED" } }),
     ).toThrow("not a list");
+  });
+});
+
+describe("configured environment", () => {
+  test.each([
+    { values: { FORGE_ENVIRONMENT: "staging" }, expected: "staging" },
+    { values: { FORGE_ENV: "staging" }, expected: "staging" },
+    {
+      values: { FORGE_ENVIRONMENT: "staging", FORGE_ENV: "staging" },
+      expected: "staging",
+    },
+    { values: {}, expected: undefined },
+    { values: { FORGE_ENVIRONMENT: "" }, expected: "" },
+  ])("$values resolves to $expected", ({ values, expected }) => {
+    expect(configuredEnvironment(values)).toBe(expected);
+  });
+
+  test("differing aliases conflict", () => {
+    expect(() =>
+      configuredEnvironment({
+        FORGE_ENVIRONMENT: "staging",
+        FORGE_ENV: "production",
+      }),
+    ).toThrow("Conflicting environment controls");
   });
 });
