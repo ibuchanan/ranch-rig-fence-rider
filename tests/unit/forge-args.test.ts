@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { type CommandSpec, parseForgeArgs } from "../src/forge-args";
+import { type CommandSpec, parseForgeArgs } from "../../src/forge-args";
 
 const spec: CommandSpec = {
   owned: { environment: "e", site: "s" },

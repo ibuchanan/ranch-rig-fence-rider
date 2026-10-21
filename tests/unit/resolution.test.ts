@@ -4,12 +4,12 @@ import {
   parseMembers,
   parseResolved,
   unrecognizedScopes,
-} from "../src/resolution.ts";
+} from "../../src/resolution.ts";
 import {
   deploymentSchema,
   deploymentValues,
   sharedValue,
-} from "./support/fixtures.ts";
+} from "../support/fixtures.ts";
 
 describe("scope membership", () => {
   test("names come from the value-free report in order", () => {

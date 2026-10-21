@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import fc from "fast-check";
-import { isLocalControl, isOptionValue } from "../src/policy";
+import { isLocalControl, isOptionValue } from "../../src/policy";
 
 test("option values are non-empty and cannot parse as an option", () => {
   for (const value of ["development", "a", "dev.env", "x-y", "dev env"])

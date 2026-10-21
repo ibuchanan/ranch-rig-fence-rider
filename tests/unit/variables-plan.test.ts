@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { parseTargetOptions } from "../src/target.ts";
-import { planUploads } from "../src/variables-plan.ts";
+import { parseTargetOptions } from "../../src/target.ts";
+import { planUploads } from "../../src/variables-plan.ts";
 
 describe("target option", () => {
   test.each([

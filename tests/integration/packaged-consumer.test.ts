@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test";
 import { existsSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { root, useBuiltCli } from "./support/cli.ts";
-import { packedConsumer } from "./support/consumer.ts";
+import { root, useBuiltCli } from "../support/cli.ts";
+import { packedConsumer } from "../support/consumer.ts";
 import {
   deploymentEnv,
   realSecretSpec,
   type ToolCall,
-} from "./support/fixtures.ts";
+} from "../support/fixtures.ts";
 
 useBuiltCli();
 
