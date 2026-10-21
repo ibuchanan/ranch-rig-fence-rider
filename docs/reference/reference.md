@@ -376,20 +376,24 @@ followed by export is not evidence of a single coherent resolution.
 
 ### Forge argument parsing
 
-`deploy`, `install`, `uninstall`, `tunnel` and `lint` parse Forge arguments with
-one parser (`src/forge-args.ts`). Each command supplies a table naming the
-options the wrapper owns, the Forge options that take a payload (always or only
-when the next argument is not a switch), the help flags, and the boolean short
-flags that may be grouped. Everything after `--` is forwarded untouched, and
-help detection and duplicate-option checks exist once.
+`deploy`, `install`, `uninstall`, `tunnel` and `lint` share one small reader
+(`src/forge-args.ts`). It lifts out only the options the wrapper owns
+(`--environment`/`-e`, and for installation `--site`/`-s` and
+`--product`/`-p`) and the help flags. It does not model Forge's option table:
+every other argument is forwarded untouched and in order, and Forge reports
+anything malformed. Everything after `--` is forwarded untouched. Repeated
+owned options and a short option followed by `=` (`-e=dev`) are rejected.
 
-**Grouped short flags are supported, where the command's table lists them.**
-`deploy` groups `-f`; `tunnel` groups `-d` and `-n`; `install`, `uninstall` and
-`lint` accept none. A wrapper-owned option inside a group (`-feproduction`) is
-lifted out and validated, with the remaining flags forwarded in order, so a
-group cannot hide a conflicting target. Rejecting groups instead would forward
-that option to Forge unchecked. A short option followed by `=` (`-e=dev`) is
-rejected.
+**Grouped short flags are not parsed.** A group such as `-feproduction` is
+forwarded to Forge as written, so the wrapper cannot see an owned option inside
+it. The wrapper still injects its own `--environment`; whether Forge accepts
+the combination is Forge's decision. This trades strictness for not
+re-implementing Forge's argument grammar. A payload that looks like an owned or
+help flag (`--tag --environment`) is also read as that flag.
+
+Owned values are checked only for being non-empty and not starting with a dash,
+so a value can never be read as an option. Forge validates environment names,
+site URLs and products.
 
 ## Forge boundaries and failures
 
@@ -489,8 +493,9 @@ such as `-p=jira` are invalid. Missing, empty, invalid, or repeated targets fail
 before Forge; explicit target syntax errors fail before SecretSpec too.
 Missing effective site/product never opens Forge's target selection prompts.
 Bitbucket uses a workspace URL such as `https://bitbucket.org/workspace/`.
-`--demo-site` / `-d` is unsupported because it conflicts with configured site
-selection. Feature-gated Teamwork Graph installation is not certified here.
+`--demo-site` / `-d` is forwarded to Forge unchecked, alongside the injected
+`--site`; Fence Rider does not reconcile them. Feature-gated Teamwork Graph
+installation is not certified here.
 
 Upgrade is the same command with an explicit `--upgrade [all|code]` or `-u`
 option. Fence Rider adds no upgrade, consent, non-interactive, license, or
@@ -598,22 +603,13 @@ credentials/settings remain inherited; this is not credential isolation.
 
 Target selection and the development-only rule are in the
 [command help](command-help.md#tunnel). Empty, invalid, and duplicate explicit
-targets fail before tools run, and reserved `staging` and `production` are
-rejected before Forge starts. Syntax validation does not prove that a named
-target exists or is authorized. Site/product flags are never injected. Names
-use the wrapper's established alphanumeric-first, then
-alphanumeric/underscore/hyphen target syntax.
+targets fail before tools run. Forge, not the wrapper, rejects non-development
+environments and validates names. Site/product flags are never injected.
 
-Separated, long-equals, attached-short, and grouped `-d`/`-n` environment
-options normalize to one effective target. Debug arguments retain order and
-boundaries. Forge 14.2.0 has required variadic `--debugFunctionHandlers` / `-f`,
-optional `--debugHost` / `-h` and `--debugStartingPort` / `-p`, plus debug and
-no-verify flags. Required payloads consume a
-switch-looking first value; optional values do not consume a following switch.
-Attached/equals values and everything after `--` are preserved. The inspected
-feature-gated `--url` / `-u` and `--local-port` required values are preserved;
-this does not enable or certify that upstream feature. Unknown switches remain
-Forge's responsibility; no universal future-option parser is promised.
+Separated, long-equals and attached-short environment options normalize to one
+effective target. Every other argument is forwarded in order, and Forge owns the
+debug, `--url` and `--local-port` option grammar. Forge's `-h` is debug host, so
+only `--help` requests wrapper help.
 
 The [live stdio policy](#output-and-input-policy) applies without redaction,
 including tunnel/app logs. Numeric Forge status propagates. Private helper,

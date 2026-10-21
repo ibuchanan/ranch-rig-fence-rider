@@ -92,7 +92,7 @@ unless explicitly labeled native SecretSpec. This is not live certification.
 | AC-08 | `deploy resolves once...` asserts literal multiline, quoted, spaced, shell-syntax argument preservation and absence of the injected file |
 | AC-09 | `helper exception during %s never leaks stdout stderr or error details`; `resolution, upload, and deployment failures never report success or leak helper output`; shared fixture checks independent synthetic markers |
 | AC-10 | No-command, help, version, unknown invocation, install, and tunnel cases all assert no external tool calls |
-| AC-11 | `invalid or duplicate target %j fails before any tool call`; grouped short flags and target-like payload cases |
+| AC-11 | `invalid or duplicate target %j fails before any tool call`; target-like payload cases after the terminator |
 | AC-12 | Selective-upload exact interaction lists exclude undeclared values; site/product controls stay local; control upload selection fails; fixture file inventory asserts no generated secret files |
 | AC-13 | `operator interruption...` across schema/export/upload/deploy with SIGINT/SIGTERM; `interruption cleans up descendants even when the active helper exits first` |
 | AC-14 | `missing required %s blocks writes even without runtime selection`; native full-profile and manifest-requirement failures prevent every Forge command |
