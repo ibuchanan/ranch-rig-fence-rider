@@ -9,13 +9,17 @@ import {
 
 useBuiltCli();
 
-test.skipIf(!realSecretSpec).each(["SHARED", "LOCAL_ONLY"])(
-  "native configured lint blocks missing whole-profile requirement %s",
-  async (missing) => {
+test.skipIf(!realSecretSpec).each([
+  { missing: "SHARED", stage: "lint failed" },
+  { missing: "LOCAL_ONLY", stage: "manifest scope membership failed" },
+])(
+  "native configured lint blocks missing whole-profile requirement $missing ($stage)",
+  async ({ missing, stage }) => {
     const result = await runWorkflow({
       command: "lint",
       realSecretSpec: realSecretSpec ?? "",
       spec: `${deploymentSpec}\n[scopes.manifest]\nsecrets = ["LOCAL_ONLY"]\n`,
+      manifest: "environment:\n  variables: [LOCAL_ONLY]\n",
       env: {
         SECRETSPEC_PROVIDER: "dotenv:values.env",
         SECRETSPEC_SCOPE: "manifest",
@@ -29,13 +33,13 @@ test.skipIf(!realSecretSpec).each(["SHARED", "LOCAL_ONLY"])(
     expect(result.interactions.filter(({ tool }) => tool === "forge")).toEqual(
       [],
     );
-    expect(result.stderr).toContain("SecretSpec resolution");
+    expect(result.stderr).toContain(stage);
     expect(result.stderr).not.toContain("synthetic-native");
   },
 );
 
 test.skipIf(!realSecretSpec)(
-  "native configured lint delivers a selected inherited profile, shared manifest value, and cleared optionals once",
+  "native configured lint delivers a selected inherited profile and shared manifest value, and leaves an ambient optional visible",
   async () => {
     const spec = `${deploymentSpec.replace("[scopes.runtime]", '[profiles.release]\nLOCAL_ONLY = { description = "Local override", default = "synthetic-release" }\n\n[scopes.runtime]')}\n[scopes.manifest]\nsecrets = ["SHARED"]\n`;
     const result = await runWorkflow({
@@ -63,17 +67,14 @@ test.skipIf(!realSecretSpec)(
           FORGE_ENVIRONMENT: "staging",
           SHARED: "synthetic-native-shared",
           LOCAL_ONLY: "synthetic-release",
+          OPTIONAL: "stale",
         },
       },
     ]);
     const native = result.interactions.filter(
       ({ tool }) => tool === "secretspec",
     );
-    expect(native.map(({ args }) => args[0])).toEqual([
-      "schema",
-      "export",
-      "check",
-    ]);
+    expect(native.map(({ args }) => args[0])).toEqual(["check", "run"]);
     for (const { args } of native) expect(args).not.toContain("--profile");
   },
 );

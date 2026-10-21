@@ -8,9 +8,9 @@ and [deployment evidence](deployment.md) separate native SecretSpec delivery,
 controlled Forge behavior, and unverified upstream acceptance.
 
 This reference defines variable declarations, local availability, manifest
-checks, and runtime upload selection for deployment. Configured lint reuses
-full-profile validation, local delivery, and the optional manifest check,
-without uploads or injected target flags; its [output boundary](#configured-lint)
+checks, and runtime upload selection for deployment. Configured lint runs under
+`secretspec run` after the optional manifest check, without uploads or injected
+target flags; its [output boundary](#configured-lint)
 differs from private deployment output.
 The repository-owned `secretspec.toml` specifies and validates every variable.
 There is no separate Fence Rider variable inventory or provider schema.
@@ -313,14 +313,16 @@ cross-file specifications work as SecretSpec resolves them. It passes no
 
 The metadata boundary is:
 
-- Resolve the whole profile once: `secretspec schema` for effective names and
-  types, `secretspec export --scope "" --format json` for values.
+- Resolve the whole profile once for deploy and tunnel: `secretspec schema` for
+  effective names and types, `secretspec export --scope "" --format json` for
+  values.
 - Ask SecretSpec for the members of `manifest` (lint, deploy, tunnel) and
   `runtime` (deploy, tunnel) with `secretspec check --json --scope NAME`. The
   report is value-free and includes optional declarations absent from exported
   values, so the manifest check still covers them. Install and uninstall ask
   for neither, and make no `schema` or `export` call either: they run under
-  `secretspec run`.
+  `secretspec run`. Lint asks for `manifest` only, then runs under
+  `secretspec run` the same way.
 - A scope the file does not define has no members, so a missing runtime scope
   means no uploads. SecretSpec reports this only as "is not defined in
   secretspec.toml" on stderr, which Fence Rider matches without printing it.
@@ -406,12 +408,21 @@ signal termination, or interruption cannot become success.
 
 ## Configured lint
 
-`fence-rider lint [Forge options]` resolves and validates the entire active
-profile once, delivers every resolved application value to `forge lint`, and
-applies the optional manifest check. A required local, manifest, runtime, or
-control value can block lint even when lint does not use it: this is
+`fence-rider lint [Forge options]` applies the optional manifest check, then
+runs `secretspec run --scope "" -- forge lint …`, so SecretSpec resolves the
+entire active profile into Forge's environment. Fence Rider makes no `schema` or
+`export` call and builds no environment for lint. A required local, manifest,
+runtime, or control value can block lint even when lint does not use it: this is
 whole-profile repository readiness, not command-scoped requiredness. Native
 optional declarations and profiles represent legitimate absence.
+
+A missing required value fails inside `secretspec run` with SecretSpec's own
+error before Forge starts. The one exception is a required value in the
+`manifest` scope, which the preceding scope check reports generically. Like
+install and uninstall, lint does not validate resolved values and does not clear
+a stale ambient value for an unresolved optional declaration, and an exported
+variable that the profile neither declares nor resolves stays visible to Forge.
+See [ADR 0005](../adr/0005-install-and-lint-delegate-to-secretspec-run.md).
 
 No environment/site/product flags are injected. Explicit lint arguments,
 including Forge's environment option, retain their boundaries and order; Forge
@@ -423,7 +434,7 @@ suppress local delivery or Forge's substitution requirements.
 ### Output and input policy
 
 SecretSpec schema/export and encrypted-upload stdout remain private and stderr
-is discarded. Deployment retains its existing suppressed-output contract.
+is not shown. Deployment retains its existing suppressed-output contract.
 Delegated lint, installation, uninstall, and tunnel inherit stdin, stdout, and stderr:
 output is live, without redaction, and on its original stream; input is available
 without wrapper prompts. Wrapper-owned diagnostics omit values and raw helper
@@ -468,8 +479,8 @@ Installation does not activate changed runtime values. SecretSpec requiredness
 applies to the whole profile, and `--scope ""` keeps an ambient
 `SECRETSPEC_SCOPE` from narrowing it.
 
-Because SecretSpec, not Fence Rider, builds the environment, install and
-uninstall differ from lint, deploy and tunnel in three ways:
+Because SecretSpec, not Fence Rider, builds the environment, install, uninstall
+and lint differ from deploy and tunnel in three ways:
 
 - Fence Rider does not validate the resolved values (string typing, NUL-free).
 - A stale ambient value for an unresolved optional declaration is **not**
@@ -495,7 +506,7 @@ with `secretspec` and `forge` directly, for example
 `secretspec run -- forge install --environment … --site … --product …`, which is
 now almost what the wrapper does itself. See
 [ADR 0004](../adr/0004-install-targets-from-profile-only.md) and
-[ADR 0005](../adr/0005-install-delegates-to-secretspec-run.md).
+[ADR 0005](../adr/0005-install-and-lint-delegate-to-secretspec-run.md).
 Bitbucket uses a workspace URL such as `https://bitbucket.org/workspace/`.
 `--demo-site` / `-d` is forwarded to Forge unchecked, alongside the injected
 `--site`; Fence Rider does not reconcile them. Feature-gated Teamwork Graph

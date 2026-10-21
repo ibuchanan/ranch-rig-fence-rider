@@ -8,10 +8,10 @@ validates configuration, uploads only explicitly selected runtime variables
 with Forge encryption enabled, then delegates deployment to the same Forge
 environment. No vault SDK or Fence Rider code belongs in your deployed app.
 
-Configured `lint` supplies validated local inputs without runtime uploads.
-`install` and `uninstall` run Forge under `secretspec run`, using configured
-targets and caller-owned interaction. **Uninstall changes remote installation state.**
-Forge output streams without redaction; see the
+Configured `lint`, `install` and `uninstall` run Forge under `secretspec run`.
+`lint` supplies the resolved local inputs without runtime uploads; the others
+use configured targets and caller-owned interaction. **Uninstall changes remote
+installation state.** Forge output streams without redaction; see the
 [workflow contracts](docs/reference/reference.md#configured-uninstall).
 
 **Status:** configured deployment, lint, installation, and uninstall are

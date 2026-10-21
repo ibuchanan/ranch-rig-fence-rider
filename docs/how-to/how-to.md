@@ -96,7 +96,10 @@ before lint. Use native optional declarations or a suitable profile for
 legitimate absence; a manifest scope does not narrow requiredness. If manifest
 membership is present, declare each effective member in `environment.variables`.
 
-Lint performs no runtime uploads or deployment and adds no target flags.
+Lint performs no runtime uploads or deployment and adds no target flags. It runs
+under `secretspec run`, so a stale ambient value for an unresolved optional
+declaration is not cleared, and an exported variable the profile does not
+resolve stays visible to Forge.
 Forge's `--fix` can change local files only when you request it. Forge output
 streams live **without redaction**; do not assume command output or echoed input
 is safe to publish. Private configuration-helper output stays suppressed; see

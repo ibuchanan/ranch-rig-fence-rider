@@ -1,11 +1,12 @@
-import { checkManifest, configure } from "./configured";
+import { checkManifest, prerequisite, scopeMembers } from "./configured";
 import { type CommandSpec, parseForgeArgs } from "./forge-args";
 import { checkInterruption, passthrough } from "./process";
 import { runWorkflow } from "./workflow";
 
 export const lintUsage = [
   "Usage: fence-rider lint [Forge options]",
-  "Resolve the whole active profile, check optional manifest metadata, then lint.",
+  "Check optional manifest metadata, then run forge lint under secretspec run with the whole active profile resolved into its environment.",
+  "Unlike deploy and tunnel, values are not validated by Fence Rider, and an exported variable the profile does not resolve (or declare) stays visible to Forge.",
   "Forge stdin is inherited; stdout/stderr stream live and unredacted. Upstream output may expose values.",
   "No target flags are injected and no runtime variables are uploaded.",
   "SecretSpec and Forge must be installed on PATH and authenticated separately.",
@@ -24,10 +25,18 @@ export async function lint(args: string[]): Promise<number> {
     return 0;
   }
   return runWorkflow(async (state) => {
-    const { forge, env, scopeMembers } = await configure(state);
-    await checkManifest(scopeMembers, state);
+    const secretspec = prerequisite("secretspec", state);
+    const forge = prerequisite("forge", state);
+    await checkManifest(
+      (scope) => scopeMembers(secretspec, scope, state),
+      state,
+    );
     state.stage = "lint";
-    await passthrough(forge, ["lint", ...forwarded], state.signal, env);
+    await passthrough(
+      secretspec,
+      ["run", "--scope", "", "--", forge, "lint", ...forwarded],
+      state.signal,
+    );
     checkInterruption(state.signal);
   });
 }

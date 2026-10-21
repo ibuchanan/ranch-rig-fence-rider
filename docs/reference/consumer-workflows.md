@@ -39,7 +39,7 @@ certify real Forge execution under Bun.
 | CW-06 | Environment control selection in native compiled tests and installed controls-only cases | Named server environment identity blocked |
 | CW-07 | Installed controls-only install takes all targets from the profile and refuses target options; compiled deploy upload/deploy target checks | Actual server destination blocked |
 | CW-08 | Command grammar tests reject target options and missing targets and preserve unrelated options | Upstream version range unverified |
-| CW-09 | Installed lint script gets all inputs and live output; only one lint call with no injected target or writes | Real Forge manifest acceptance blocked |
+| CW-09 | Installed lint script gets all inputs through `secretspec run` and live output; only one lint call with no injected target or writes | Real Forge manifest acceptance blocked |
 | CW-10 | Installed install/upgrade preserve explicit consent/non-interactive switches and configured targets | Real install/upgrade/scope consent blocked |
 | CW-11 | Installed uninstall injects only targets; no runtime sync or inherited install policy | Actual removal and terminal-specific prompts blocked |
 | CW-12 | Installed tunnel gets explicit runtime values through prefixed env and no variable writes; compiled restrictions/debug/interruption tests | Connected local runtime receipt and named environment identity blocked |
@@ -76,12 +76,14 @@ explicitly without SecretSpec on `PATH`; a skipped run is not native evidence.
 
 SecretSpec owns declarations, defaults, provider auth, profile and file
 inheritance, and scope membership. Fence Rider resolves the full active profile
-once for values, asks SecretSpec for scope members by name, removes stale
-ambient declarations, and delivers all resolved values locally. Optional manifest
-scope only cross-checks applicable native manifest declarations. Explicit runtime
-scope authorizes deployment uploads or tunnel-local injection, not synchronization
-on lint. Install/uninstall make no scope or export call: `secretspec run`
-resolves the profile. A shared value reuses the same export result.
+once for values (deploy and tunnel), asks SecretSpec for scope members by name,
+removes stale ambient declarations, and delivers all resolved values locally.
+Optional manifest scope only cross-checks applicable native manifest
+declarations. Explicit runtime scope authorizes deployment uploads or
+tunnel-local injection, not synchronization on lint. Install/uninstall make no
+scope or export call, and lint makes only the manifest scope call: `secretspec
+run` resolves the profile for all three, without clearing stale ambient values.
+A shared value reuses the same export result in deploy and tunnel.
 
 Deployment validates all selected values before encrypted writes; the following
 deployment activates them under documented Forge lifecycle. Failed writes can

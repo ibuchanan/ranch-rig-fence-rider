@@ -194,7 +194,11 @@ credentials and app registration are never supplied automatically.
   both commands now run under `secretspec run`, so they make no `schema`,
   `export` or scope call and do not clear stale ambient values. See
   `docs/adr/0004-install-targets-from-profile-only.md` and
-  `docs/adr/0005-install-delegates-to-secretspec-run.md`.)
+  `docs/adr/0005-install-and-lint-delegate-to-secretspec-run.md`.)
+- (Superseded 2026-10-21 for `lint`: it now runs `secretspec run --scope "" --
+  forge lint` after the optional manifest scope check, making no `schema` or
+  `export` call and not clearing stale ambient values. See
+  `docs/adr/0005-install-and-lint-delegate-to-secretspec-run.md`.)
 - Explicit target arguments override target selection, not SecretSpec
   requiredness. Missing required declarations still fail even if a command
   option could otherwise supply that target.

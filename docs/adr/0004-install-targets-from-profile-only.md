@@ -13,7 +13,7 @@ is called. Someone who needs explicit control writes the command with
 of Fence Rider for the two workflows that need nothing else from the command
 line. The commands are implemented by running Forge under `secretspec run` with
 a fixed shell script that derives the three targets from the child environment
-([ADR 0005](0005-install-delegates-to-secretspec-run.md)).
+([ADR 0005](0005-install-and-lint-delegate-to-secretspec-run.md)).
 
 ## Considered options
 

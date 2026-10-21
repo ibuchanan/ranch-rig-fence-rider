@@ -83,13 +83,13 @@ test.skipIf(process.platform === "win32")(
 
 test.skipIf(process.platform === "win32").each([
   {
-    blockStage: "schema",
+    blockStage: "check",
     signal: "SIGINT",
     ignoreSignal: false,
     spawnDescendant: false,
   },
   {
-    blockStage: "export",
+    blockStage: "check",
     signal: "SIGTERM",
     ignoreSignal: false,
     spawnDescendant: false,

@@ -49,8 +49,9 @@ Deployment approval does not grant install scope consent. Keep `--confirm-scopes
 
 ## Run the intended lifecycle
 
-- Run `bun run lint:forge` for full-profile validation, optional manifest checks,
-  and live Forge lint output. No targets or runtime uploads are injected.
+- Run `bun run lint:forge` for whole-profile resolution under `secretspec run`,
+  optional manifest checks, and live Forge lint output. No targets or runtime
+  uploads are injected.
 - Run `bun run deploy` or the distinct approval variant `bun run deploy:reviewed`
   only after reviewing that policy. Deployment encrypts selected runtime values
   before one deployment to the same environment. Partial writes can remain after

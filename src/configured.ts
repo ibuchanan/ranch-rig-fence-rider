@@ -17,7 +17,11 @@ const undefinedScope = /is not defined in secretspec\.toml/;
  * Names in one SecretSpec scope, asked of SecretSpec so inheritance and scope
  * rules stay its own. A scope the file does not define has no members.
  */
-async function scopeMembers(tool: string, scope: string, state: Workflow) {
+export async function scopeMembers(
+  tool: string,
+  scope: string,
+  state: Workflow,
+) {
   state.stage = `SecretSpec ${scope} scope membership`;
   try {
     const report: unknown = JSON.parse(

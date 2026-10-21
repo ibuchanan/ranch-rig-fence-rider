@@ -18,7 +18,8 @@ SecretSpec and Forge must be installed on PATH and authenticated separately.
 
 ```text
 Usage: fence-rider lint [Forge options]
-Resolve the whole active profile, check optional manifest metadata, then lint.
+Check optional manifest metadata, then run forge lint under secretspec run with the whole active profile resolved into its environment.
+Unlike deploy and tunnel, values are not validated by Fence Rider, and an exported variable the profile does not resolve (or declare) stays visible to Forge.
 Forge stdin is inherited; stdout/stderr stream live and unredacted. Upstream output may expose values.
 No target flags are injected and no runtime variables are uploaded.
 SecretSpec and Forge must be installed on PATH and authenticated separately.

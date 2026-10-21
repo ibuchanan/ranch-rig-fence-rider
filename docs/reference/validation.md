@@ -4,18 +4,33 @@ Recorded 2026-10-19. Public seams: the compiled CLI subprocess
 and observable validation-command output/status, confirmed by the user.
 No private-function tests or second native proof suite were introduced.
 
+## Lint under `secretspec run` — 2026-10-21
+
+`fence-rider lint` now applies the optional manifest scope check and then runs
+`secretspec run --scope "" -- forge lint`, so SecretSpec resolves the whole
+profile into Forge's environment
+([ADR 0005](../adr/0005-install-and-lint-delegate-to-secretspec-run.md)). It
+makes one scope `check` and one `run`, with no `schema` or `export` call. Like
+install and uninstall it does not validate resolved values or clear stale
+ambient values, and an exported variable the profile does not resolve stays
+visible to Forge. A missing required value fails inside `run` with SecretSpec's
+error before Forge starts; a missing required value in the `manifest` scope is
+reported by the preceding scope check. Observed against SecretSpec 0.21.1 with a
+stub Forge: resolved values and the forwarded arguments reach Forge, and a
+manifest declaration missing for a scope member stops the run before Forge.
+
 ## Install and uninstall under `secretspec run` — 2026-10-21
 
 `fence-rider install` and `uninstall` now run Forge through
 `secretspec run --scope "" -- sh -c SCRIPT`, so SecretSpec resolves the whole
 profile and a fixed script derives the three targets
-([ADR 0005](../adr/0005-install-delegates-to-secretspec-run.md)). They make no
-`schema`, `export` or scope `check` call, do not clear stale ambient values for
-unresolved optional declarations, and do not validate resolved values.
-Observed against SecretSpec 0.21.1: `run` lets resolved values override ambient
-ones, leaves an undeclared exported variable in place, and `--scope ""` ignores
-an ambient `SECRETSPEC_SCOPE`. Earlier entries below record the previous
-TypeScript-built environment.
+([ADR 0005](../adr/0005-install-and-lint-delegate-to-secretspec-run.md)).
+They make no `schema`, `export` or scope `check` call, do not clear stale
+ambient values for unresolved optional declarations, and do not validate
+resolved values. Observed against SecretSpec 0.21.1: `run` lets resolved values
+override ambient ones, leaves an undeclared exported variable in place, and
+`--scope ""` ignores an ambient `SECRETSPEC_SCOPE`. Earlier entries below
+record the previous TypeScript-built environment.
 
 ## Configured consumer acceptance — 2026-10-20
 

@@ -105,9 +105,23 @@ if (tool === "secretspec" && args[0] === "run") {
     console.error("Secret '" + missing + "' is required but not set");
     process.exit(1);
   }
-  const child = Bun.spawnSync(args.slice(args.indexOf("--") + 1), { env: { ...process.env, ...fixture.values }, stdin: "inherit", stdout: "inherit", stderr: "inherit" });
-  if (child.signalCode) process.kill(process.pid, child.signalCode);
-  process.exit(child.exitCode ?? 1);
+  // Like the real secretspec run: survive an operator signal that reaches the whole process group and wait for the child's own shutdown.
+  for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {});
+  let child;
+  try {
+    child = Bun.spawn(args.slice(args.indexOf("--") + 1), { env: { ...process.env, ...fixture.values }, stdin: "inherit", stdout: "inherit", stderr: "inherit" });
+  } catch {
+    console.error("Failed to run command: unable to launch the executable");
+    process.exit(1);
+  }
+  const status = await child.exited;
+  if (child.signalCode) {
+    process.removeAllListeners("SIGINT");
+    process.removeAllListeners("SIGTERM");
+    process.kill(process.pid, child.signalCode);
+    await Bun.sleep(1000);
+  }
+  process.exit(status ?? 1);
 }
 if (["lint", "install", "uninstall", "tunnel"].includes(args[0])) {
   console.log("synthetic " + args[0] + " result");
