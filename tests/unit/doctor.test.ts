@@ -1,9 +1,9 @@
+import { basename } from "node:path";
 import { expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { cli, useBuiltCli } from "./support/cli.ts";
-
-useBuiltCli();
+import { main } from "../../src/cli";
+import type { Io } from "../../src/io";
+import { CommandFailure } from "../../src/process";
+import { recordingIo } from "../support/main.ts";
 
 type Tools = Record<string, string | null>;
 
@@ -14,45 +14,40 @@ type Project = {
   manifest?: string;
 };
 
-const checkScript = (report: Project["report"]) =>
-  report === undefined
-    ? ""
-    : report === "fail"
-      ? 'if [ "$1" = check ]; then echo "Invalid scope" >&2; exit 1; fi\n'
-      : `if [ "$1" = check ]; then echo '${JSON.stringify({ schema_version: 1, scope: "manifest", secrets: report.map((name) => ({ name, status: "resolved" })) })}'; exit 0; fi\n`;
-
-/** Run `doctor` with fake tools whose `--version` prints the given text (null: tool absent). */
+/** Run `doctor` in-process against fake tools whose `--version` prints the given text (null: tool absent). */
 async function runDoctor(
   tools: Tools,
   args: string[] = [],
   toml?: string,
   project: Project = {},
 ) {
-  const dir = mkdtempSync(join(cli.workspace, "doctor-"));
-  const bin = join(dir, "bin");
-  mkdirSync(bin);
-  for (const [tool, output] of Object.entries(tools)) {
-    if (output === null) continue;
-    const check = tool === "secretspec" ? checkScript(project.report) : "";
-    writeFileSync(join(bin, tool), `#!/bin/sh\n${check}echo "${output}"\n`, {
-      mode: 0o755,
-    });
-  }
-  if (toml !== undefined) writeFileSync(join(dir, "secretspec.toml"), toml);
-  if (project.manifest !== undefined)
-    writeFileSync(join(dir, "manifest.yml"), project.manifest);
-  const child = Bun.spawn([cli.executable, "doctor", ...args], {
-    cwd: dir,
-    env: { PATH: bin, HOME: dir, TMPDIR: dir },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [exitCode, stdout, stderr] = await Promise.all([
-    child.exited,
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-  ]);
-  return { exitCode, stdout, stderr };
+  const recorded = recordingIo();
+  const io: Io = {
+    ...recorded.io,
+    env: {},
+    which: (tool) => (tools[tool] ? `/fake/bin/${tool}` : null),
+    readFile: async (path) => {
+      if (path.endsWith("secretspec.toml") && toml !== undefined) return toml;
+      if (path.endsWith("manifest.yml") && project.manifest !== undefined)
+        return project.manifest;
+      throw new Error(`ENOENT: no such file or directory, open '${path}'`);
+    },
+    capture: async (path, callArgs) => {
+      const { report } = project;
+      if (callArgs[0] === "check" && report !== undefined) {
+        if (report === "fail")
+          throw new CommandFailure("exit status 1", 1, "Invalid scope");
+        return JSON.stringify({
+          schema_version: 1,
+          scope: "manifest",
+          secrets: report.map((name) => ({ name, status: "resolved" })),
+        });
+      }
+      return `${tools[basename(path)]}\n`;
+    },
+  };
+  const exitCode = await main(["doctor", ...args], io);
+  return { exitCode, stdout: recorded.stdout(), stderr: recorded.stderr() };
 }
 
 test("doctor passes when both tools are within the tested range", async () => {

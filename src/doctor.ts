@@ -1,7 +1,6 @@
 import { resolve } from "node:path";
 import { checkManifest, scopeMembers } from "./configured";
 import type { Io } from "./io";
-import { capture } from "./process";
 import { recognizedScopes, unrecognizedScopes } from "./resolution";
 
 /**
@@ -44,9 +43,9 @@ function assess({ lowest, tested }: Dependency, version: string) {
 }
 
 /** The first dotted number in the tool's `--version` output, if it runs and prints one. */
-async function detectVersion(path: string) {
+async function detectVersion(path: string, io: Io) {
   try {
-    const output = await capture(
+    const output = await io.capture(
       path,
       ["--version"],
       new AbortController().signal,
@@ -57,15 +56,15 @@ async function detectVersion(path: string) {
   }
 }
 
-async function inspect(dependency: Dependency) {
+async function inspect(dependency: Dependency, io: Io) {
   const range = `supported from ${dependency.lowest}, tested through ${dependency.tested}`;
-  const path = Bun.which(dependency.tool);
+  const path = io.which(dependency.tool);
   if (!path)
     return {
       failed: true,
       line: `${dependency.name}: not found on PATH (${range}). Install it and authenticate separately.`,
     };
-  const version = await detectVersion(path);
+  const version = await detectVersion(path, io);
   if (!version)
     return {
       failed: true,
@@ -82,9 +81,9 @@ const unusedScope = (name: string) =>
   `Configuration: scope "${name}" is not read by Fence Rider (recognized: ${recognizedScopes.join(", ")}); ignore this if another tool uses it`;
 
 /** Names of the `[scopes.*]` tables in a SecretSpec file; undefined when it is missing or unparsable. */
-async function declaredScopes(file: string) {
+async function declaredScopes(file: string, io: Io) {
   try {
-    const { scopes } = Bun.TOML.parse(await Bun.file(file).text()) as {
+    const { scopes } = Bun.TOML.parse(await io.readFile(file)) as {
       scopes?: object;
     };
     return Object.keys(scopes ?? {});
@@ -93,8 +92,8 @@ async function declaredScopes(file: string) {
   }
 }
 
-const specificationFile = () =>
-  resolve(process.env["SECRETSPEC_FILE"] ?? "secretspec.toml");
+const specificationFile = (io: Io) =>
+  resolve(io.env["SECRETSPEC_FILE"] ?? "secretspec.toml");
 
 /**
  * Warn about scopes that Fence Rider ignores, where a typo would otherwise pass
@@ -142,11 +141,13 @@ async function inspectManifest(
 
 /** The lines of one doctor run, and whether any of them is a failure. */
 async function inspectAll(io: Io) {
-  const file = specificationFile();
-  const scopes = await declaredScopes(file);
-  const secretspec = Bun.which("secretspec") ?? undefined;
+  const file = specificationFile(io);
+  const scopes = await declaredScopes(file, io);
+  const secretspec = io.which("secretspec") ?? undefined;
   const checks = [
-    ...(await Promise.all(dependencies.map(inspect))),
+    ...(await Promise.all(
+      dependencies.map((dependency) => inspect(dependency, io)),
+    )),
     await inspectManifest(secretspec, scopes, io),
   ];
   return {
