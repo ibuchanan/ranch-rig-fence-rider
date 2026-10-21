@@ -1,4 +1,3 @@
-import { expect } from "bun:test";
 import {
   existsSync,
   mkdirSync,
@@ -8,9 +7,13 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { cli } from "./cli.ts";
+import {
+  expectNoInjectedFile,
+  expectNoSecretInOutput,
+  sharedValue,
+} from "./guarantees.ts";
 
-export const sharedValue =
-  "synthetic shared FENCE_RIDER_SYNTHETIC_SECRET_06 \"quoted\" 'value'\n$HOME; $(touch injected); `id`";
+export { sharedValue };
 
 export const deploymentSpec = `[project]
 name = "fence-rider-test"
@@ -295,9 +298,9 @@ export async function runWorkflow(options: WorkflowOptions = {}) {
     await options.onSpawn?.(child, project);
     const [exitCode, stdout, stderr] = await output;
     const interactions = await readInteractions(project);
-    expect(stdout + stderr).not.toContain(sharedValue);
-    expect(stdout + stderr).not.toContain("FENCE_RIDER_SYNTHETIC_SECRET_06");
-    expect(existsSync(join(project, "injected"))).toBe(false);
+    const invocation = `fence-rider ${[options.command ?? "variables", ...(options.args ?? [])].join(" ")}`;
+    expectNoSecretInOutput(invocation, { stdout, stderr });
+    expectNoInjectedFile(invocation, project);
     return { exitCode, stdout, stderr, interactions, project };
   } finally {
     child.kill("SIGKILL");
@@ -363,8 +366,8 @@ async function finishScript(
   child: Bun.Subprocess<"ignore", "pipe", "pipe">,
 ) {
   const [exitCode, stdout, stderr] = await collect(child);
-  expect(stdout + stderr).not.toContain(sharedValue);
-  expect(existsSync(join(project, "injected"))).toBe(false);
+  expectNoSecretInOutput("generated script", { stdout, stderr });
+  expectNoInjectedFile("generated script", project);
   return {
     exitCode,
     stdout,

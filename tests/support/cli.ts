@@ -92,8 +92,13 @@ export async function runCli(args: readonly string[], toolsAvailable = false) {
     new Response(child.stdout).text(),
     new Response(child.stderr).text(),
   ]);
-  expect(existsSync(calls)).toBe(false);
-  return { exitCode, stdout, stderr };
+  const toolCalls = existsSync(calls)
+    ? (await Bun.file(calls).text())
+        .trim()
+        .split("\n")
+        .map((tool) => ({ tool }))
+    : [];
+  return { exitCode, stdout, stderr, toolCalls };
 }
 
 export async function waitUntil(check: () => boolean, description: string) {

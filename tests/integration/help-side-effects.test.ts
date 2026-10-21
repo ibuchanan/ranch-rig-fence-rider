@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { expectNoToolCalls } from "../support/guarantees.ts";
 import { runCli, useBuiltCli } from "../support/cli.ts";
 
 // Discovery must never read configuration or call SecretSpec or Forge. runCli
@@ -30,5 +31,6 @@ test.each(
   async ({ args, toolsAvailable }) => {
     const result = await runCli(args, toolsAvailable);
     expect(result.exitCode).toBe(args[0] === "unknown-command" ? 1 : 0);
+    expectNoToolCalls(`fence-rider ${args.join(" ")}`, result.toolCalls);
   },
 );

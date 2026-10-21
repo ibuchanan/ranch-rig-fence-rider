@@ -1,4 +1,3 @@
-import { expect } from "bun:test";
 import { basename } from "node:path";
 import { main } from "../../src/cli";
 import { consoleIo, type Io } from "../../src/io";
@@ -7,10 +6,10 @@ import {
   deploymentSchema,
   deploymentSpec,
   deploymentValues,
-  sharedValue,
   type ToolCall,
   type WorkflowOptions,
 } from "./fixtures.ts";
+import { expectNoSecretInOutput } from "./guarantees.ts";
 
 /**
  * The in-process counterpart of the fake SecretSpec and Forge in fixtures.ts:
@@ -155,7 +154,12 @@ export async function runInProcess(
   const exitCode = await main([command, ...(options.args ?? [])], io);
   const out = stdout.join("");
   const err = stderr.join("");
-  expect(out + err).not.toContain(sharedValue);
-  expect(out + err).not.toContain("FENCE_RIDER_SYNTHETIC_SECRET_06");
+  expectNoSecretInOutput(
+    `fence-rider ${[command, ...(options.args ?? [])].join(" ")}`,
+    {
+      stdout: out,
+      stderr: err,
+    },
+  );
   return { exitCode, stdout: out, stderr: err, interactions };
 }
