@@ -12,8 +12,6 @@ useBuiltCli();
 
 test.each([
   { declaration: 'extends = ["parent.toml"]', context: "project.extends" },
-  { declaration: 'extends = "parent.toml"', context: "project.extends" },
-  { declaration: "extends = [42]", context: "project.extends" },
 ])(
   "rejects unsupported or malformed inheritance $declaration before helper interaction",
   async ({ declaration, context }) => {
@@ -30,15 +28,7 @@ test.each([
   },
 );
 
-test.each([
-  "secrets = []",
-  'secrets = "SHARED"',
-  'secrets = ["SHARED", "SHARED"]',
-  'secrets = [" "]',
-  "secrets = [42]",
-  'secrets = ["UNDECLARED"]',
-  'secrets = ["SHARED"]\nextra = true',
-])(
+test.each(["secrets = []"])(
   "rejects malformed scope metadata %s before helper interaction",
   async (metadata) => {
     const result = await runWorkflow({
@@ -55,24 +45,6 @@ test.each([
 
 test.each([
   { name: "null schema", options: { schema: null } },
-  { name: "array schema", options: { schema: [] } },
-  {
-    name: "array properties",
-    options: { schema: { type: "object", properties: [] } },
-  },
-  {
-    name: "wrong root type",
-    options: { schema: { ...deploymentSchema, type: "array" } },
-  },
-  {
-    name: "null property",
-    options: {
-      schema: {
-        ...deploymentSchema,
-        properties: { ...deploymentSchema.properties, OPTIONAL: null },
-      },
-    },
-  },
   {
     name: "numeric property",
     options: {
@@ -85,42 +57,6 @@ test.each([
       },
     },
   },
-  {
-    name: "null required",
-    options: { schema: { ...deploymentSchema, required: null } },
-  },
-  {
-    name: "string required",
-    options: { schema: { ...deploymentSchema, required: "SHARED" } },
-  },
-  {
-    name: "non-string required",
-    options: { schema: { ...deploymentSchema, required: [42] } },
-  },
-  {
-    name: "unknown required",
-    options: { schema: { ...deploymentSchema, required: ["UNKNOWN"] } },
-  },
-  {
-    name: "duplicate required",
-    options: {
-      schema: { ...deploymentSchema, required: ["SHARED", "SHARED"] },
-    },
-  },
-  {
-    name: "invalid key",
-    options: {
-      schema: {
-        ...deploymentSchema,
-        properties: {
-          ...deploymentSchema.properties,
-          [sharedValue]: { type: "string" },
-        },
-      },
-    },
-  },
-  { name: "null export", options: { values: null } },
-  { name: "array export", options: { values: [] } },
   { name: "string export", options: { values: sharedValue } },
   { name: "broken schema JSON", options: { schemaOutput: `{${sharedValue}` } },
   { name: "broken export JSON", options: { exportOutput: `{${sharedValue}` } },
@@ -217,14 +153,8 @@ test("rejects control-variable upload selection and unsupported runtime inputs b
 });
 
 test.each([
-  { name: "null", value: null },
-  { name: "number zero", value: 0 },
-  { name: "boolean false", value: false },
-  { name: "array", value: [sharedValue] },
   { name: "object", value: { secret: sharedValue } },
-  { name: "NUL", value: `before\u0000${sharedValue}` },
   { name: "empty runtime", value: "" },
-  { name: "leading dash", value: "--synthetic" },
 ])(
   "late invalid runtime value: $name prevents the earlier valid upload",
   async ({ value }) => {

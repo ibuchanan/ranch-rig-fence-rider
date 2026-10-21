@@ -1,4 +1,5 @@
-import { checkManifest, configure, members } from "./configured";
+import { checkManifest, configure } from "./configured";
+import { members } from "./resolution";
 import { checkInterruption, passthrough } from "./process";
 import {
   isReservedVariable,
