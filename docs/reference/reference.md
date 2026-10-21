@@ -556,7 +556,7 @@ configuration behavior only. No live installation, consent, upgrade, app
 registration, or cleanup was authorized or executed. See the
 [validation record](validation.md) and [consumer procedure][install-guide].
 
-[install-guide]: ../how-to/how-to.md#install-or-upgrade-the-configured-app
+[install-guide]: ../how-to/local.md#install-upgrade-or-uninstall
 
 ## Configured uninstall
 
@@ -608,7 +608,7 @@ was authorized or executed. Real terminal-specific prompts and Windows tree
 cleanup remain unverified. See the [procedure][uninstall-guide] and
 [validation record](validation.md).
 
-[uninstall-guide]: ../how-to/how-to.md#uninstall-the-configured-app
+[uninstall-guide]: ../how-to/local.md#install-upgrade-or-uninstall
 
 ## Configured tunnel
 
@@ -670,7 +670,7 @@ prove wrapper mapping, not connected runtime receipt. No live tunnel was
 authorized or run. See the [procedure][tunnel-guide] and [validation record](validation.md).
 
 [tunneling]: https://developer.atlassian.com/platform/forge/tunneling/
-[tunnel-guide]: ../how-to/how-to.md#tunnel-with-configured-local-runtime-values
+[tunnel-guide]: ../how-to/runtime.md#tunnel-during-development
 
 ## Verification ownership
 

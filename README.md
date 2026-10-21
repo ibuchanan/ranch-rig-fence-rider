@@ -3,92 +3,81 @@
 [![Atlassian license][license-badge]](LICENSE)
 [![PRs Welcome][prs-badge]](CONTRIBUTING.md)
 
-Fence Rider is a development-time CLI that resolves a SecretSpec profile and
-hands it to Forge. Two independent steps mirror the Forge CLI: `variables`
-validates configuration and uploads only explicitly selected runtime variables
-with Forge encryption enabled, and `deploy` runs Forge deployment to the same
-environment. No vault SDK or Fence Rider code belongs in your deployed app.
+Fence Rider wraps the Forge CLI so a Forge app declares its configuration once
+and every workflow gets the right values. You describe local, manifest and
+runtime variables in a committed [SecretSpec](https://secretspec.dev) file; each
+developer picks their own provider (a vault or a dotenv file). Fence Rider then
+uploads the selected runtime variables encrypted and runs `deploy`, `lint`,
+`install`, `uninstall` and `tunnel` with the resolved values. Nothing is added
+to your deployed app.
 
-`lint`, `deploy`, `tunnel`, `install` and `uninstall` do not run Forge
-themselves: they print a shell script that runs it under `secretspec run`, and a
-package script executes that script (see the [short
-scripts](docs/how-to/installation.md#add-the-full-script-set)). `deploy` uploads nothing; run
-`variables` when the runtime values change. `lint` supplies the resolved local
-inputs; `install` and `uninstall` use configured targets and caller-owned
-interaction. **Uninstall changes remote installation state.** Forge output
-streams without redaction; see the [workflow
-contracts](docs/reference/reference.md#configured-uninstall).
+It is for maintainers of Forge apps, especially sample apps that downstream
+developers fork. Missing configuration fails at the workflow boundary instead of
+surfacing later as a strange Forge error.
 
-**Status:** configured variables, deployment, lint, installation, and uninstall
-are locally tested with Bun 1.4.3 and SecretSpec 0.21.1. Forge CLI 14.2.0
-interfaces have been inspected; live Forge verification is **blocked pending
-authorization**, not certified. This private source project is not published as
-a package. Configured `tunnel` prints a script mapping explicit runtime members
-to Forge's local mechanism for development environments only, without remote
-synchronization. Connected runtime receipt remains unverified; see the [tunnel
-contract][tunnel-contract].
+**Status:** private and unpublished. Locally tested with Bun 1.4.3, SecretSpec
+0.21.1 and Forge CLI 14.2.0. Live Forge verification is blocked pending
+authorization, so it is not certified against a real app; see the
+[planned work](specs/README.md).
 
-[tunnel-contract]: docs/reference/reference.md#configured-tunnel
+## Try it
 
-## Build and try the CLI
-
-With Bun 1.4.3 installed, run from this checkout:
+Help and version need no configuration, vault, network or Forge login:
 
 ```sh
 bun install
 bun run build
 ./dist/fence-rider --help
-./dist/fence-rider --version
+./dist/fence-rider doctor
 ```
 
-Help and version need no configuration, vault, network, or Forge login.
-Configured workflows require separately installed SecretSpec and Forge
-CLIs on `PATH`, for the compiled binary and the dependency-based package alike;
-`fence-rider doctor` checks their versions. For dependency-based usage, follow the
-[consumer installation guide](docs/how-to/installation.md): the package requires
-Bun. Forge installation/authentication, provider access, and app registration
-remain separate. No workflow downloads tools or logs you in.
+`doctor` checks that SecretSpec and Forge are installed and in the tested range.
+Both must be on `PATH`, and Forge must be authenticated; Fence Rider installs
+neither and logs in to neither.
 
-From that app's directory, using the absolute path to the built binary:
+## Use it in a Forge app
 
-```sh
-SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/fence-rider variables --environment development
-cmd=$(SECRETSPEC_PROVIDER=dotenv:values.env /absolute/path/to/dist/fence-rider deploy --environment development --non-interactive) && SECRETSPEC_PROVIDER=dotenv:values.env sh -c "$cmd" sh
+Declare variables once in `secretspec.toml`. Only `runtime` members upload;
+everything else stays local:
+
+```toml
+[profiles.default]
+FORGE_ENVIRONMENT = { description = "Target", default = "development" }
+SERVICE_URL       = { description = "Service endpoint", required = true }
+API_TOKEN         = { description = "Runtime credential", required = true }
+
+[scopes.runtime]
+secrets = ["API_TOKEN"]
 ```
 
-**These commands change remote state.** Set up and review the
-[local-provider deployment workflow](docs/how-to/how-to.md) first. It lets
-contributors supply their own values without access to a maintainer's vault.
-Only `runtime` scope members upload; other values stay local. Optional
-`manifest` membership adds a declaration check, not an injection allowlist.
+Then call Fence Rider from short package scripts:
 
-## Installed consumer workflows
+```json
+{
+  "variables": "fence-rider variables",
+  "deploy": "cmd=$(fence-rider deploy --non-interactive) && sh -c \"$cmd\" sh",
+  "release": "fence-rider variables && cmd=$(fence-rider deploy --non-interactive) && sh -c \"$cmd\" sh"
+}
+```
 
-Use the [development-dependency setup](docs/how-to/installation.md), then adopt
-[short configured scripts](docs/how-to/installation.md#add-the-full-script-set) for deploy,
-variables, deploy, lint, install/upgrade, uninstall, and development tunnel. No
-helper or duplicated key inventory is needed. Controls-only apps need no runtime
-scope or dummy secret. The [CW-01–CW-22 evidence
-map](docs/reference/consumer-workflows.md) distinguishes native tool delivery,
-controlled Forge behavior, and blocked live checks.
+`variables` uploads the runtime values encrypted. `deploy`, like `lint`,
+`install`, `uninstall` and `tunnel`, prints a shell script that runs Forge under
+`secretspec run`; the package script runs it. **These commands change remote
+state.** Set up a disposable app first.
+
+- [Install it in an app](docs/how-to/installation.md)
+- Set up [local values](docs/how-to/local.md),
+  [manifest inputs](docs/how-to/manifest.md) and
+  [runtime variables](docs/how-to/runtime.md)
+- [Package scripts for every workflow](docs/how-to/installation.md#add-the-full-script-set)
 
 ## Documentation
 
-- [Upload variables and deploy from development or CI](docs/how-to/how-to.md)
-- [Run configured Forge lint](docs/how-to/how-to.md#run-configured-lint)
-- [Install or upgrade the configured app](docs/how-to/how-to.md#install-or-upgrade-the-configured-app)
-- [Uninstall the configured app](docs/how-to/how-to.md#uninstall-the-configured-app)
-- [Tunnel with configured local runtime values](docs/how-to/how-to.md#tunnel-with-configured-local-runtime-values)
-- [Variable contract and limits](docs/reference/reference.md)
-- [Version evidence and acceptance checks](docs/reference/deployment.md)
-- [Why local, manifest, and runtime differ](docs/explanation/explanation.md)
-- [Development and validation](DEVELOPMENT.md)
+- [Command help](docs/reference/command-help.md) and [variable contract](docs/reference/reference.md)
+- [Acceptance criteria](docs/reference/acceptance-criteria.md) and [version evidence](docs/reference/deployment.md)
+- [Why Forge has three kinds of variables](docs/explanation/explanation.md)
 - [What Fence Rider is for, and where it stops](docs/explanation/scope-and-boundaries.md)
-- [Acceptance criteria](docs/reference/acceptance-criteria.md)
-- [Planned future work](specs/README.md)
-
-The [original exploration](specs/SecretSpec%20Atlassian%20Forge%20Integration%20Guide.md)
-is historical input, not installation or provider guidance.
+- [Decision records](docs/adr/) and [planned future work](specs/README.md)
 
 ## Contributing and support
 

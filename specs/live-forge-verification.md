@@ -47,7 +47,7 @@ cleanup. They cannot prove what Forge's servers or runtime do.
 
 - Authorization names the app ID, site, environment, exact variable names,
   permitted operations, allowed observations, and cleanup. Follow the
-  [live smoke test checklist](../docs/how-to/how-to.md#arrange-a-live-smoke-test).
+  [live smoke test checklist](../docs/how-to/runtime.md#arrange-a-live-smoke-test).
 - Record Forge CLI version and redacted outcomes. Mark each LV row passed,
   failed, or blocked; update the evidence map and delete this spec's rows as
   they pass.

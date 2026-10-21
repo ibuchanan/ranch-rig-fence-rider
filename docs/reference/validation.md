@@ -243,7 +243,7 @@ No remote state was created, so no remote cleanup was performed.
 
 Local verification and documentation are complete only to their recorded
 scope. Final end-to-end workflow readiness remains blocked, not proven by
-the controlled suite. Follow the [authorization checklist](../how-to/how-to.md#arrange-a-live-smoke-test)
+the controlled suite. Follow the [authorization checklist](../how-to/runtime.md#arrange-a-live-smoke-test)
 before any future live work.
 
 ## Repository check outcomes
@@ -333,7 +333,7 @@ dependency, or Forge authorization changed. Live verification remains blocked.
 value delivery, stale optional cleanup, and the shared optional manifest check.
 It injects no targeting flags and performs exactly one lint without runtime
 writes or other Forge commands. Numeric lint statuses are preserved. Help is
-configuration-free. The [consumer script](../how-to/how-to.md#run-configured-lint)
+configuration-free. The [consumer script](../how-to/manifest.md#check-the-declaration)
 and [output contract](reference.md#output-and-input-policy) document prerequisites
 and the deliberate passthrough boundary.
 
@@ -408,7 +408,7 @@ No live install, upgrade, consent, deployment, registration, or cleanup was
 authorized or performed. Real terminal prompts, Windows process-tree cleanup,
 and live site acceptance remain separately blocked evidence, not passing
 checks. Short install/upgrade scripts and explicit authorization warnings are
-in [the consumer guide](../how-to/how-to.md#install-or-upgrade-the-configured-app).
+in [the consumer guide](../how-to/local.md#install-upgrade-or-uninstall).
 Uninstall, tunnel, dependency delivery, and final consumer acceptance remain
 separate work. Existing user specification edits are excluded from this
 implementation commit.
@@ -460,7 +460,7 @@ unverified. Tunnel, dependency delivery, and final consumer acceptance remain
 separate work. Existing user specification edits are excluded from the
 implementation commit.
 
-[uninstall-guide]: ../how-to/how-to.md#uninstall-the-configured-app
+[uninstall-guide]: ../how-to/local.md#install-upgrade-or-uninstall
 
 ## Configured tunnel — 2026-10-20
 
@@ -522,7 +522,7 @@ members (and absence of an unselected member) are still needed. Ordinary child
 environment observation is not reported as connected runtime delivery.
 Dependency provisioning and packed consumer acceptance remain separate work.
 
-[tunnel-guide]: ../how-to/how-to.md#tunnel-with-configured-local-runtime-values
+[tunnel-guide]: ../how-to/runtime.md#tunnel-during-development
 
 ## Environment control simplified — 2026-10-21
 

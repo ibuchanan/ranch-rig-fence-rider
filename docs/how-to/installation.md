@@ -48,7 +48,8 @@ run directly, as `fence-rider deploy` and `fence-rider tunnel`.
 Declare your inputs first: adapt [`secretspec.toml`](../examples/secretspec.toml),
 merge the [`manifest.yml`](../examples/manifest.yml) fragment, and use
 [`values.env`](../examples/values.env) as a local template. See the
-[configured workflow guide](how-to.md) for the procedure. Choose your own
+[local](local.md), [manifest](manifest.md) and [runtime](runtime.md)
+guides for the procedures. Choose your own
 provider, then run:
 
 ```sh
