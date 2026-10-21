@@ -90,7 +90,10 @@ async function runDoctor(
         );
       }
       if (callArgs[0] === "check") return checkAnswer(project, callArgs);
-      return `${tools[basename(path)]}\n`;
+      const output = tools[basename(path)];
+      if (output === "fail")
+        throw new CommandFailure("exit status 1", 1, "boom");
+      return `${output}\n`;
     },
   };
   const exitCode = await main(["doctor", ...args], io);
@@ -141,7 +144,18 @@ test("doctor fails when a version cannot be read", async () => {
     forge: "14.2.0",
   });
   expect(result.exitCode).toBe(1);
-  expect(result.stdout).toContain("SecretSpec: no version found unreadable");
+  expect(result.stdout).toContain(
+    "SecretSpec: version could not be read from `secretspec --version` (supported from 0.17.0, tested through",
+  );
+});
+
+test("doctor fails when a version command fails", async () => {
+  const result = await runDoctor({ secretspec: "fail", forge: "14.2.0" });
+  expect(result.exitCode).toBe(1);
+  expect(result.stdout).toContain(
+    "SecretSpec: version could not be read from `secretspec --version` (supported from 0.17.0",
+  );
+  expect(result.stdout).toContain("Forge CLI: 14.2.0 ok");
 });
 
 test("doctor refuses an unknown option before any tool runs", async () => {

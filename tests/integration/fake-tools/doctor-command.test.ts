@@ -85,7 +85,9 @@ test("doctor fails when a version cannot be read", async () => {
     forge: "14.2.0",
   });
   expect(result.exitCode).toBe(1);
-  expect(result.stdout).toContain("SecretSpec: no version found unreadable");
+  expect(result.stdout).toContain(
+    "SecretSpec: version could not be read from `secretspec --version`",
+  );
 });
 
 const spec = (scopes: string) =>

@@ -76,7 +76,7 @@ async function inspect(dependency: Dependency, io: Io) {
   if (!version)
     return {
       failed: true,
-      line: `${dependency.name}: no version found unreadable (${range})`,
+      line: `${dependency.name}: version could not be read from \`${dependency.tool} --version\` (${range})`,
     };
   const { status, failed } = assess(dependency, version);
   return {
