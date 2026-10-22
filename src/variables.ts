@@ -1,4 +1,5 @@
 import { checkManifest, configure } from "./configured";
+import { UsageError } from "./forge-args";
 import type { Io } from "./io";
 import { parseTargetOptions, validateTarget } from "./target";
 import { planUploads, type Upload } from "./variables-plan";
@@ -61,7 +62,9 @@ export async function variables(args: string[], io: Io): Promise<number> {
       return;
     }
     if (options.forwarded.length)
-      throw new Error("Forge options are not accepted");
+      throw new UsageError(
+        "Forge options are not accepted; use only --environment (-e), or run fence-rider variables --help for usage",
+      );
     await performUpload(options, workflow, io);
   }, io);
 }

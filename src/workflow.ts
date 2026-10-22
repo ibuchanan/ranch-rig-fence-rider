@@ -1,3 +1,4 @@
+import { UsageError } from "./forge-args";
 import type { Io } from "./io";
 import {
   CommandFailure,
@@ -36,7 +37,10 @@ export async function runWorkflow(
     await body(workflow);
     return 0;
   } catch (error) {
-    const detail = error instanceof CommandFailure ? `: ${error.message}` : "";
+    const detail =
+      error instanceof CommandFailure || error instanceof UsageError
+        ? `: ${error.message}`
+        : "";
     const warning = workflow.uploadAttempted
       ? " Remote variables may already have changed; no rollback was attempted."
       : "";

@@ -1,0 +1,103 @@
+cff-version: 1.2.0
+message: >-
+  If you use this agent skill, please cite it using this metadata.
+  The references acknowledge the sources informing its guidance;
+  their authors are not credited as authors of this skill.
+title: "AXI — Agent eXperience Interface skill"
+type: software
+license: Apache-2.0
+authors:
+  - name: ibuchanan
+abstract: >-
+  An agent skill for designing, implementing, reviewing, and retrofitting
+  shell-facing CLI interfaces using contextual AXI principles. Guidance
+  covers task-appropriate output, compatibility, actionable failures,
+  safe backend substitutes for tests, and optional session integrations.
+keywords:
+  - agent skills
+  - AXI
+  - command-line interfaces
+  - agent experience
+references:
+  # Provenance: references/axi-principles.md and references/SUMMARY.md
+  - type: website
+    title: "AXI: Agent eXperience Interface"
+    authors:
+      - family-names: Chen
+        given-names: Kun
+    url: "https://axi.md/"
+    date-accessed: "2026-10-22"
+  - type: software
+    title: "AXI: Agent eXperience Interface"
+    repository-code: "https://github.com/kunchenguid/axi"
+    url: "https://github.com/kunchenguid/axi"
+    date-accessed: "2026-10-22"
+  - type: report
+    title: "AXI Benchmark Study: Agent Interface Comparison"
+    url: "https://github.com/kunchenguid/axi/blob/main/bench-github/published-results/STUDY.md"
+    year: 2026
+    date-accessed: "2026-10-22"
+  # Provenance: references/toon-format.md
+  - type: website
+    title: "Specification"
+    url: "https://toonformat.dev/reference/spec.html"
+    date-accessed: "2026-10-22"
+  - type: generic
+    title: "TOON Specification"
+    version: "4.4"
+    url: "https://github.com/toon-format/spec/blob/main/SPEC.md"
+    date-accessed: "2026-10-22"
+  # Provenance: references/agent-cli-practices.md
+  - type: website
+    title: "Writing CLI Tools That AI Agents Actually Want to Use"
+    authors:
+      - family-names: Enyioha
+        given-names: Ugo
+    url: "https://dev.to/uenyioha/writing-cli-tools-that-ai-agents-actually-want-to-use-39no"
+    year: 2026
+    date-accessed: "2026-10-22"
+  # Provenance: references/clirank-agent-cli-design.md
+  - type: website
+    title: "Designing CLI tools for AI agents"
+    authors:
+      - name: CLIRank
+    url: "https://clirank.dev/guides/designing-cli-tools-for-agents"
+    date-accessed: "2026-10-22"
+  # Provenance: references/mcp-interface-contracts.md
+  - type: generic
+    title: "Model Context Protocol Specification"
+    authors:
+      - name: Model Context Protocol
+    version: "2026-07-28"
+    url: "https://modelcontextprotocol.io/specification/2026-07-28"
+    date-accessed: "2026-10-22"
+  - type: generic
+    title: "Tools"
+    authors:
+      - name: Model Context Protocol
+    version: "2026-07-28"
+    url: "https://modelcontextprotocol.io/specification/2026-07-28/server/tools"
+    date-accessed: "2026-10-22"
+  # Provenance: references/cli-guidelines.md
+  - type: website
+    title: "Command Line Interface Guidelines"
+    authors:
+      - family-names: Prasad
+        given-names: Aanand
+      - family-names: Firshman
+        given-names: Ben
+      - family-names: Tashian
+        given-names: Carl
+      - family-names: Parish
+        given-names: Eva
+    url: "https://clig.dev/"
+    date-accessed: "2026-10-22"
+  # Provenance: references/writing-interface-specs.md
+  - type: website
+    title: "How to write a good spec for AI agents"
+    authors:
+      - family-names: Osmani
+        given-names: Addy
+    url: "https://addyosmani.com/blog/good-spec/"
+    year: 2026
+    date-accessed: "2026-10-22"

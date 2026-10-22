@@ -1,3 +1,6 @@
+/** A wrapper-owned diagnostic safe to display; never include caller values or helper output. */
+export class UsageError extends Error {}
+
 /** The only options the wrapper reads; everything else is forwarded to Forge untouched. */
 export type CommandSpec = {
   /** Options the wrapper owns and re-injects, as name -> short letter (long form is `--name`). */
@@ -23,7 +26,10 @@ function ownedName(spec: CommandSpec, arg: string) {
     (key) => spec.owned[key] === short?.[1],
   );
   if (!short || name === undefined) return undefined;
-  if (short[2]?.startsWith("=")) throw new Error("Unsupported short equals");
+  if (short[2]?.startsWith("="))
+    throw new UsageError(
+      `Unsupported short equals for -${spec.owned[name]}; use -${spec.owned[name]} VALUE or --${name}=VALUE`,
+    );
   return { name, value: short[2] || undefined };
 }
 
@@ -52,7 +58,9 @@ export function parseForgeArgs(
       continue;
     }
     if (Object.hasOwn(parsed.owned, match.name))
-      throw new Error(`Duplicate option: ${match.name}`);
+      throw new UsageError(
+        `Duplicate option: --${match.name}; supply it only once`,
+      );
     parsed.owned[match.name] = validate(
       match.name,
       match.value ?? pending.shift() ?? "",

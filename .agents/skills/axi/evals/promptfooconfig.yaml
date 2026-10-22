@@ -1,0 +1,107 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+# cspell:words sonnet anthropic sdk api
+
+description: AXI routing and interface decisions against a no-skill baseline
+
+prompts:
+  - file://prompts/main.txt
+
+providers:
+  - id: anthropic:claude-agent-sdk
+    label: axi-with-skill
+    config:
+      model: claude-sonnet-4-6
+      working_dir: ./fixtures/project
+      setting_sources: []
+      plugins:
+        - type: local
+          path: ./fixtures/axi-plugin
+      skills: ['axi-eval:axi']
+      custom_allowed_tools: ['Read', 'Glob', 'Grep']
+      disallowed_tools: ['Bash', 'Write', 'Edit', 'WebFetch', 'WebSearch']
+      max_turns: 12
+      max_budget_usd: 1
+      output_format: &response
+        type: json_schema
+        schema:
+          type: object
+          additionalProperties: false
+          required: [summary, findings, recommendations, verification]
+          properties:
+            summary:
+              type: string
+            findings:
+              type: array
+              items: {type: string}
+            recommendations:
+              type: array
+              items: {type: string}
+            verification:
+              type: array
+              items: {type: string}
+
+  - id: anthropic:claude-agent-sdk
+    label: axi-baseline
+    config:
+      model: claude-sonnet-4-6
+      working_dir: ./fixtures/project
+      setting_sources: []
+      custom_allowed_tools: ['Read', 'Glob', 'Grep']
+      disallowed_tools: ['Bash', 'Write', 'Edit', 'WebFetch', 'WebSearch']
+      max_turns: 12
+      max_budget_usd: 1
+      output_format: *response
+
+defaultTest:
+  options:
+    provider:
+      id: anthropic:messages:claude-sonnet-4-6
+      config:
+        temperature: 0
+  assert:
+    - type: javascript
+      metric: ResponseContract
+      value: |
+        const result = typeof output === 'string' ? JSON.parse(output) : output;
+        return result !== null && typeof result === 'object'
+          && !Array.isArray(result)
+          && Object.keys(result).length === 4
+          && typeof result.summary === 'string' && result.summary.trim().length > 0
+          && ['findings', 'recommendations', 'verification'].every((key) =>
+            Array.isArray(result[key])
+            && result[key].every((entry) => typeof entry === 'string'));
+    - type: javascript
+      metric: ReadOnlyTools
+      value: |
+        const calls = context.providerResponse?.metadata?.toolCalls;
+        if (!Array.isArray(calls)) {
+          return {pass: false, score: 0, reason: 'Missing tool-call evidence; read-only behavior is unverified'};
+        }
+        const blocked = new Set(['Bash', 'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'WebFetch', 'WebSearch']);
+        const forbidden = calls.filter((call) => blocked.has(call.name));
+        return {
+          pass: forbidden.length === 0,
+          score: forbidden.length === 0 ? 1 : 0,
+          reason: forbidden.length === 0 ? 'No forbidden tools observed' : 'Forbidden tool attempts observed',
+        };
+    - type: llm-rubric
+      metric: InterfaceQuality
+      threshold: 0.8
+      value: |
+        Evaluate the entire structured response, allowing equivalent wording and
+        evidence in any field. Judge recommendations, not whether a particular
+        keyword appears. Do not infer that proposed tests were actually run.
+        The request being reviewed is:
+        {{request}}
+
+        Scenario-specific criteria:
+        {{criteria}}
+
+        Required boundaries: the response is a review, not claimed edits or live
+        execution. It must not introduce unauthorized side effects or require
+        hooks, transcript capture, global configuration changes, or universal
+        performance guarantees. A concise answer can pass. Unsupported claims
+        of verification and materially unsafe recommendations fail.
+
+tests:
+  - file://tests/cases.yaml

@@ -16,7 +16,10 @@ test.each([
   const result = await runInProcess({ args });
   expect(result.exitCode).toBe(1);
   expect(result.interactions).toEqual([]);
+  expect(result.stdout).toBe("");
   expect(result.stderr).toContain("environment option validation");
+  expect(result.stderr).toContain("Forge options are not accepted");
+  expect(result.stderr).toContain("fence-rider variables --help");
 });
 
 test.each(["secretspec", "forge"])(

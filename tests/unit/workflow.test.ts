@@ -21,6 +21,25 @@ test("a failure reports the stage and exits 1", async () => {
   );
 });
 
+test.each([
+  new Error("PRIVATE_DEPENDENCY_OUTPUT"),
+  new CommandFailure(
+    "exit status 7",
+    7,
+    "PRIVATE_DEPENDENCY_OUTPUT",
+    "PRIVATE_DEPENDENCY_OUTPUT",
+  ),
+])("failure details never expose raw helper output", async (error) => {
+  const { io, stdout, stderr } = recordingIo();
+  expect(
+    await runWorkflow(async () => {
+      throw error;
+    }, io),
+  ).toBe(1);
+  expect(stdout()).toBe("");
+  expect(stderr()).not.toContain("PRIVATE_DEPENDENCY_OUTPUT");
+});
+
 test("a command failure reports its message but never propagates its exit code", async () => {
   const { io, stderr } = recordingIo();
   const status = await runWorkflow(async (workflow) => {

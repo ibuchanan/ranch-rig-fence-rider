@@ -1,4 +1,4 @@
-import { type CommandSpec, parseForgeArgs } from "./forge-args";
+import { type CommandSpec, parseForgeArgs, UsageError } from "./forge-args";
 import { isOptionValue } from "./policy";
 
 const targetSpec: CommandSpec = {
@@ -8,7 +8,9 @@ const targetSpec: CommandSpec = {
 
 export function validateTarget(target: string) {
   if (typeof target !== "string" || !isOptionValue(target))
-    throw new Error("Invalid Forge target");
+    throw new UsageError(
+      "Invalid Forge target: --environment (-e) or FORGE_ENVIRONMENT must be non-empty and not start with a dash",
+    );
   return target;
 }
 

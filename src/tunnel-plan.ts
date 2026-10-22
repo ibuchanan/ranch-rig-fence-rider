@@ -1,4 +1,4 @@
-import { type CommandSpec, parseForgeArgs } from "./forge-args";
+import { type CommandSpec, parseForgeArgs, UsageError } from "./forge-args";
 import { isLocalControl, isOptionValue } from "./policy";
 
 const reservedPrefix = "FORGE_USER_VAR_";
@@ -14,7 +14,10 @@ export function parseTunnelOptions(args: string[]) {
     tunnelSpec,
     args,
     (_name, value) => {
-      if (!isOptionValue(value)) throw new Error("Invalid tunnel environment");
+      if (!isOptionValue(value))
+        throw new UsageError(
+          "Invalid tunnel environment: --environment (-e) must be non-empty and not start with a dash",
+        );
       return value;
     },
   );

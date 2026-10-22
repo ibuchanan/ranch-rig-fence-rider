@@ -1,0 +1,9 @@
+{{request}}
+
+Review only. Do not edit files, execute commands, access external services, or
+perform the operation being discussed. The scenario contains all necessary
+facts. Local read-only guidance may be consulted if relevant.
+
+Return a structured review with summary, findings, recommendations, and
+verification. In verification, distinguish recommended checks from checks
+actually performed. Evaluate only the requested scope.

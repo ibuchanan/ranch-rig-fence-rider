@@ -217,7 +217,29 @@ Pre-upload checks are not Forge's full lint pipeline; Forge may still fail later
 | --- | --- |
 | `variables`: SecretSpec schema, export and upload stdout | Private; stderr not shown |
 | Forge under lint, deploy, install, uninstall and tunnel scripts | Inherits stdin, stdout and stderr; live, without redaction |
-| Wrapper diagnostics | Omit values and raw helper errors |
+| Wrapper diagnostics | Omit values and raw helper errors; option refusals include the cause and supported syntax without echoing argument values |
+
+### CLI channels and exit status
+
+| Invocation | stdout | stderr | Exit status |
+| --- | --- | --- | --- |
+| No arguments, help or version | Discovery text; no configuration or helper access | Empty | 0 |
+| Script generation | Executable POSIX shell script, not structured data | Empty | 0 |
+| Refused arguments | Empty | Cause and recovery guidance for wrapper-owned options | 1; before configuration or helper access |
+| `variables` | Progress and final upload count, including zero uploads | Failure stage and safe details, if any | 0 on completion; 1 on failure; 130 for SIGINT, 143 for SIGTERM |
+| `doctor` | Diagnostic report, including failed checks | Normally empty | 0 when checks pass or warn; 1 when any check fails |
+
+A zero exit from script generation does not mean Forge ran or succeeded. Executing
+that script is a separate operation whose status belongs to SecretSpec or Forge.
+Unknown Forge arguments remain forwarded by script commands, not validated by
+Fence Rider. `variables` accepts no forwarded arguments. Option diagnostics are
+plain text, not a stable machine-readable schema.
+
+A failed upload may already have changed remote state. Fence Rider reports that
+possibility and does not roll back or retry. SecretSpec and Forge interaction in
+generated scripts remains inherited; generation grants no consent and injects no
+confirmation bypass. Private helper calls used by `variables` and during tunnel
+generation have closed stdin and captured output.
 
 **Forge output, exception details, application logs, echoed input and terminal
 sessions may expose values.** Fence Rider provides no redaction or credential

@@ -1,0 +1,166 @@
+# cspell:words TOON
+# Each scenario is paired with identical input and rubric across providers.
+# Content criteria are judge-only variables, not injected into the subject prompt.
+
+- description: Collection query discloses partial results without inventing totals
+  providers: [axi-with-skill]
+  vars: &collection
+    request: |
+      Review the interface design for `tasks list`, used by coding agents.
+      Do not implement changes. Each record includes id, title, state, assignee,
+      timestamps, labels, description, and several nested API metadata objects.
+      The command returns the first 30 records. The backend reports hasMore=true
+      and a next cursor, but cannot provide an exact total cheaply. Current output
+      does not expose either hasMore or the cursor. Descriptions are cut to 500
+      characters without a truncation marker. `tasks view <id> --full` already
+      retrieves complete descriptions; `tasks list --cursor <cursor>` fetches
+      the next page. The list help currently omits these retrieval paths.
+      What interface changes are appropriate, and how should they be verified?
+    criteria: |
+      Recommend a compact, useful default collection schema rather than raw API
+      metadata. Explicitly disclose that more results exist and expose a usable
+      cursor or next-page path; an exact unknown total must not be fabricated or
+      obtained through an assumed cheap call. If previews remain, identify their
+      truncation and the existing full-content retrieval path. Explain relevant
+      discovery and empty-result behavior. TOON is a reasonable preference for
+      uniform records, not an unconditional requirement or a universal savings
+      claim. Recommend safe tests of these observable behaviors without claiming
+      to have run them. Accept equivalent, actionable solutions.
+  assert:
+    - type: skill-used
+      metric: Routing
+      value: axi-eval:axi
+
+- description: Collection query baseline uses identical facts and content criteria
+  providers: [axi-baseline]
+  vars: *collection
+  assert: &withoutSkill
+    - type: not-skill-used
+      metric: Routing
+      value: axi-eval:axi
+
+- description: Single-object command keeps suitable JSON without forced conversion
+  providers: [axi-with-skill]
+  vars: &singleObject
+    request: |
+      Review an agent-facing `service status <id>` command. It returns one object:
+      {"id":"svc-7","state":"ready","checksPassed":3,"checksTotal":3}.
+      JSON is compact, field types are stable, failures have documented nonzero
+      exits, and existing scripts parse this result. A proposed AXI compliance
+      change would replace all output with TOON solely because AXI recommends
+      it. No other behavior needs changing. Should this change be accepted?
+      Recommend only changes warranted by these facts and relevant verification.
+    criteria: |
+      Keep the suitable existing JSON contract and reject replacement solely for
+      nominal compliance. Explain that the single-object shape and compatibility
+      matter. Do not require TOON, unrelated integrations, a dashboard, or a new
+      service architecture. Optional future modes may be mentioned but are not
+      necessary work. Verification should check the existing schema, types, and
+      failure contract without invented evidence of tests being run.
+  assert:
+    - type: skill-used
+      metric: Routing
+      value: axi-eval:axi
+
+- description: Single-object baseline uses identical facts and content criteria
+  providers: [axi-baseline]
+  vars: *singleObject
+  assert: *withoutSkill
+
+- description: Procedural deployment preserves logs and separates structured results
+  providers: [axi-with-skill]
+  vars: &procedural
+    request: |
+      Review the agent-facing behavior of `release deploy`. It validates local
+      files, builds an artifact, uploads it, and waits for API-reported completion.
+      In its normal mode it prints plain-text stage progress. It exits 0 only on
+      success, returns nonzero on failures, and provides all inputs as flags.
+      An optional --json mode promises one final JSON result on stdout, but stage
+      messages currently appear on stdout before that object. Someone proposes
+      converting every progress message into a TOON row as the AXI fix.
+      Assess the proposal and suggest the smallest appropriate correction and
+      safe verification. This is a review, not permission to deploy anything.
+    criteria: |
+      Preserve useful plain-text procedural progress in normal mode. Fix the
+      promised structured mode by separating or suppressing progress so stdout
+      contains the intended machine-readable result. TOON conversion of every
+      stage is not necessary. Preserve reliable failure exits and actionable
+      diagnostics. Recommend tests of stdout/stderr/status and relevant backend
+      failures using safe substitutes, not actual builds/uploads/deployments.
+      Do not claim the deployment or tests were executed.
+  assert:
+    - type: skill-used
+      metric: Routing
+      value: axi-eval:axi
+
+- description: Procedural baseline uses identical facts and content criteria
+  providers: [axi-baseline]
+  vars: *procedural
+  assert: *withoutSkill
+
+- description: Existing retrofit preserves compatibility and uses fake mutation tests
+  providers: [axi-with-skill]
+  vars: &retrofit
+    request: |
+      Review a proposed agent-facing retrofit of `tasks close <id>`. Existing
+      scripts expect a JSON object on stdout, diagnostics on stderr, and exit 0
+      when the desired state is confirmed closed; failures exit nonzero. The new
+      wrapper would silently change errors to TOON on stdout and remove the old
+      JSON shape. The team proposes validating it by closing an actual production
+      task. No live-write authorization or breaking-change approval was given.
+      An injectable fake task backend already supports state reads, writes, and
+      failures. Missing IDs and unknown flags currently reach the backend before
+      validation. Setup hooks are also being proposed as a compliance requirement.
+      Give prioritized findings and a safe verification plan. Do not edit or run
+      the CLI, close a task, install integrations, or change configuration.
+    criteria: |
+      Flag unauthorized compatibility changes and preserve the established JSON,
+      stderr, and exit contract, or require explicit approval/isolation for a
+      separate contract. Reject production mutation testing here; use the
+      existing fake backend for mutation, already-closed no-op, and failures.
+      Input validation must precede backend calls, with tests proving invalid
+      input performs no write or dependency call. A no-op succeeds only when
+      desired state is confirmed; ambiguous writes must not be blindly retried.
+      Hooks are optional, not compliance prerequisites, and need explicit opt-in.
+      Findings must be prioritized and actionable, not claimed implemented fixes.
+  assert:
+    - type: skill-used
+      metric: Routing
+      value: axi-eval:axi
+
+- description: Retrofit baseline uses identical facts and content criteria
+  providers: [axi-baseline]
+  vars: *retrofit
+  assert: *withoutSkill
+
+- description: Backend-only retry fix avoids AXI activation and interface redesign
+  providers: [axi-with-skill]
+  vars: &backendOnly
+    request: |
+      Review only an off-by-one fix in an internal service adapter retry loop.
+      maxAttempts is already validated as a positive integer. The operation is
+      safe to retry and the existing loop calls it one too many times on failure:
+
+      for (let attempt = 0; attempt <= maxAttempts; attempt++) {
+        try { return await operation(); }
+        catch (error) { lastError = error; }
+      }
+      throw lastError;
+
+      The patch changes <= to <. The public CLI command, flags, output, errors,
+      and exit codes are unchanged. Identify whether the patch fixes the count
+      and recommend focused tests. Do not broaden the work to interface design.
+    criteria: |
+      Assess the off-by-one accurately: with maxAttempts positive, the patched
+      loop allows at most maxAttempts calls, rather than maxAttempts + 1.
+      Recommend focused adapter tests such as immediate success, failures up to
+      the limit, or eventual success within the limit using a fake operation.
+      Do not recommend AXI adoption, output-format changes, CLI redesign, session
+      hooks, or unrelated service changes. No claimed edits or executed tests.
+      Routing is checked separately; a particular wording is not required.
+  assert: *withoutSkill
+
+- description: Backend-only baseline uses identical facts and content criteria
+  providers: [axi-baseline]
+  vars: *backendOnly
+  assert: *withoutSkill

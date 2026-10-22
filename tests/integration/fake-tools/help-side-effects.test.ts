@@ -8,6 +8,21 @@ import { runCli, useBuiltCli } from "../../support/cli.ts";
 // evidence; what the help says is covered in-process by help.test.ts.
 useBuiltCli();
 
+test.each(["deploy", "variables", "tunnel"])(
+  "%s option refusal is actionable and side-effect-free in the compiled CLI",
+  async (command) => {
+    const result = await runCli([command, "-e=PRIVATE_VALUE"], true);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("--environment=VALUE");
+    expect(result.stderr).not.toContain("PRIVATE_VALUE");
+    expectNoToolCalls(
+      `fence-rider ${command} -e=PRIVATE_VALUE`,
+      result.toolCalls,
+    );
+  },
+);
+
 const discoveryArgs: string[][] = [
   [],
   ["--help"],

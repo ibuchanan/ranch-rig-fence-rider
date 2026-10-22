@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "axi": {
+      "source": "ibuchanan/agent-skills-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/axi/SKILL.md",
+      "computedHash": "601d2268ccec576895a6d5c098091c50e1343ec80d69bcc6028e1f8177b30967"
+    }
+  }
+}

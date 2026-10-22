@@ -1,0 +1,5 @@
+{
+  "name": "axi-eval",
+  "version": "0.1.0",
+  "description": "Evaluation-local access to the current AXI skill"
+}
