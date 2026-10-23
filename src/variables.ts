@@ -1,12 +1,10 @@
 import { checkManifest, configure } from "./configured";
-import { UsageError } from "./forge-args";
 import type { Io } from "./io";
-import { parseTargetOptions, validateTarget } from "./target";
+import { validateTarget } from "./target";
 import { planUploads, type Upload } from "./variables-plan";
 import { describeStage, runWorkflow, type Workflow } from "./workflow";
 
-export const variablesUsage = [
-  "Usage: fence-rider variables [-e, --environment TARGET]",
+export const variablesHelp = [
   "Encrypts and uploads each runtime-scope value with forge variables set --encrypt, so run it when the variables change; deploy never uploads.",
   "Target: explicit option, resolved FORGE_ENVIRONMENT, then development.",
   "Resolves the whole profile once and checks optional manifest declarations before the first upload. Local controls, empty values and values starting with a dash are refused.",
@@ -30,18 +28,15 @@ async function upload(
 }
 
 async function performUpload(
-  options: ReturnType<typeof parseTargetOptions>,
+  explicitTarget: string | undefined,
   workflow: Workflow,
   io: Io,
 ) {
-  if (options.explicitTarget !== undefined)
-    workflow.target = options.explicitTarget;
+  if (explicitTarget !== undefined) workflow.target = explicitTarget;
   const { forge, scopeMembers, values, environment, env } =
     await configure(workflow);
   workflow.stage = "environment target validation";
-  const target = validateTarget(
-    options.explicitTarget ?? environment ?? "development",
-  );
+  const target = validateTarget(explicitTarget ?? environment ?? "development");
   workflow.target = target;
   await checkManifest(scopeMembers, workflow);
   const runtime = await scopeMembers("runtime");
@@ -53,18 +48,9 @@ async function performUpload(
 }
 
 /** Encrypt and upload the runtime values for one environment, with secret-safe diagnostics. */
-export async function variables(args: string[], io: Io): Promise<number> {
-  return runWorkflow(async (workflow) => {
-    workflow.stage = "environment option validation";
-    const options = parseTargetOptions(args);
-    if (options.help) {
-      io.out(variablesUsage);
-      return;
-    }
-    if (options.forwarded.length)
-      throw new UsageError(
-        "Forge options are not accepted; use only --environment (-e), or run fence-rider variables --help for usage",
-      );
-    await performUpload(options, workflow, io);
-  }, io);
+export async function variables(
+  target: string | undefined,
+  io: Io,
+): Promise<number> {
+  return runWorkflow((workflow) => performUpload(target, workflow, io), io);
 }

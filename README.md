@@ -28,8 +28,11 @@ Help and version need no configuration, vault, network or Forge login:
 bun install
 bun run build
 ./dist/fence-rider --help
-./dist/fence-rider doctor
+./dist/fence-rider -h
+./dist/fence-rider doctor --help
 ```
+
+All commands support `-h` and `--help` for command-specific help.
 
 `doctor` checks that SecretSpec and Forge are installed and in the tested range.
 Both must be on `PATH`, and Forge must be authenticated; Fence Rider installs
@@ -56,8 +59,8 @@ Then call Fence Rider from short package scripts:
 ```json
 {
   "variables": "fence-rider variables",
-  "deploy": "cmd=$(fence-rider deploy --non-interactive) && sh -c \"$cmd\" sh",
-  "release": "fence-rider variables && cmd=$(fence-rider deploy --non-interactive) && sh -c \"$cmd\" sh"
+  "deploy": "cmd=$(fence-rider deploy -- --non-interactive) && sh -c \"$cmd\" sh",
+  "release": "fence-rider variables && cmd=$(fence-rider deploy -- --non-interactive) && sh -c \"$cmd\" sh"
 }
 ```
 

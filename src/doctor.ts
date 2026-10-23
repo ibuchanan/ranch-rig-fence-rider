@@ -28,8 +28,7 @@ const dependencies = [
 
 type Dependency = (typeof dependencies)[number];
 
-export const doctorUsage = [
-  "Usage: fence-rider doctor [--resolve]",
+export const doctorHelp = [
   "Report the SecretSpec and Forge CLI versions on PATH against the lowest supported and highest tested versions.",
   "Reads SecretSpec's declared schema, which carries no values, and applies the rules variables applies when it resolves the profile: every name is letters, digits and underscores and does not start with a digit, and every declaration is a string or string-or-null. Asks SecretSpec (value-free) for the manifest scope's members, including a scope inherited through project.extends, and checks that manifest.yml declares them. Likewise asks for the runtime scope's members and reports what variables would upload: an undefined or empty scope is a warning, a local control (FORGE_ENVIRONMENT, FORGE_SITE, FORGE_PRODUCT) among them is a failure. Warns, by name only, about values already exported in the shell that can change a generated command: declared keys and local controls, which secretspec run leaves in place for unresolved optional declarations, and FORGE_USER_VAR_ names that tunnel cannot clear; this is advisory and never prints a value. Also reads the SecretSpec file (SECRETSPEC_FILE, else ./secretspec.toml) only to warn about scopes Fence Rider never reads.",
   "--resolve additionally asks SecretSpec (`check --json`, value-free) whether every required value resolves, and names the ones that do not. Resolving reads the provider, so it may prompt for vault authentication and add audit entries; without the flag doctor makes no such call. An unresolved optional value is not a failure.",
@@ -251,17 +250,6 @@ async function inspectResolution(secretspec: string | undefined, io: Io) {
 }
 
 export type DoctorOptions = { resolve: boolean };
-
-/** Doctor's options, or undefined for an argument it does not accept; `help` asks for the usage text. */
-export function parseDoctorOptions(args: string[]) {
-  const options = { resolve: false, help: false };
-  for (const arg of args) {
-    if (arg === "--resolve") options.resolve = true;
-    else if (arg === "--help" || arg === "-h") options.help = true;
-    else return undefined;
-  }
-  return options;
-}
 
 /** The lines of one doctor run, and whether any of them is a failure. */
 async function inspectAll(io: Io, { resolve: resolution }: DoctorOptions) {

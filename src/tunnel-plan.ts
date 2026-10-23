@@ -1,28 +1,6 @@
-import { type CommandSpec, parseForgeArgs, UsageError } from "./forge-args";
-import { isLocalControl, isOptionValue } from "./policy";
+import { isLocalControl } from "./policy";
 
 const reservedPrefix = "FORGE_USER_VAR_";
-
-// -h is Forge's debug host, so only --help requests wrapper help.
-const tunnelSpec: CommandSpec = {
-  owned: { environment: "e" },
-  help: ["--help"],
-};
-
-export function parseTunnelOptions(args: string[]) {
-  const { owned, forwarded, help } = parseForgeArgs(
-    tunnelSpec,
-    args,
-    (_name, value) => {
-      if (!isOptionValue(value))
-        throw new UsageError(
-          "Invalid tunnel environment: --environment (-e) must be non-empty and not start with a dash",
-        );
-      return value;
-    },
-  );
-  return { target: owned["environment"], forwarded, help };
-}
 
 /** Whether the prologue's cleanup loop can see and unset this ambient name. */
 export const tunnelClears = (name: string) =>

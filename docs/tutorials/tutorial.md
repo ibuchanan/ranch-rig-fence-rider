@@ -124,8 +124,8 @@ Lint uploads nothing.
 ```json
 {
   "scripts": {
-    "install:forge": "cmd=$(fence-rider install --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
-    "upgrade:forge": "cmd=$(fence-rider install --upgrade --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
+    "install:forge": "cmd=$(fence-rider install -- --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
+    "upgrade:forge": "cmd=$(fence-rider install -- --upgrade --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
     "uninstall:forge": "cmd=$(fence-rider uninstall) && sh -c \"$cmd\" sh"
   }
 }
@@ -148,9 +148,9 @@ Forge reports that the app is installed on your site. You do not run
 {
   "scripts": {
     "variables": "fence-rider variables",
-    "deploy": "cmd=$(fence-rider deploy --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh",
-    "deploy:reviewed": "cmd=$(fence-rider deploy --non-interactive --approve REVIEWED_RULE_FROM_FORGE) && sh -c \"$cmd\" sh",
-    "release": "fence-rider variables && cmd=$(fence-rider deploy --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh"
+    "deploy": "cmd=$(fence-rider deploy -- --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh",
+    "deploy:reviewed": "cmd=$(fence-rider deploy -- --non-interactive --approve REVIEWED_RULE_FROM_FORGE) && sh -c \"$cmd\" sh",
+    "release": "fence-rider variables && cmd=$(fence-rider deploy -- --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh"
   }
 }
 ```

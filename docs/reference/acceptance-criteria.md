@@ -26,7 +26,7 @@ the generated deploy script.
 | AC-08 | Values contain spaces, quotes, newlines, or shell syntax | Each supported value reaches Forge unchanged as one value, with no shell expansion. |
 | AC-09 | Helper output contains a synthetic secret on failure | The secret appears in neither Fence Rider's output nor its diagnostics. |
 | AC-10 | Help, version, no command, or unsupported command | No secret resolution or remote mutation occurs; help succeeds and unsupported commands fail clearly. |
-| AC-11 | Ambiguous target or option without a value | The invocation fails before secret resolution and remote mutation. |
+| AC-11 | Invalid target or option without a value | The invocation fails before secret resolution and remote mutation; repeated valid scalar options use the last value. |
 | AC-12 | Unselected provider credential or local control exists | It is not uploaded, and resolved secrets are not written to local files. |
 | AC-13 | A supervised command is interrupted | Fence Rider reports non-success and leaves no child running. Applies to `variables`; generated scripts `exec` into the tools, which own their signals. |
 | AC-14 | Required local or manifest input is missing | Validation fails before every upload and deployment, including when runtime scope membership resolves to nothing. |
@@ -45,8 +45,8 @@ the generated deploy script.
 | CW-04 | Local values and absent optional values | Local values arrive unchanged; stale ambient values for absent optionals do not leak where Fence Rider resolves values itself, and `doctor` warns where `secretspec run` leaves them. |
 | CW-05 | Shared manifest/runtime value | Local use, tunnel delivery, and upload use one resolution result. |
 | CW-06 | Environment control | `FORGE_ENVIRONMENT` selects the configured target; there is no legacy alias. |
-| CW-07 | Explicit target override | Where options are accepted (`variables`, `deploy`, `tunnel`) the explicit value wins without duplicate effective options. `install` and `uninstall` take targets from the profile only. |
-| CW-08 | Invalid or ambiguous targeting | Missing values, duplicates, and unsupported targets fail before command execution; unrelated option payloads are preserved. |
+| CW-07 | Explicit target override | Wrapper options (`variables`, `deploy`, `tunnel`) use the last valid explicit value. Install/uninstall inject profile defaults; script commands accept explicit Forge overrides only after `--`. |
+| CW-08 | Invalid or ambiguous targeting | Missing or invalid wrapper values fail before helper access; unknown wrapper arguments are refused. The explicit Forge tail is preserved without interpreting its options. |
 | CW-09 | Configured lint | Inputs and useful results reach Forge, with no injected target flags and no remote-variable writes. |
 | CW-10 | Configured install or upgrade | Profile targets apply; upgrade, consent, and non-interactive choices are preserved, never invented. |
 | CW-11 | Configured uninstall | Profile targets apply with caller-controlled interaction; no synchronization or install policy is added. |

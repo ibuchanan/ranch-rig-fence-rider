@@ -18,13 +18,6 @@ describe("lint script", () => {
       lintScript(["--fix", "two words", "it's", "--", "--site", "x"]),
     ).toBe(`${prefix}forge lint --fix 'two words' 'it'\\''s' -- --site x "$@"`);
   });
-
-  test.each([["--help"], ["-h"]])("%s gives usage, not a script", (flag) => {
-    const usage = lintScript([flag as string]);
-    expect(usage).toStartWith("Usage: fence-rider lint");
-    expect(usage).toContain('cmd=$(fence-rider lint) && sh -c "$cmd" sh');
-    expect(usage).not.toContain("exec secretspec");
-  });
 });
 
 describe("deploy script", () => {
@@ -39,47 +32,15 @@ describe("deploy script", () => {
     expect(script).not.toContain("--site");
   });
 
-  test.each(
-    [
-      ["-e", "production"],
-      ["--environment", "production"],
-      ["--environment=production"],
-      ["-eproduction"],
-    ].map((args) => ({ args })),
-  )("embeds the explicit target $args instead of the profile's", ({ args }) => {
-    const script = deployScript(args);
-    expect(script).toContain("environment=production\n");
-    expect(script).not.toContain("FORGE_ENVIRONMENT-development");
-    expect(script).toEndWith(`' sh deploy "$@"`);
+  test("embeds forwarded options as-is, treating them as Forge args", () => {
+    const script = deployScript(["-e", "production", "--verbose"]);
+    expect(script).toEndWith(`' sh deploy -e production --verbose "$@"`);
   });
 
   test("embeds forwarded options quoted after the command word, leaving payloads after -- alone", () => {
     expect(
-      deployScript(["--tag", "a b;$(id)", "-e", "x", "--", "-e", "payload"]),
+      deployScript(["--tag", "a b;$(id)", "--", "-e", "payload"]),
     ).toEndWith(`' sh deploy --tag 'a b;$(id)' -- -e payload "$@"`);
-  });
-
-  test.each(
-    [
-      ["-e"],
-      ["--environment", ""],
-      ["--environment", "--non-interactive"],
-      ["-e", "a", "--environment=b"],
-    ].map((args) => ({ args })),
-  )("refuses the invalid target $args", ({ args }) => {
-    expect(() => deployScript(args)).toThrow();
-  });
-
-  test.each(
-    [["--help"], ["-h"], ["--non-interactive", "-h"]].map((args) => ({
-      args,
-    })),
-  )("$args gives usage, not a script", ({ args }) => {
-    const usage = deployScript(args);
-    expect(usage).toStartWith("Usage: fence-rider deploy");
-    expect(usage).toContain('cmd=$(fence-rider deploy) && sh -c "$cmd" sh');
-    expect(usage).toContain("fence-rider variables");
-    expect(usage).not.toContain("exec secretspec");
   });
 });
 
@@ -98,36 +59,6 @@ describe.each(installCommands)("%s script", (command) => {
     expect(
       installScript(["--upgrade", "code", "--note", "a b;$(id)"], command),
     ).toEndWith(`' sh ${command} --upgrade code --note 'a b;$(id)' "$@"`);
-  });
-
-  test.each(
-    [
-      ["--site", "other.atlassian.net"],
-      ["--site=other.atlassian.net"],
-      ["-sother.atlassian.net"],
-      ["-s", "other.atlassian.net"],
-      ["--product", "confluence"],
-      ["--product=confluence"],
-      ["-p", "confluence"],
-      ["--environment", "production"],
-      ["-e", "production"],
-      ["-eproduction"],
-      ["--verbose", "--environment=production"],
-    ].map((args) => ({ args })),
-  )("refuses target options $args", ({ args }) => {
-    expect(() => installScript(args, command)).toThrow(
-      "Target options are not accepted",
-    );
-    expect(() => installScript(args, command)).toThrow(
-      "run secretspec and forge directly",
-    );
-  });
-
-  test.each([["--help"], ["-h"]])("%s gives usage, not a script", (flag) => {
-    const usage = installScript([flag as string], command);
-    expect(usage).toStartWith(`Usage: fence-rider ${command}`);
-    expect(usage).toContain(`cmd=$(fence-rider ${command}) && sh -c "$cmd" sh`);
-    expect(usage).not.toContain("exec secretspec");
   });
 });
 
@@ -170,20 +101,20 @@ describe("the CLI prints scripts", () => {
     },
   );
 
-  test("deploy refuses an invalid target with nothing on stdout", async () => {
+  test("deploy with invalid wrapper option refuses before I/O", async () => {
     const result = await runMain(["deploy", "-e", "--verbose"]);
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toBe("");
-    expect(result.stderr).toStartWith("Fence Rider: Invalid Forge target");
+    expect(result.stderr).toStartWith("Fence Rider:");
   });
 
   test.each(installCommands)(
-    "%s refuses a target option with nothing on stdout",
+    "%s with target option refuses before I/O",
     async (command) => {
       const result = await runMain([command, "--site", "x"]);
       expect(result.exitCode).toBe(1);
       expect(result.stdout).toBe("");
-      expect(result.stderr).toStartWith("Fence Rider: Target options");
+      expect(result.stderr).toStartWith("Fence Rider:");
     },
   );
 

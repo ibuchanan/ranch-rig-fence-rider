@@ -1,25 +1,11 @@
-import { type CommandSpec, parseForgeArgs, UsageError } from "./forge-args";
 import { isOptionValue } from "./policy";
+import { UsageError } from "./usage-error";
 
-const targetSpec: CommandSpec = {
-  owned: { environment: "e" },
-  help: ["--help", "-h"],
-};
-
+/** Validate a target without echoing caller or provider values in diagnostics. */
 export function validateTarget(target: string) {
   if (typeof target !== "string" || !isOptionValue(target))
     throw new UsageError(
       "Invalid Forge target: --environment (-e) or FORGE_ENVIRONMENT must be non-empty and not start with a dash",
     );
   return target;
-}
-
-/** The `-e, --environment` option shared by deploy and variables; everything else is forwarded. */
-export function parseTargetOptions(args: string[]) {
-  const { owned, forwarded, help } = parseForgeArgs(
-    targetSpec,
-    args,
-    (_name, value) => validateTarget(value),
-  );
-  return { explicitTarget: owned["environment"], forwarded, help };
 }

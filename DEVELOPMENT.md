@@ -163,10 +163,11 @@ raise thresholds or suppress findings to make a gate pass.
 
 ### Add a command
 
-1. Implement the command in its own `src/<name>.ts`, exporting a `<name>Usage`
-   string and a `run`-shaped function that takes arguments and `Io`.
-2. Add it to the `commands` table in `src/commands.ts` with a `summary`, `usage`
-   and `run`; `main` dispatches from that table and top-level help lists it.
+1. Implement the command in its own `src/<name>.ts`, accepting parsed inputs
+   and `Io` where needed. Export workflow notes for its help footer.
+2. Declare the command, description, options and action in `src/cli.ts`.
+   Commander owns parsing and generated help. Script commands receive only
+   the verbatim tail after the first `--`; do not add another option parser.
 3. Write a unit test through `main`; add an integration test only for what needs
    a real process.
 4. Add the command to the `commands` list in `tests/unit/docs.test.ts` and to
@@ -176,7 +177,8 @@ raise thresholds or suppress findings to make a gate pass.
 
 ### Update the command help page
 
-The command table in `src/commands.ts` is the only place usage text is wired. Run
+Commander declarations in `src/cli.ts` generate usage and option text; workflow
+notes live beside their implementations. Run
 `./dist/fence-rider help <command>` after `bun run build` and paste the output
 verbatim into the matching `text` block in
 [command help](docs/reference/command-help.md); `tests/unit/docs.test.ts`
@@ -202,12 +204,12 @@ fails until they match. Other pages link there rather than restating usage.
   workflow besides `doctor`; encrypts and uploads the runtime-scope values.
 - `src/tunnel.ts`, `src/tunnel-plan.ts`: prints the `forge tunnel` script with
   a prologue mapping runtime members to `FORGE_USER_VAR_<name>`.
-- `src/target.ts`: the `-e, --environment` option shared by deploy and
-  variables.
+- `src/target.ts`: safe environment validation used by Commander and resolved
+  upload targets.
 - `src/lint.ts`: prints the script that runs `forge lint` under
   `secretspec run`; Fence Rider supervises nothing.
-- `src/install.ts`: prints the install/uninstall script, with a fixed target
-  script, refusal of target options and no automatic synchronization.
+- `src/install.ts`: prints the install/uninstall script with profile defaults
+  and an explicit Forge argument tail; no automatic synchronization.
 - `tests/unit/`, `tests/integration/`: the two test tiers; `tests/support/`
   holds shared fixtures, fakes and runners.
 - `docs/`: task guides, reference, and architectural explanation.

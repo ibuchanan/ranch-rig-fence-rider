@@ -42,10 +42,11 @@ the script from running when Fence Rider refuses: an unguarded
 `eval "$(fence-rider lint)"` would evaluate an empty string and exit 0, so a
 refusal would silently pass. Passing the script to `sh -c` rather than `eval`
 makes any arguments your script runner appends arrive as the script's `"$@"`
-without being parsed a second time. Deploy and tunnel are the exceptions: they
-run directly, as `fence-rider deploy` and `fence-rider tunnel`.
+without being parsed a second time. Deploy and tunnel use the same script
+execution pattern; only `variables` uploads directly.
 
-Declare your inputs first: adapt [`secretspec.toml`](../examples/secretspec.toml),
+Declare your inputs first: adapt
+[`secretspec.toml`](../examples/secretspec.toml),
 merge the [`manifest.yml`](../examples/manifest.yml) fragment, and use
 [`values.env`](../examples/values.env) as a local template. See the
 [local](local.md), [manifest](manifest.md) and [runtime](runtime.md)
@@ -56,7 +57,8 @@ provider, then run:
 bun run forge:lint
 ```
 
-For local synthetic values, select `SECRETSPEC_PROVIDER=dotenv:values.env` in your
+For local synthetic values, select `SECRETSPEC_PROVIDER=dotenv:values.env` in
+your
 shell or CI configuration. Keep provider values out of scripts and Git.
 
 If a command reports a missing tool, or a step fails after a tool upgrade, run
@@ -76,11 +78,11 @@ before running any command that contacts Forge.
 ```json
 {
   "variables": "fence-rider variables",
-  "deploy": "cmd=$(fence-rider deploy --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh",
-  "deploy:reviewed": "cmd=$(fence-rider deploy --non-interactive --approve REVIEWED_RULE_FROM_FORGE) && sh -c \"$cmd\" sh",
-  "release": "fence-rider variables && cmd=$(fence-rider deploy --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh",
-  "install:forge": "cmd=$(fence-rider install --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
-  "upgrade:forge": "cmd=$(fence-rider install --upgrade --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
+  "deploy": "cmd=$(fence-rider deploy -- --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh",
+  "deploy:reviewed": "cmd=$(fence-rider deploy -- --non-interactive --approve REVIEWED_RULE_FROM_FORGE) && sh -c \"$cmd\" sh",
+  "release": "fence-rider variables && cmd=$(fence-rider deploy -- --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh",
+  "install:forge": "cmd=$(fence-rider install -- --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
+  "upgrade:forge": "cmd=$(fence-rider install -- --upgrade --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
   "uninstall:forge": "cmd=$(fence-rider uninstall) && sh -c \"$cmd\" sh",
   "lint:forge": "cmd=$(fence-rider lint) && sh -c \"$cmd\" sh",
   "tunnel": "cmd=$(fence-rider tunnel) && sh -c \"$cmd\" sh"
@@ -92,8 +94,11 @@ before running any command that contacts Forge.
 Forge before using that variant; no second server rule is certified here. The
 automated controlled test establishes distinct-token forwarding, not server
 acceptance. Rules are forwarded policy, not automatic approval of all changes.
-Deployment approval does not grant install scope consent. Keep `--confirm-scopes`,
-`--non-interactive` and `--upgrade` only where that policy is intended.
+Deployment approval does not grant install scope consent. Pass Forge options
+after `--`;
+wrapper options like `-e/--environment` must come before the separator.
+Keep `--confirm-scopes`, `--non-interactive` and `--upgrade` only where that
+policy is intended.
 
 `release` uploads runtime values with `variables` and then deploys; the `&&`
 stops before deploying if the upload fails. Forge 14.2.0 has no uninstall

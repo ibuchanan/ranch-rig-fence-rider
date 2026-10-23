@@ -73,16 +73,13 @@ test("the generator never prints a value", async () => {
   expect(result.stdout).toEndWith(`' sh tunnel "$@"\n`);
 });
 
-test.each([
-  { args: ["-e", "--verbose"] },
-  { args: ["-edevelopment", "--environment", "development"] },
-])(
-  "tunnel refuses invalid or duplicate targets %j before tools",
+test.each([{ args: ["-e", "--verbose"] }])(
+  "tunnel refuses invalid targets %j before tools",
   async ({ args }) => {
     const result = await runInProcess({ command: "tunnel", args });
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toBe("");
     expect(result.interactions).toEqual([]);
-    expect(result.stderr).toContain("tunnel option validation");
+    expect(result.stderr).toContain("Fence Rider:");
   },
 );

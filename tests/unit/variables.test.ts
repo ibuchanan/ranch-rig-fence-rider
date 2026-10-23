@@ -8,19 +8,20 @@ import {
 } from "../support/fixtures.ts";
 import { runInProcess } from "../support/fake-io.ts";
 
-test.each([
-  [["--non-interactive"]],
-  [["--", "-x"]],
-  [["-e", "production", "--verbose"]],
-])("variables %j refuses Forge options before any tool call", async (args) => {
-  const result = await runInProcess({ args });
-  expect(result.exitCode).toBe(1);
-  expect(result.interactions).toEqual([]);
-  expect(result.stdout).toBe("");
-  expect(result.stderr).toContain("environment option validation");
-  expect(result.stderr).toContain("Forge options are not accepted");
-  expect(result.stderr).toContain("fence-rider variables --help");
-});
+test.each([[["--", "-x"]], [["--unknown-option"]]])(
+  "variables %j refuses Forge arguments before any tool call",
+  async (args) => {
+    const result = await runInProcess({ args });
+    expect(result.exitCode).toBe(1);
+    expect(result.interactions).toEqual([]);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain(
+      args[0] === "--"
+        ? "Forge arguments are not accepted"
+        : "Unknown wrapper option",
+    );
+  },
+);
 
 test.each(["secretspec", "forge"])(
   "missing %s stops before any helper interaction",

@@ -1,82 +1,122 @@
+import { Command, CommanderError } from "commander";
 import { version } from "../package.json";
-import { findCommand, unknownInvocation, workflowListing } from "./commands";
+import { deployHelp, deployScript } from "./deploy";
+import { doctor, doctorHelp } from "./doctor";
+import { installHelp, installScript } from "./install";
 import type { Io } from "./io";
+import { lintHelp, lintScript } from "./lint";
+import { emit } from "./shell";
+import { validateTarget } from "./target";
+import { tunnel, tunnelHelp } from "./tunnel";
+import { UsageError } from "./usage-error";
+import { variables, variablesHelp } from "./variables";
 
-const topLevelHelp = `Fence Rider — SecretSpec-powered Forge development utility
+/** Parse one invocation before any workflow I/O; return a status rather than exiting. */
+export async function main(args: string[], io: Io): Promise<number> {
+  let status = 0;
+  const program = new Command()
+    .name("fence-rider")
+    .description("SecretSpec-powered Forge development utility")
+    .version(`fence-rider ${version}`, "-V, --version")
+    .exitOverride()
+    .configureOutput({
+      writeOut: (text) => io.out(text.trimEnd()),
+      // Commander errors can echo arbitrary input; report only trusted categories below.
+      writeErr: () => {},
+    })
+    .addHelpText(
+      "after",
+      "\nScript commands print POSIX shell; variables uploads directly.\nSecretSpec CLI and Forge CLI must be installed on PATH and authenticated separately.\nPut Forge arguments after --, for example: fence-rider deploy -e staging -- --verbose\nNo tools are downloaded, no login or consent is automated. Run fence-rider doctor to check tools.\n",
+    );
 
-Usage: fence-rider <command> [options]
+  const command = (name: string, summary: string, help: string) =>
+    program
+      .command(name)
+      .description(summary)
+      .addHelpText("after", `\n${help}\n`);
+  const target = (cmd: Command) =>
+    cmd.option(
+      "-e, --environment <target>",
+      "Override FORGE_ENVIRONMENT (default: development)",
+      validateTarget,
+    );
 
-Supported workflows:
-${workflowListing}
+  // Only the first separator belongs to Fence Rider; preserve the entire Forge tail.
+  const separator = args.indexOf("--");
+  const wrapper = separator < 0 ? args : args.slice(0, separator);
+  const forwarded = separator < 0 ? [] : args.slice(separator + 1);
+  const requireWrapperOnly = () => {
+    if (forwarded.length)
+      throw new UsageError(
+        "Forge arguments are not accepted by variables or doctor; use their --help for supported options",
+      );
+  };
 
-lint, deploy, tunnel, install and uninstall print a shell script instead of running
-Forge. Run one from a package script, for example:
-  "lint:forge": "cmd=$(fence-rider lint) && sh -c \\"$cmd\\" sh"
-The && stops the script if fence-rider refuses. variables runs directly: it uploads
-the runtime variables that deploy, like forge deploy, leaves alone.
+  target(command("deploy", "Print a deployment script", deployHelp))
+    .usage("[options] [-- <forge-args...>]")
+    .action(({ environment }) => {
+      status = emit(() => deployScript(forwarded, environment), io);
+    });
+  command("lint", "Print a configured lint script", lintHelp)
+    .usage("[options] [-- <forge-args...>]")
+    .action(() => {
+      status = emit(() => lintScript(forwarded), io);
+    });
+  for (const name of ["install", "uninstall"] as const) {
+    command(
+      name,
+      `Print an ${name === "install" ? "installation" : "uninstall"} script`,
+      installHelp(name),
+    )
+      .usage("[options] [-- <forge-args...>]")
+      .action(() => {
+        status = emit(() => installScript(forwarded, name), io);
+      });
+  }
+  target(command("tunnel", "Print a development tunnel script", tunnelHelp))
+    .usage("[options] [-- <forge-args...>]")
+    .action(async ({ environment }) => {
+      status = await tunnel(forwarded, environment, io);
+    });
+  target(
+    command("variables", "Upload encrypted runtime variables", variablesHelp),
+  ).action(async ({ environment }) => {
+    requireWrapperOnly();
+    status = await variables(environment, io);
+  });
+  command("doctor", "Check installed tools and configuration", doctorHelp)
+    .option(
+      "--resolve",
+      "Check required values resolve (may access providers)",
+      false,
+    )
+    .action(async ({ resolve }) => {
+      requireWrapperOnly();
+      status = await doctor(io, { resolve });
+    });
 
-Deployment target: explicit option, resolved FORGE_ENVIRONMENT, then development.
-
-Discovery:
-  help, --help, -h       Show this help
-  --version, -V          Show the version
-
-SecretSpec CLI must be installed on PATH; no downloads or installs.
-Run fence-rider doctor to compare installed tool versions with the tested range.
-Forge CLI must be installed on PATH and authenticated separately; no automatic login.
-
-Install/uninstall targets: resolved FORGE_SITE / FORGE_PRODUCT / FORGE_ENVIRONMENT only;
-no target options. Site/product are required. Only environment falls back to
-development. Install consent/upgrade/non-interactive policy is explicit.
-Uninstall inherits no install policy; Forge 14.2.0 has no --non-interactive option.
-
-Tunnel maps explicit runtime members to FORGE_USER_VAR_<name>; no remote uploads.
-Staging/production are unsupported; named targets must be development environments.
-Use fence-rider tunnel --help for tunnel options (-h is debug host, not help).
-`;
-
-type Handler = (args: string[], io: Io) => number | Promise<number>;
-
-/** Discovery flags accept no further arguments. */
-const bare =
-  (show: (io: Io) => number): Handler =>
-  (args, io) =>
-    args.length ? unknownInvocation(io) : show(io);
-
-function showHelp(io: Io) {
-  io.out(topLevelHelp);
-  return 0;
-}
-
-function showVersion(io: Io) {
-  io.out(`fence-rider ${version}`);
-  return 0;
-}
-
-/** `help <command>`: exactly one known command name. */
-function showUsage(names: string[], io: Io) {
-  const command = names.length === 1 ? findCommand(names[0]) : undefined;
-  if (!command) return unknownInvocation(io);
-  io.out(command.usage);
-  return 0;
-}
-
-const discovery: Record<string, Handler> = {
-  help: (args, io) => (args.length ? showUsage(args, io) : showHelp(io)),
-  "--help": bare(showHelp),
-  "-h": bare(showHelp),
-  "--version": bare(showVersion),
-  "-V": bare(showVersion),
-};
-
-function resolve(name: string): Handler | undefined {
-  return Object.hasOwn(discovery, name)
-    ? discovery[name]
-    : findCommand(name)?.run;
-}
-
-/** Run one invocation (the arguments after `fence-rider`) and return its exit code. */
-export async function main([first = "help", ...rest]: string[], io: Io) {
-  const handler = resolve(first);
-  return handler ? handler(rest, io) : unknownInvocation(io);
+  try {
+    await program.parseAsync(wrapper.length ? wrapper : ["--help"], {
+      from: "user",
+    });
+    return status;
+  } catch (error) {
+    if (error instanceof UsageError) io.err(`Fence Rider: ${error.message}.`);
+    else if (error instanceof CommanderError) {
+      if (error.exitCode === 0) return 0;
+      const causes: Record<string, string> = {
+        "commander.unknownCommand": "Unknown command",
+        "commander.unknownOption":
+          "Unknown wrapper option; put Forge arguments after --",
+        "commander.excessArguments":
+          "Unexpected wrapper argument; put Forge arguments after --",
+        "commander.optionMissingArgument":
+          "Missing option value; use --environment TARGET or -e TARGET",
+      };
+      io.err(
+        `Fence Rider: ${causes[error.code] ?? "Unsupported invocation"}. Run fence-rider --help for usage.`,
+      );
+    } else throw error;
+    return 1;
+  }
 }

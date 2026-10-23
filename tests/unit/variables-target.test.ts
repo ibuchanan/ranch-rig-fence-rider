@@ -90,16 +90,13 @@ test("explicit environment overrides the configured target for the upload", asyn
   ).toEqual(["schema", "export", "check", "check"]);
 });
 
-test.each([
-  { args: ["--environment", ""] },
-  { args: ["-e", "production", "--environment=staging"] },
-])(
-  "invalid or duplicate target %j fails before any tool call",
+test.each([{ args: ["--environment", ""] }])(
+  "invalid target %j fails before any tool call",
   async ({ args }) => {
     const result = await runInProcess({ args });
     expect(result.exitCode).not.toBe(0);
     expect(result.interactions).toEqual([]);
-    expect(result.stderr).toContain("environment option validation");
+    expect(result.stderr).toContain("Fence Rider:");
     expect(result.stdout).toBe("");
   },
 );

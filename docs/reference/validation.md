@@ -13,6 +13,7 @@ the [development runbook](../../DEVELOPMENT.md#runbook).
 | Bun | 1.4.3, macOS | Compiled CLI, TOML/YAML, subprocess and POSIX cleanup checks |
 | SecretSpec | 0.21.1 | Native schema, scope check and full-profile dotenv export through the compiled CLI; synthetic values only |
 | Forge CLI | 14.2.0 | Installed help, published source and official documentation; controlled delegation only |
+| Commander | 15.0.0 | Wrapper parsing, generated help, compiled and installed-package execution under Bun |
 | Fallow | 3.34.1 | The repository's lint gate |
 
 These are observed versions, not a supported range. `fence-rider doctor`

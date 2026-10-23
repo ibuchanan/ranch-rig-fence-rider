@@ -163,7 +163,8 @@ does not select a same-named environment.
 | Undefined scope | No members; SecretSpec's "is not defined in secretspec.toml" stderr is matched, not printed |
 
 Scope membership, `project.extends`, profile inheritance and scope validation
-are SecretSpec's. See [ADR 0002](../adr/0002-delegate-scope-membership-to-secretspec.md).
+are SecretSpec's. See [ADR
+0002](../adr/0002-delegate-scope-membership-to-secretspec.md).
 
 ## Upstream command interfaces
 
@@ -179,22 +180,23 @@ are SecretSpec's. See [ADR 0002](../adr/0002-delegate-scope-membership-to-secret
 
 ### Forge argument parsing
 
-`deploy`, `install`, `uninstall`, `tunnel` and `lint` share one reader
-(`src/forge-args.ts`).
+Commander 15 owns command discovery, wrapper option parsing and generated help.
 
-| Input | Handling |
+| Input | Behavior |
 | --- | --- |
-| `--environment`/`-e` | Owned by the wrapper |
-| `--site`/`-s`, `--product`/`-p` | Recognized for install and uninstall only to be refused |
-| Help flags | Owned by the wrapper |
-| Everything else | Forwarded untouched and in order |
-| Everything after `--` | Forwarded untouched |
-| Repeated owned option, or `-e=dev` | Rejected |
-| Grouped short flags such as `-feproduction` | Not parsed; forwarded as written |
-| Payload that looks like an owned or help flag | Read as that flag |
-| Owned value | Must be non-empty and not start with a dash |
+| `-h`, `--help`, `help <command>` | Generated help without configuration or helper access; `-h` applies to tunnel too |
+| `-e TARGET`, `--environment=TARGET`, `-eTARGET` | Wrapper environment on deploy, variables and tunnel |
+| Repeated scalar option | Last value wins; each supplied target must pass validation |
+| `-e=value` | Literal attached value `=value`; use separated short or long-equals syntax instead |
+| First `--` | Consumed by Fence Rider; remaining words go verbatim to Forge, including later `--` markers |
+| Unknown options or operands before `--` | Refused before helper access, unless Commander handles a help/version request |
+| Grouped short flags before `--` | Commander syntax; not a transparent Forge argument group |
+| Forge flags after `--` | Not parsed by Fence Rider; may override injected profile defaults |
+| `variables` and `doctor` | No Forge tail accepted |
 
-Forge validates environment names, site URLs and products.
+Wrapper diagnostics suppress Commander messages that could echo supplied input.
+Discovery follows Commander conventions; for example an unknown command with
+`--help` displays top-level help rather than performing a workflow.
 
 ## Forge boundaries and failures
 
@@ -209,7 +211,8 @@ Forge validates environment names, site URLs and products.
 | Diagnostics | Omit resolved values, raw helper output and secret-bearing command lines |
 | Exit status | Scripts preserve Forge's numeric status because they replace the shell; in `variables`, launch failure, signal or interruption is never success |
 
-Pre-upload checks are not Forge's full lint pipeline; Forge may still fail later.
+Pre-upload checks are not Forge's full lint pipeline; Forge may still fail
+later.
 
 ### Output and input policy
 
@@ -229,10 +232,12 @@ Pre-upload checks are not Forge's full lint pipeline; Forge may still fail later
 | `variables` | Progress and final upload count, including zero uploads | Failure stage and safe details, if any | 0 on completion; 1 on failure; 130 for SIGINT, 143 for SIGTERM |
 | `doctor` | Diagnostic report, including failed checks | Normally empty | 0 when checks pass or warn; 1 when any check fails |
 
-A zero exit from script generation does not mean Forge ran or succeeded. Executing
+A zero exit from script generation does not mean Forge ran or succeeded.
+Executing
 that script is a separate operation whose status belongs to SecretSpec or Forge.
-Unknown Forge arguments remain forwarded by script commands, not validated by
-Fence Rider. `variables` accepts no forwarded arguments. Option diagnostics are
+Forge arguments after the explicit `--` are forwarded by script commands, not
+validated by Fence Rider. `variables` accepts no forwarded arguments. Option
+diagnostics are
 plain text, not a stable machine-readable schema.
 
 A failed upload may already have changed remote state. Fence Rider reports that
@@ -254,33 +259,44 @@ isolation.
 ## Script commands
 
 `lint`, `install`, `uninstall` and `tunnel` run nothing. Each prints one shell
-script on stdout that a package script executes ([short scripts][short-scripts]).
-Arguments a script runner appends reach Forge through the script's `"$@"`
-without being parsed again. When Fence Rider refuses, it prints the reason on
-stderr, nothing on stdout, and exits 1.
+script on stdout that a package script executes ([short
+scripts][short-scripts]).
 
-Because the script `exec`s `secretspec run`, signals, exit status and
+Wrapper options (e.g., `-e/--environment` for `deploy`, `variables`, `tunnel`)
+must come
+before the `--` separator. Forge options must come after `--` and are passed
+verbatim.
+Unknown wrapper arguments before `--` are refused with an error and no script
+generation.
+When Fence Rider refuses, it prints the reason on stderr, nothing on stdout, and
+exits 1.
+
+Arguments a script runner appends reach Forge through the script's `"$@"`
+without being parsed again. Because the script `exec`s `secretspec run`,
+signals, exit status and
 interactive input belong to SecretSpec and Forge. Differences from `variables`:
 
 | Behavior | Script commands |
 | --- | --- |
+| Wrapper-to-Forge separation | `--` marks the boundary; wrapper options before, Forge options after |
 | Value validation (string typing, NUL-free) | Not performed |
 | Stale ambient value for an unresolved optional | Not cleared |
 | Exported variable the profile neither declares nor resolves | Visible to Forge; a resolved value overrides an exported one |
 | `PATH` and manifest-declaration checks | None; use `doctor` |
 | Missing required value | SecretSpec's own error before Forge starts |
-| Generated text | Never contains a value |
+| Generated text | Contains explicit caller arguments, never provider-resolved values |
 
 See [ADR 0005](../adr/0005-install-and-lint-delegate-to-secretspec-run.md) and
 [ADR 0006](../adr/0006-generate-shell-for-lint-install-uninstall.md).
 
 ## Configured lint
 
-`fence-rider lint [Forge options]` prints
+`fence-rider lint [--] [Forge options]` prints
 `exec secretspec run --scope '' -- forge lint …`.
 
 | Aspect | Contract |
 | --- | --- |
+| Forge options | Passed after `--`; any before the separator are rejected as unknown wrapper arguments |
 | Targeting flags | None injected; explicit arguments keep their order and boundaries |
 | Requiredness | Whole-profile: any required local, manifest, runtime or control value can block lint |
 | Follow-up | No upload, deployment, installation or deletion |
@@ -290,7 +306,7 @@ See [ADR 0005](../adr/0005-install-and-lint-delegate-to-secretspec-run.md) and
 
 ## Configured installation
 
-`fence-rider install [Forge options]` prints
+`fence-rider install [--] [Forge options]` prints
 `exec secretspec run --scope '' -- sh -c SCRIPT sh install ARGS… "$@"`. The
 inner script is a fixed string; the command and quoted arguments arrive as
 positional parameters, never interpolated. It needs `sh`, and runs no
@@ -305,34 +321,38 @@ cross-check. Installation does not activate changed runtime values.
 
 | Aspect | Contract |
 | --- | --- |
+| Forge options | Passed after `--`; any before the separator are rejected as unknown wrapper arguments |
 | Forge call | `forge install --environment E --site S --product P` plus forwarded arguments |
-| Target options `-e`, `-s`, `-p` and long forms | Refused before any script is printed (nothing on stdout, exit 1) |
+| Target options `-e`, `-s`, `-p` and long forms | Refused before the handoff; accepted verbatim after `--` and may override injected defaults |
 | Missing or invalid target | Fails in the script before Forge; Forge's target prompts never open |
-| Explicit control | Write `secretspec run -- forge install …` directly |
+| Explicit control | `fence-rider install -- --site SITE` forwards an override; required profile defaults must still validate |
 | `--demo-site` / `-d` | Forwarded unchecked beside the injected `--site`; not reconciled |
 | Bitbucket site | A workspace URL such as `https://bitbucket.org/workspace/` |
 | Upgrade | `--upgrade [all\|code]` or `-u`; no upgrade, consent, non-interactive, license or approval policy added |
 | `--confirm-scopes`, `--non-interactive`, license and user options | Forwarded in order with their boundaries |
-| `--app-id-override`, `--major-version`, `--unitId` | Required values consume switch-looking payloads |
+| `--app-id-override`, `--major-version`, `--unitId` | Passed as-is after the handoff; Forge parses their values |
 | Equals and attached payloads, everything after `--` | Preserved |
 | Help-looking values and terminator payloads | Not help requests |
 | Feature-gated Teamwork Graph installation | Not certified |
 
-Future Forge options are not modelled. See
-[ADR 0004](../adr/0004-install-targets-from-profile-only.md) and
+Future Forge options are not modelled. Profile defaults remain required even
+with an explicit Forge override. The former profile-only restriction in
+[ADR 0004](../adr/0004-install-targets-from-profile-only.md) no longer applies
+to the explicit Forge tail. Delegation still follows
 [ADR 0005](../adr/0005-install-and-lint-delegate-to-secretspec-run.md).
 
 ## Configured uninstall
 
-`fence-rider uninstall [Forge options]` prints a script that runs one
+`fence-rider uninstall [--] [Forge options]` prints a script that runs one
 `forge uninstall` under `secretspec run --scope ''`, as for installation.
 
 | Aspect | Contract |
 | --- | --- |
+| Forge options | Passed after `--`; any before the separator are rejected as unknown wrapper arguments |
 | Targets | The [installation targets](#configured-installation); site and product required, environment falls back to `development` |
-| Target options | Refused as for installation |
+| Target options | Refused before `--`; explicit Forge overrides after it are passed as for installation |
 | Products | Jira, Confluence, Compass, Bitbucket |
-| Required values | `--installation-id`/`-i` and `--app-id-override` consume switch-looking payloads |
+| Required values | `--installation-id`/`-i` and `--app-id-override` are parsed by Forge, not Fence Rider |
 | Attached and equals values, argument order, everything after `--` | Preserved |
 | Installation-only value grammar | Not applied |
 | Unknown options | Forge's validation |
@@ -345,12 +365,15 @@ read-only. See the [procedure][uninstall-guide].
 
 ## Configured tunnel
 
-`fence-rider tunnel [-e, --environment TARGET] [Forge options]` prints a script
+`fence-rider tunnel [-e, --environment TARGET] [--] [Forge options]` prints a
+script
 that runs one `forge tunnel` under `secretspec run`. Target selection and the
 development-only rule are in the [command help](command-help.md#tunnel).
 
 | Aspect | Contract |
 | --- | --- |
+| Wrapper options | `-e/--environment` before `--`; any other wrapper options are rejected |
+| Forge options | Passed after `--`; any before the separator are rejected as unknown wrapper arguments |
 | Printing | Asks SecretSpec value-free for declared names and `runtime` members; does not check `manifest` (`doctor` does) |
 | Declarations | Required local, manifest, runtime and control declarations apply, including with explicit targets |
 | Runtime mapping | A shell prologue copies only effective `runtime` members to `FORGE_USER_VAR_<name>`; Forge strips the prefix |
@@ -359,11 +382,11 @@ development-only rule are in the [command help](command-help.md#tunnel).
 | Targeting controls as runtime members | Not allowed |
 | Ambient `FORGE_USER_VAR_` entries (letters, digits, underscores) | Removed before mapped members are added |
 | Active-profile declarations with that prefix | Rejected, even if not runtime members |
-| Empty, invalid or duplicate explicit target | Fails before tools run |
+| Empty or invalid explicit target | Fails before tools run; repeated valid wrapper options use the last value |
 | Non-development environment | Rejected by Forge |
 | Environment option spellings | Separated, long-equals and attached-short normalize to one target |
 | Other arguments | Forwarded in order; Forge owns debug, `--url` and `--local-port` |
-| `-h` | Forge's debug host; only `--help` requests wrapper help |
+| `-h` | Wrapper help if before `--`; Forge's debug host if after `--` |
 | Site and product flags | Never injected |
 | Added behavior | No upload, deletion, deploy, installation, retry, follow-up or permanent secret file |
 
@@ -391,7 +414,9 @@ not read-only or offline. See the [procedure][tunnel-guide].
 [cli]: https://secretspec.dev/reference/cli/
 [resolver]: https://secretspec.dev/reference/resolver-protocol/
 [dotenv]: https://secretspec.dev/providers/dotenv/
-[manifest]: https://developer.atlassian.com/platform/forge/manifest-reference/environment/
-[variables]: https://developer.atlassian.com/platform/forge/cli-reference/variables-set/
+[manifest]:
+https://developer.atlassian.com/platform/forge/manifest-reference/environment/
+[variables]:
+https://developer.atlassian.com/platform/forge/cli-reference/variables-set/
 [environments]: https://developer.atlassian.com/platform/forge/environments/
 [tunneling]: https://developer.atlassian.com/platform/forge/tunneling/

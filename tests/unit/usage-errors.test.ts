@@ -7,28 +7,25 @@ const privateValue = "PRIVATE_OPTION_VALUE_do_not_echo";
 const invalidOptions = [
   {
     args: ["--environment"],
-    cause: "non-empty",
-    recovery: "--environment",
+    cause: "Missing option value",
+    recovery: "--environment TARGET",
   },
-  {
-    args: ["--environment="],
-    cause: "non-empty",
-    recovery: "--environment",
-  },
+  { args: ["--environment="], cause: "non-empty", recovery: "--environment" },
+  { args: ["-e", ""], cause: "non-empty", recovery: "--environment" },
   {
     args: ["-e", `--${privateValue}`],
     cause: "dash",
     recovery: "--environment",
   },
   {
-    args: ["-e", privateValue, "--environment=other"],
-    cause: "Duplicate option",
-    recovery: "only once",
+    args: [`--unknown-${privateValue}`],
+    cause: "Unknown wrapper option",
+    recovery: "after --",
   },
   {
-    args: [`-e=${privateValue}`],
-    cause: "short equals",
-    recovery: "--environment=VALUE",
+    args: [privateValue],
+    cause: "Unexpected wrapper argument",
+    recovery: "after --",
   },
 ];
 

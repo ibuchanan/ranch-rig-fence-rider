@@ -1,4 +1,4 @@
-import { UsageError } from "./forge-args";
+import { UsageError } from "./usage-error";
 import type { Io } from "./io";
 import {
   CommandFailure,

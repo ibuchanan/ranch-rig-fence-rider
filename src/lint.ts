@@ -1,31 +1,15 @@
-import { type CommandSpec, parseForgeArgs } from "./forge-args";
-import type { Io } from "./io";
-import { emit, underSecretSpec } from "./shell";
+import { underSecretSpec } from "./shell";
 
-export const lintUsage = [
-  "Usage: fence-rider lint [Forge options]",
-  "Prints a shell script that runs forge lint under secretspec run, with the whole active profile resolved into its environment. Run it from a package script:",
-  '  cmd=$(fence-rider lint) && sh -c "$cmd" sh',
-  "Options given here are embedded in the script; options a script runner appends after `sh` are passed too.",
+export const lintHelp = [
+  "Prints a shell script that runs forge lint under secretspec run with the whole active profile.",
+  'Run it from a package script: cmd=$(fence-rider lint) && sh -c "$cmd" sh',
+  "Put Forge arguments after --. Arguments appended by a script runner after sh are passed too.",
   "Forge stdin is inherited; stdout/stderr stream live and unredacted. Upstream output may expose values.",
-  "No target flags are injected and no runtime variables are uploaded.",
-  "Fence Rider does not validate values, and an exported variable the profile does not resolve (or declare) stays visible to Forge.",
-  "SecretSpec and Forge must be installed on PATH and authenticated separately; run fence-rider doctor to check them.",
+  "No targets are injected and no runtime variables are uploaded. Unresolved optional declarations leave ambient values visible to Forge.",
+  "SecretSpec and Forge CLI must be installed on PATH and authenticated separately; run fence-rider doctor to check them.",
 ].join("\n");
 
-const lintSpec: CommandSpec = {
-  owned: {},
-  help: ["--help", "-h"],
-};
-
-/** The script that runs Forge lint with the profile in its environment, or the usage text for help; throws on a refusal. */
-export function lintScript(args: string[]) {
-  const { forwarded, help } = parseForgeArgs(lintSpec, args);
-  if (help) return lintUsage;
+/** Build a lint script from the explicitly forwarded Forge arguments. */
+export function lintScript(forwarded: string[]) {
   return underSecretSpec(["forge", "lint", ...forwarded]);
-}
-
-/** Print what lintScript builds. */
-export function lint(args: string[], io: Io): number {
-  return emit(() => lintScript(args), io);
 }

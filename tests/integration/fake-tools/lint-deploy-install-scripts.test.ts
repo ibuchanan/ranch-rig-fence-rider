@@ -124,10 +124,17 @@ describe("running the deploy script", () => {
     ]);
   });
 
-  test("an explicit target wins over the resolved environment", async () => {
+  test("includes forwarded args with injected targets; Forge resolves conflicts", async () => {
     const result = await run(deployScript(["-e", "production", "--verbose"]));
     expect(result.exitCode).toBe(0);
-    expect(result.forgeArgs).toEqual([...env(["production"]), "--verbose"]);
+    expect(result.forgeArgs).toEqual([
+      "deploy",
+      "--environment",
+      "staging",
+      "-e",
+      "production",
+      "--verbose",
+    ]);
   });
 
   test("defaults the environment to development when nothing resolves it", async () => {
@@ -305,9 +312,10 @@ describe("the package.json idiom", () => {
   const idiom = (command: string, ...args: string[]) =>
     `cmd=$(fence-rider ${[command, ...args].map(quote).join(" ")}) && sh -c "$cmd" sh "$@"`;
 
-  test("runs the generated script with the runner's arguments", async () => {
-    const result = await run(idiom("lint", "--verbose"), {
-      appended: ["extra arg", 'q"uote'],
+  test("runs the generated script with Forge args after --", async () => {
+    // The idiom calls fence-rider which outputs a script; that script is then run with appended args
+    const result = await run(idiom("lint"), {
+      appended: ["--verbose", "extra arg", 'q"uote'],
     });
     expect(result.exitCode).toBe(0);
     expect(result.forgeArgs).toEqual([
@@ -319,11 +327,35 @@ describe("the package.json idiom", () => {
   });
 
   test.each(installCommands)(
-    "a guarded %s stops when fence-rider refuses",
+    "%s forwards explicit target overrides after profile defaults without adding consent",
+    async (command) => {
+      const result = await run(
+        idiom(
+          command,
+          "--",
+          "--site",
+          "other.atlassian.net",
+          "--environment",
+          "production",
+        ),
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.forgeArgs).toEqual([
+        ...targets(command),
+        "--site",
+        "other.atlassian.net",
+        "--environment",
+        "production",
+      ]);
+    },
+  );
+
+  test.each(installCommands)(
+    "a guarded %s stops when fence-rider refuses unknown wrapper option",
     async (command) => {
       const result = await run(idiom(command, "--site", "x"), {});
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("Target options are not accepted");
+      expect(result.stderr).toContain("Unknown wrapper option");
       expect(result.forgeArgs).toBeUndefined();
       expect(result.secretspecArgs).toBeUndefined();
     },

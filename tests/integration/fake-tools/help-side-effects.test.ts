@@ -11,13 +11,16 @@ useBuiltCli();
 test.each(["deploy", "variables", "tunnel"])(
   "%s option refusal is actionable and side-effect-free in the compiled CLI",
   async (command) => {
-    const result = await runCli([command, "-e=PRIVATE_VALUE"], true);
+    const result = await runCli(
+      [command, "--environment=--PRIVATE_VALUE"],
+      true,
+    );
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toBe("");
-    expect(result.stderr).toContain("--environment=VALUE");
+    expect(result.stderr).toContain("not start with a dash");
     expect(result.stderr).not.toContain("PRIVATE_VALUE");
     expectNoToolCalls(
-      `fence-rider ${command} -e=PRIVATE_VALUE`,
+      `fence-rider ${command} --environment=--PRIVATE_VALUE`,
       result.toolCalls,
     );
   },
@@ -33,7 +36,7 @@ const discoveryArgs: string[][] = [
   ["lint", "--help"],
   ["install", "--help"],
   ["uninstall", "--help"],
-  ["tunnel", "-d", "-h", "127.0.0.1", "--help"],
+  ["tunnel", "-h"],
   ["unknown-command"],
 ];
 

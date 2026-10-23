@@ -35,7 +35,7 @@ test("tunnel normalizes an explicit named development override and preserves deb
   ];
   const result = await runScript({
     command: "tunnel",
-    generate: ["-ealice-dev", ...args],
+    generate: ["-ealice-dev", "--", ...args],
   });
   expect(result.exitCode).toBe(0);
   expect(forgeCalls(result.interactions).map(({ args }) => args)).toEqual([
@@ -46,7 +46,7 @@ test("tunnel normalizes an explicit named development override and preserves deb
 test("tunnel appends the runner's arguments after the embedded ones", async () => {
   const result = await runScript({
     command: "tunnel",
-    generate: ["-edevelopment", "--verbose"],
+    generate: ["-edevelopment", "--", "--verbose"],
     appended: ["-p", "9230", "a b;$(touch injected)"],
   });
   expect(result.exitCode).toBe(0);

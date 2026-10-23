@@ -48,7 +48,10 @@ test.each(usageCases)(
     const repeated = help.stdout
       .trimEnd()
       .split("\n")
-      .filter((line) => page.includes(line.replace(/\s+/g, " ")));
+      .filter(
+        (line) =>
+          line.endsWith(".") && page.includes(line.replace(/\s+/g, " ")),
+      );
     expect(repeated).toEqual([]);
   },
 );

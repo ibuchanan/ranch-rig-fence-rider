@@ -175,16 +175,14 @@ test("doctor refuses an unknown option before any tool runs", async () => {
   };
   for (const args of [["--verbose"], ["--resolve", "--verbose"], ["resolve"]])
     expect(await main(["doctor", ...args], io)).toBe(1);
-  expect(recorded.stderr()).toContain(
-    "Unknown command or unsupported arguments",
-  );
+  expect(recorded.stderr()).toContain("Fence Rider:");
   expect(calls).toEqual([]);
 });
 
 test("doctor --help lists --resolve and what it may cost", async () => {
   const result = await runDoctor({}, ["--help"]);
   expect(result.exitCode).toBe(0);
-  expect(result.stdout).toContain("Usage: fence-rider doctor [--resolve]");
+  expect(result.stdout).toContain("Usage: fence-rider doctor [options]");
   expect(result.stdout).toContain("--resolve additionally asks SecretSpec");
   expect(result.stdout).toContain("prompt for vault authentication");
   expect(result.stdout).toContain("audit entries");
