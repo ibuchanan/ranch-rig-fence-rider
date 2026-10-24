@@ -71,15 +71,16 @@ chmod +x "$fixture/bin/forge" "$fixture/bin/fence-rider"
 export PATH="$fixture/bin:$PATH" TEST_FORGE_CALLS="$fixture/calls"
 cd "$fixture/app"
 
-# Replace the vault only in the disposable user configuration with synthetic dotenv.
-secretspec config global provider add user_dotenv \
+# Synthetic test exception: dotenv here proves routing, not secret-backend safety.
+# Never use this project_secrets binding for real credentials.
+secretspec config global provider add shared_config \
   'dotenv:~/.config/secretspec/user.env' >/dev/null
-secretspec config global provider add app_secrets \
+secretspec config global provider add project_secrets \
   "dotenv:$fixture/app/synthetic.env" >/dev/null
 secretspec config global init --provider dotenv --profile default >/dev/null
-secretspec set --provider user_dotenv --profile default FORGE_SITE example.atlassian.net >/dev/null
-secretspec set --provider user_dotenv --profile default FORGE_PRODUCT jira >/dev/null
-secretspec set --provider user_dotenv --profile default FORGE_ENVIRONMENT development >/dev/null
+secretspec set --provider shared_config --profile default FORGE_SITE example.atlassian.net >/dev/null
+secretspec set --provider shared_config --profile default FORGE_PRODUCT jira >/dev/null
+secretspec set --provider shared_config --profile default FORGE_ENVIRONMENT development >/dev/null
 
 if secretspec check --scope '' --no-prompt >/dev/null 2>&1; then
   echo 'FAIL: a missing required runtime credential passed validation' >&2
@@ -88,7 +89,7 @@ fi
 
 # Same stdin-only generation pipeline as the guide, never a real credential.
 openssl rand -hex 32 | tr -d '\n' |
-  secretspec set --provider app_secrets --profile default \
+  secretspec set --provider project_secrets --profile default \
     --from-file - APP_BEARER_TOKEN >/dev/null
 secretspec check --scope '' --explain >/dev/null
 secretspec check --scope runtime --json >/dev/null

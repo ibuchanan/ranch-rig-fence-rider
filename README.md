@@ -6,7 +6,8 @@
 Fence Rider wraps the Forge CLI so a Forge app declares its configuration once
 and every workflow gets the right values. You describe local, manifest and
 runtime variables in a committed [SecretSpec](https://secretspec.dev) file; each
-developer picks their own provider (a vault or a dotenv file). Fence Rider then
+developer binds storage roles to their own backends: non-secret config may use
+dotenv, while secrets require an approved secret backend. Fence Rider then
 uploads the selected runtime variables encrypted and runs `deploy`, `lint`,
 `install`, `uninstall` and `tunnel` with the resolved values. Nothing is added
 to your deployed app.
@@ -46,15 +47,17 @@ everything else stays local:
 
 ```toml
 [profiles.default]
-FORGE_ENVIRONMENT = { description = "Target", default = "development" }
-SERVICE_URL       = { description = "Service endpoint", required = true }
-API_TOKEN         = { description = "Runtime credential", required = true }
+FORGE_ENVIRONMENT = { description = "Target", default = "development", providers = ["shared_config"] }
+SERVICE_URL       = { description = "Service endpoint", required = true, providers = ["project_config"] }
+API_TOKEN         = { description = "Runtime credential", required = true, providers = ["project_secrets"] }
 
 [scopes.runtime]
 secrets = ["API_TOKEN"]
 ```
 
-Then call Fence Rider from short package scripts:
+Bind these [storage roles](docs/reference/forge-tooling.md#storage-roles) in
+your user configuration first. Alias names describe the required storage, but
+do not enforce backend safety. Then call Fence Rider from short package scripts:
 
 ```json
 {
@@ -79,7 +82,7 @@ state.** Set up a disposable app first.
 ## Documentation
 
 - [Command help](docs/reference/command-help.md) and [variable contract](docs/reference/reference.md)
-- [Provider configuration reference](docs/reference/forge-tooling.md)
+- [Provider storage roles and configuration](docs/reference/forge-tooling.md)
 - [Why Forge has three kinds of variables](docs/explanation/three-kinds-of-env-vars.md)
 - [Why use SecretSpec with Fence Rider?](docs/explanation/secrets-and-forge-tooling.md)
 - [What Fence Rider is for, and where it stops](docs/explanation/scope-and-boundaries.md)

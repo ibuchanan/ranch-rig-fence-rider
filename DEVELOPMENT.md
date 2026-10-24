@@ -109,6 +109,8 @@ bash scripts/check-secretspec.sh
 It reads the app declaration from the guide and scripts from
 `docs/examples/package.json`, uses isolated temporary user configuration and
 synthetic dotenv values instead of a vault, and intercepts every Forge call.
+Its disposable `project_secrets` binding is a synthetic test exception, not an
+approved credential-storage example or proof of backend-policy enforcement.
 The native test suite runs it when SecretSpec is installed. It does not prove
 keyring or vault behavior, server acceptance, or runtime activation.
 

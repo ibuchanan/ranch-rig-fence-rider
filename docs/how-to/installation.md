@@ -45,21 +45,22 @@ makes any arguments your script runner appends arrive as the script's `"$@"`
 without being parsed a second time. Deploy and tunnel use the same script
 execution pattern; only `variables` uploads directly.
 
-Declare your inputs first: adapt
-[`secretspec.toml`](../examples/secretspec.toml),
-merge the [`manifest.yml`](../examples/manifest.yml) fragment, and use
-[`values.env`](../examples/values.env) as a local template. See the
-[local](local.md), [manifest](manifest.md) and [runtime](runtime.md)
-guides for the procedures. Choose your own
-provider, then run:
+Declare your inputs first using [app setup](configure-app-secrets.md) and bind
+the required storage roles using [provider setup](configure-user-providers.md).
+See the [local](local.md), [manifest](manifest.md) and [runtime](runtime.md)
+guides for the procedures. Then run:
 
 ```sh
 bun run lint:forge
 ```
 
-For local synthetic values, select `SECRETSPEC_PROVIDER=dotenv:values.env` in
-your
-shell or CI configuration. Keep provider values out of scripts and Git.
+For a synthetic-only exercise, follow the [tutorial](../tutorials/tutorial.md)
+using the [`secretspec.toml`](../examples/secretspec.toml),
+[`manifest.yml`](../examples/manifest.yml) and
+[`values.env`](../examples/values.env) examples. Its
+`SECRETSPEC_PROVIDER=dotenv:values.env` shortcut is not a real-credential setup;
+do not apply it to a mixed config-and-secrets profile. Keep provider values out
+of scripts and Git.
 
 If a command reports a missing tool, or a step fails after a tool upgrade, run
 `bun run fence-rider doctor` and install a version in the tested range. The

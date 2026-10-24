@@ -135,10 +135,25 @@ does not, by its name alone, select Forge's production environment.
 
 ## A provider is a source, not a destination
 
-An environment file and a vault are alternative places to obtain values.
-Neither determines whether a value belongs to local tooling, the manifest,
-or the running app. Replacing a vault with an environment file does not
-remove the need for manifest injection or remote runtime uploads.
+Storage and delivery answer different questions. Storage has two independent
+dimensions: whether a value is intentionally shared across projects or isolated
+to one project, and whether it is non-secret config or a confidential secret.
+The [provider convention](../reference/forge-tooling.md#storage-roles) combines
+these into `shared_config`, `project_config`, `shared_secrets`, and
+`project_secrets`. These names describe roles, not backend products or places
+where configuration files live.
+
+For example, a preferred Forge site can use `shared_config`, while an app's
+bearer token uses `project_secrets`. A service URL stored as `project_config`
+can serve both manifest and runtime consumers; a credential can stay local.
+The native scope list is named `secrets`, but membership does not classify
+sensitivity. `providers` selects storage, `runtime` selects uploads, and
+`manifest` selects consistency checks.
+
+Plaintext dotenv is suitable only for config under this convention; secrets
+require an approved backend. Changing the storage backend does not remove the
+need for manifest injection or remote runtime uploads. Alias names alone do
+not enforce protection or namespaces: the backend and its addressing do.
 
 That separation is especially useful for sample app forks. A maintainer can
 use one provider and a downstream developer another, while both share the

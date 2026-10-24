@@ -5,8 +5,11 @@ change. First [install the package scripts](installation.md#add-the-full-script-
 and [configure app secrets](configure-app-secrets.md). For a synthetic dotenv
 exercise instead of real credentials, follow the [tutorial](../tutorials/tutorial.md).
 
-Declare only the names your functions need in `[scopes.runtime]`. Do not declare
-names starting with `FORGE_USER_VAR_`. Only runtime members upload, always
+Declare only the names your functions need in `[scopes.runtime]`. Storage roles
+and delivery are independent: credentials can use `project_secrets` and
+non-secret runtime config can use `project_config`. Neither is uploaded merely
+because of its alias. Do not declare names starting with `FORGE_USER_VAR_`.
+Only runtime members upload, always
 encrypted. Live Forge behavior remains unverified; the
 [validation record](../../specs/validation.md) separates local evidence from
 live observations.
@@ -63,8 +66,12 @@ development tunnels; connected runtime receipt remains unverified here.
 2. Supply `FORGE_EMAIL` and `FORGE_API_TOKEN` from protected runner settings,
    using a Forge-supported scoped API token. Never print them or run interactive
    login in the job.
-3. Authenticate the provider using SecretSpec's configuration. Set the intended
-   profile and `FORGE_ENVIRONMENT` before running a combined release.
+3. Bind only the app's required semantic aliases in the runner's operator-owned
+   SecretSpec configuration. Use approved secret backends and verify
+   project/profile addressing; never substitute a blanket dotenv override for
+   mixed config and secrets. Protect provider bootstrap credentials too.
+   Authenticate the provider, then set the intended profile and
+   `FORGE_ENVIRONMENT` before running a combined release.
 4. Disable shell tracing and run `bun run release`. The example deploy script
    includes `--non-interactive`; `variables` takes no Forge options.
 5. Treat a nonzero exit as failure. Fix the cause before retrying.

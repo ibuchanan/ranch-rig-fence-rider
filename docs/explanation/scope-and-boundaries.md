@@ -19,8 +19,10 @@ runtime variables to one environment and the deployment to another.
 Tying the workflow to one secret manager or to `.env` files would push that
 choice onto every downstream developer. Fence Rider instead lets a maintainer
 declare requirements once in a committed `secretspec.toml`, while each
-developer picks their own provider (a vault, a password manager, or a dotenv
-file) without changing the repository or adding an SDK to the app.
+developer binds semantic storage roles to their own backends without changing
+the repository or adding an SDK to the app. Non-secret config may use dotenv;
+secret roles require approved secret backends under the
+[provider convention](../reference/forge-tooling.md#storage-roles).
 
 ## Who owns what
 
@@ -67,6 +69,8 @@ name is derived from the other.
 
 - Look up secrets, or bundle vault or provider SDKs, inside a deployed app.
 - Replace SecretSpec: no new provider, authentication service, or TOML dialect.
+- Enforce semantic provider bindings. Alias names do not prove backend safety,
+  project/profile isolation, or deliberate sharing; operators must review those.
 - Provide a general command proxy or arbitrary shell execution. Only the
   documented commands are supported, and target flags are injected only where
   the Forge command accepts them.

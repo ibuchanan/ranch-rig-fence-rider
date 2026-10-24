@@ -25,13 +25,24 @@ problem: each copy would need protection and rotation.
 
 SecretSpec separates those decisions. A committed `secretspec.toml` describes
 names, requirements, and provider routes without holding credential values.
-User-level aliases bind those routes to a developer's provider. The app can
-share a configuration contract without sharing a vault identifier or a secret.
+The [provider convention](../reference/forge-tooling.md#storage-roles) names
+roles rather than products: `shared_config`, `project_config`,
+`shared_secrets`, and `project_secrets`. User-level bindings map those roles to
+a developer's backends. The app can share a configuration contract without
+sharing a vault identifier or a secret.
 
 Not every value needs secret storage. `FORGE_SITE`, `FORGE_PRODUCT`, and
-`FORGE_ENVIRONMENT` are local target controls, so a shared user dotenv file can
-hold them without holding app credentials. This separation makes convenient
-cross-project defaults compatible with a stricter credential-storage policy.
+`FORGE_ENVIRONMENT` are non-secret target controls, so `shared_config` can bind
+them to a shared user dotenv file without holding app credentials. Sharing is
+intentional, not a consequence of being local to the tooling: a production
+target can instead use `project_config` so other apps' defaults cannot change it.
+Likewise, storing a secret in a remote vault does not make it shared.
+
+Config must be safe for the chosen plaintext storage, but need not be public.
+Secret roles require approved secret backends. Aliases cannot enforce either
+protection or isolation: backend addressing and permissions must establish the
+project/profile boundary or deliberate cross-project sharing. A vault whose
+bootstrap credential is exposed in plaintext does not solve that problem.
 
 ## Forge delivery is a separate concern
 

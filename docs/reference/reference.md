@@ -48,6 +48,22 @@ use native SecretSpec syntax. Provider credentials stay under SecretSpec's
 provider configuration and are not application variables unless explicitly
 declared.
 
+## Provider storage roles
+
+The [provider convention](forge-tooling.md#storage-roles) names storage by
+sharing boundary (`shared` or `project`) and sensitivity (`config` or `secrets`):
+`shared_config`, `project_config`, `shared_secrets`, and `project_secrets`.
+Relevant declarations select aliases explicitly with `providers`; operators
+bind only the roles their app uses in user-global configuration. Committed
+project alias definitions must not override those operator-owned bindings.
+
+Storage roles do not determine scope membership. Secrets can remain local;
+non-secret config can be uploaded when deployed code needs it. The convention
+requires approved secret backends, matching isolation, and no secret-to-config
+fallback. Neither SecretSpec alias names nor Fence Rider enforce those backend
+properties; this is a configuration contract, not a new provider schema or
+security-policy implementation.
+
 ## Scopes
 
 | Selection         | Local behavior                                      | Fence Rider behavior                                 |
@@ -76,9 +92,9 @@ name = "sample-forge-app"
 revision = "1.0"
 
 [profiles.default]
-FORGE_ENVIRONMENT = { description = "Forge environment", default = "development" }
-SERVICE_URL = { description = "External service URL", required = true }
-API_KEY = { description = "External service credential", required = true }
+FORGE_ENVIRONMENT = { description = "Forge environment", default = "development", providers = ["shared_config"] }
+SERVICE_URL = { description = "External service URL", required = true, providers = ["project_config"] }
+API_KEY = { description = "External service credential", required = true, providers = ["project_secrets"] }
 
 [scopes.manifest]
 secrets = ["SERVICE_URL"]

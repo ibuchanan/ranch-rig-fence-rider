@@ -1,12 +1,14 @@
 # Declare manifest inputs and check them
 
 Use this guide to feed a SecretSpec value into a Forge manifest substitution
-and have Fence Rider confirm the manifest declares it. Manifest values stay
-local: they are resolved for Forge's own processes and never uploaded.
+and have Fence Rider confirm the manifest declares it. A `manifest` scope alone
+does not upload a value; adding it to `runtime` also selects it for upload.
+Storage roles are independent of both scopes.
 
-Before you start, finish the [installation guide](installation.md) and work from
-your Forge app directory. Fence Rider does not register apps or rewrite your
-manifest.
+Before you start, finish the [installation guide](installation.md) and
+[provider setup](configure-user-providers.md), including `project_config`, and
+work from your Forge app directory. Fence Rider does not register apps or
+rewrite your manifest.
 
 ## Declare a substitution input
 
@@ -16,7 +18,7 @@ manifest.
 
    ```toml
    [profiles.default]
-   SERVICE_URL = { description = "Service endpoint", required = true }
+   SERVICE_URL = { description = "Service endpoint", required = true, providers = ["project_config"] }
 
    [scopes.manifest]
    secrets = ["SERVICE_URL"]
@@ -33,15 +35,22 @@ manifest.
 
 3. Use `${SERVICE_URL}` in a Forge-supported substitution field that your app
    needs.
-4. Supply a value through your provider. For a disposable exercise, put it in
-   an ignored `values.env`, as in the [example](../examples/values.env).
+4. Store the non-secret URL through its declared route:
+
+   ```sh
+   secretspec set --provider project_config --profile default SERVICE_URL
+   ```
+
+   Enter only a URL safe for the configured plaintext backend, not one with an
+   embedded credential. Route confidential inputs through a secret role instead;
+   manifest use does not make them non-secret or safe for public disclosure.
 
 ## Check the declaration
 
 1. Run `doctor` from the app directory:
 
    ```sh
-   SECRETSPEC_PROVIDER=dotenv:values.env bun run fence-rider doctor
+   bun run fence-rider doctor
    ```
 
    It fails when a `manifest` scope member is missing from `manifest.yml`.
@@ -51,7 +60,7 @@ manifest.
    [tested package example](../examples/package.json) and run it:
 
    ```sh
-   SECRETSPEC_PROVIDER=dotenv:values.env bun run lint:forge
+   bun run lint:forge
    ```
 
    Lint resolves the whole profile before Forge validates the manifest, and

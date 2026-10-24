@@ -31,6 +31,16 @@ is the historical exploration that started the project. It is not a spec and
 not an authority: its package names, command names, and sample code predate the
 implementation.
 
+## Configuration conventions
+
+[Semantic provider conventions](secretspec-provider-conventions.md) proposes
+storage-role names based on sharing boundary and sensitivity. The consumer
+[provider reference](../docs/reference/forge-tooling.md) and
+[setup guides](../docs/how-to/configure-user-providers.md) adopt those names as
+a configuration convention, not an implemented backend security policy.
+Documenting the convention does not change operator bindings, stored values,
+or remote Forge state.
+
 ## Writing a spec
 
 Use the same shape for each: **Current state** (link to `docs/`), **Gap**,

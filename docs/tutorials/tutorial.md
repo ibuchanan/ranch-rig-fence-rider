@@ -65,7 +65,7 @@ SERVICE_URL=https://example.org
 API_TOKEN=synthetic-development-only
 ```
 
-Select the provider for your shell session:
+For this synthetic-only lesson, select the provider for your shell session:
 
 ```sh
 export SECRETSPEC_PROVIDER=dotenv:values.env
@@ -197,6 +197,10 @@ explicitly, with matching environments.
 
 ## Next steps
 
+- Before using real credentials, unset `SECRETSPEC_PROVIDER` and follow
+  [provider setup](../how-to/configure-user-providers.md) and
+  [app setup](../how-to/configure-app-secrets.md). Those guides use semantic
+  storage roles instead of this lesson's synthetic-only dotenv shortcut.
 - Change targets or profiles: [set local values](../how-to/local.md).
 - Add more manifest inputs: [declare manifest inputs](../how-to/manifest.md).
 - Use CI or recover from a failed upload: [runtime variables](../how-to/runtime.md).
