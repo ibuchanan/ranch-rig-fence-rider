@@ -14,17 +14,17 @@ bun run build
 
 Tests live in two tiers under `tests/`, with shared helpers in `tests/support/`.
 
-| Tier | Location | What runs | Speed |
-| --- | --- | --- | --- |
-| Unit | `tests/unit/` | In-process calls to `main`, with no subprocesses | A fraction of a second for the whole tier |
+| Tier        | Location             | What runs                                                                                   | Speed                                     |
+| ----------- | -------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Unit        | `tests/unit/`        | In-process calls to `main`, with no subprocesses                                            | A fraction of a second for the whole tier |
 | Integration | `tests/integration/` | Real processes: the compiled CLI, fake or real tools on `PATH`, signals, installed packages | Seconds; each file runs in its own worker |
 
 Integration tests are grouped by what they need to run:
 
-| Group | Location | Needs installed | Script |
-| --- | --- | --- | --- |
-| Real SecretSpec | `tests/integration/real-secretspec/` | SecretSpec 0.21.1 on `PATH` | `bun run test:integration:native` |
-| Fake tools | `tests/integration/fake-tools/` | Nothing: the compiled CLI and spawned processes run against fake SecretSpec and Forge on `PATH` | `bun run test:integration:fakes` |
+| Group           | Location                             | Needs installed                                                                                 | Script                            |
+| --------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------- | --------------------------------- |
+| Real SecretSpec | `tests/integration/real-secretspec/` | SecretSpec 0.21.1 on `PATH`                                                                     | `bun run test:integration:native` |
+| Fake tools      | `tests/integration/fake-tools/`      | Nothing: the compiled CLI and spawned processes run against fake SecretSpec and Forge on `PATH` | `bun run test:integration:fakes`  |
 
 Each file name states its subject and the command it exercises.
 
@@ -102,52 +102,52 @@ controlled, native, interface and blocked live results.
 
 ## Validation commands
 
-| Command | Purpose |
-| --- | --- |
-| `bun run test` | Full test suite with normal passing-test output |
-| `bun run test:check` | Same tests; only failures and totals are displayed |
-| `bun run test:unit` | Unit tier only: in-process, no subprocesses |
-| `bun run test:integration` | Integration tier only: both groups below |
-| `bun run test:integration:native` | Integration tests that need real SecretSpec (`real-secretspec/`) |
-| `bun run test:integration:fakes` | Integration tests that run against fake tools on `PATH` (`fake-tools/`) |
-| `bun run test:coverage` | Coverage report for inspection |
-| `bun run test:watch` | Interactive test feedback |
-| `bun run lint` | Biome, formatting, typecheck, and Fallow in parallel |
-| `bun run lint:docs` | All Markdown and spelling checks |
-| `bun run check` | Forced pre-push gate: tests (failing if SecretSpec is missing) and lint |
-| `bun run build` | Compiled CLI at `dist/fence-rider` |
+| Command                           | Purpose                                                                 |
+| --------------------------------- | ----------------------------------------------------------------------- |
+| `bun run test`                    | Full test suite with normal passing-test output                         |
+| `bun run test:check`              | Same tests; only failures and totals are displayed                      |
+| `bun run test:unit`               | Unit tier only: in-process, no subprocesses                             |
+| `bun run test:integration`        | Integration tier only: both groups below                                |
+| `bun run test:integration:native` | Integration tests that need real SecretSpec (`real-secretspec/`)        |
+| `bun run test:integration:fakes`  | Integration tests that run against fake tools on `PATH` (`fake-tools/`) |
+| `bun run test:coverage`           | Coverage report for inspection                                          |
+| `bun run test:watch`              | Interactive test feedback                                               |
+| `bun run lint`                    | Biome, formatting, typecheck, and Fallow in parallel                    |
+| `bun run lint:docs`               | All Markdown and spelling checks                                        |
+| `bun run check`                   | Forced pre-push gate: tests (failing if SecretSpec is missing) and lint |
+| `bun run build`                   | Compiled CLI at `dist/fence-rider`                                      |
 
-Fallow still fails on dead-code, duplication, or health thresholds as before;
-quiet success does not disable analyses. Its stdout/stderr are retained and
-printed on any nonzero status, including tool errors. Run
-`bunx --no-install fallow` to inspect a successful full report voluntarily.
-`check` uses Bun's `--only-failures`; ordinary `test` remains verbose.
+`lint:check:fallow` delegates to `lint:fallow`, which runs Fallow with
+`--fail-on-issues`. Reports and diagnostics are printed on success and failure,
+and nonzero exit statuses are preserved. Run `bun run lint:fallow` to inspect
+Fallow alone. `test:check` uses Bun's `--only-failures`; ordinary `test` remains
+verbose.
 
 ## Runbook
 
 ### Check gates
 
-| Gate | Runs | Passes when |
-| --- | --- | --- |
-| `bun run check` | `lint` and `test:check` in parallel | Both pass; the pre-push hook runs it |
-| `bun run lint` | Biome lint, Biome format check, typecheck and Fallow in parallel | All four pass |
+| Gate                 | Runs                                                             | Passes when                                         |
+| -------------------- | ---------------------------------------------------------------- | --------------------------------------------------- |
+| `bun run check`      | `lint` and `test:check` in parallel                              | Both pass; the pre-push hook runs it                |
+| `bun run lint`       | Biome lint, Biome format check, typecheck and Fallow in parallel | All four pass                                       |
 | `bun run test:check` | `test` with `FENCE_RIDER_REQUIRE_NATIVE=1` and `--only-failures` | Every test passes, with SecretSpec 0.21.1 on `PATH` |
-| `bun run lint:docs` | markdownlint and cspell over every Markdown file | No findings |
+| `bun run lint:docs`  | markdownlint and cspell over every Markdown file                 | No findings                                         |
 
 `check` does not run `lint:docs` or `build`; run them yourself after touching
-documentation or `src/`. Fallow prints nothing on success and its full output on
-any nonzero status; run `bunx --no-install fallow` for a full report. Do not
-raise thresholds or suppress findings to make a gate pass.
+documentation or `src/`. Fallow reports remain visible when run directly;
+Lefthook controls which command output appears in its gate summary. Do not raise
+thresholds or suppress findings to make a gate pass.
 
 ### Known validation failures
 
-| Symptom | Cause | Fix |
-| --- | --- | --- |
-| `check` fails naming SecretSpec 0.21.1 | Not installed, or not on `PATH`, with the native gate forced | Install SecretSpec 0.21.1 separately |
-| `bun run test` reports skipped native tests | Same, without the forced gate | A skipped run is not native evidence; install SecretSpec |
-| `docs.test.ts` fails on `docs/reference/command-help.md` | A command's usage text changed | Update the page, see below |
-| `docs.test.ts` fails on "usage text ... does not appear in" | A docs page repeats a line of command usage | Link to the command help page instead |
-| `lint` fails in parallel with a cancelled typecheck | Fail-fast cancelled it after Fallow failed | Run `bun run typecheck` alone |
+| Symptom                                                     | Cause                                                        | Fix                                                      |
+| ----------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------- |
+| `check` fails naming SecretSpec 0.21.1                      | Not installed, or not on `PATH`, with the native gate forced | Install SecretSpec 0.21.1 separately                     |
+| `bun run test` reports skipped native tests                 | Same, without the forced gate                                | A skipped run is not native evidence; install SecretSpec |
+| `docs.test.ts` fails on `docs/reference/command-help.md`    | A command's usage text changed                               | Update the page, see below                               |
+| `docs.test.ts` fails on "usage text ... does not appear in" | A docs page repeats a line of command usage                  | Link to the command help page instead                    |
+| `lint` fails in parallel with a cancelled typecheck         | Fail-fast cancelled it after Fallow failed                   | Run `bun run typecheck` alone                            |
 
 ### Bump a tested tool version
 

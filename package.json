@@ -2,7 +2,7 @@
   "name": "ranch-rig-fence-rider",
   "version": "0.0.0",
   "private": true,
-  "description": "",
+  "description": "A SecretSpec-powered CLI wrapper for syncing secrets to Atlassian Forge environments.",
   "license": "Apache-2.0",
   "author": "ibuchanan",
   "type": "module",
@@ -18,18 +18,23 @@
   "scripts": {
     "build": "bun build --compile ./src/index.ts --outfile ./dist/fence-rider",
     "changelog": "git cliff --config cliff.toml --unreleased -o CHANGELOG.md",
-    "check": "run-p lint test:check",
+    "check": "lefthook run pre-push --force",
     "clean": "rm -rf dist",
     "format": "biome format --write",
     "format:check": "biome format",
     "lint": "run-p --npm-path bun --print-label \"lint:check:*\"",
-    "lint:check:biome": "biome lint",
-    "lint:check:fallow": "output=$(fallow --fail-on-issues 2>&1) || { status=$?; printf '%s\\n' \"$output\"; exit \"$status\"; }",
+    "lint:check": "biome lint",
+    "lint:check:biome": "bun run lint:check",
+    "lint:check:fallow": "bun run lint:fallow",
     "lint:check:format": "bun run format:check",
     "lint:check:typecheck": "bun run typecheck",
     "lint:docs": "markdownlint-cli2 \"**/*.md\" && cspell lint \"**/*.md\"",
+    "lint:fallow": "fallow --fail-on-issues",
+    "lint:fix": "biome lint --write",
     "lint:fix:biome": "biome lint --write",
     "prepare": "lefthook install || true",
+    "release": "bash scripts/release.sh",
+    "release:check": "bun run test && bun run typecheck",
     "test": "bun run --if-present test:native-gate && bun test --parallel --timeout 30000 --timings .test-timings.json --update-timings --pass-with-no-tests",
     "test:check": "FENCE_RIDER_REQUIRE_NATIVE=1 bun run test --only-failures",
     "test:coverage": "bun test --coverage --pass-with-no-tests",
@@ -42,19 +47,22 @@
     "todo": "git grep -n -I -F TO\"DO\" -- .; status=$?; if [ \"$status\" -eq 1 ]; then echo \"No TO\"\"DO markers found.\"; elif [ \"$status\" -ne 0 ]; then exit \"$status\"; fi",
     "typecheck": "tsc --project tsconfig.typecheck.json --noEmit"
   },
+  "dependencies": {
+    "commander": "^15.0"
+  },
   "devDependencies": {
-    "@biomejs/biome": "2.5.15",
-    "@types/bun": "1.4.3",
+    "@biomejs/biome": "2.6.3",
+    "@types/bun": "1.4.4",
     "cspell": "^10.4",
     "fallow": "^3.34",
     "fast-check": "^4.10",
     "git-cliff": "^2.14",
     "lefthook": "^2.2",
-    "markdownlint-cli2": "^0.23",
+    "markdownlint-cli2": "^0.24",
     "npm-run-all2": "^9.0",
     "typescript": "^5.9"
   },
-  "packageManager": "bun@1.4.3",
+  "packageManager": "bun@1.4.2",
   "engines": {
     "bun": ">=1.4.3"
   },
@@ -65,8 +73,5 @@
   "cpu": [
     "arm64",
     "x64"
-  ],
-  "dependencies": {
-    "commander": "15.0.0"
-  }
+  ]
 }

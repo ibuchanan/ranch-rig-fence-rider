@@ -5,10 +5,10 @@
     "sourceMap": true,
 
     /* Runtime baseline: Node selected by .nvmrc; ES2022 remains a conservative target alongside the Forge Webpack defaults */
-    "target": "ES2022",
+    "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2022"],
+    "lib": ["ESNext"],
     "types": ["bun"],
 
     /* Drop Calf policy defaults: enforced on update, though Forge does not force them */
