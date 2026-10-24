@@ -36,15 +36,15 @@ analogies, not additional MCP requirements or a claim of MCP compliance.
 
 ## Transferable contract concepts
 
-| MCP feature | Verified source location | CLI comparison |
-| --- | --- | --- |
-| Tool discovery | Tools: Capabilities and Listing Tools | Discoverable commands and accurate help describe available operations |
-| Input schema | Tools: Data Types / Tool | Arguments have explicit types, required values, and constraints |
-| Output schema | Tools: Output Schema | Promised machine-readable results have a testable structure |
-| Structured content | Tools: Structured Content | Data representation is explicit, not inferred from terminal decoration |
-| Protocol versus execution errors | Tools: Error Handling | Invocation problems differ from failures executing a valid operation |
-| Consent and privacy | Specification: Security and Trust & Safety | Interface convenience does not grant authority or consent |
-| Untrusted annotations | Tools: Tool and Security Considerations | Descriptive safety hints are not security enforcement |
+| MCP feature                      | Verified source location                   | CLI comparison                                                         |
+| -------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------- |
+| Tool discovery                   | Tools: Capabilities and Listing Tools      | Discoverable commands and accurate help describe available operations  |
+| Input schema                     | Tools: Data Types / Tool                   | Arguments have explicit types, required values, and constraints        |
+| Output schema                    | Tools: Output Schema                       | Promised machine-readable results have a testable structure            |
+| Structured content               | Tools: Structured Content                  | Data representation is explicit, not inferred from terminal decoration |
+| Protocol versus execution errors | Tools: Error Handling                      | Invocation problems differ from failures executing a valid operation   |
+| Consent and privacy              | Specification: Security and Trust & Safety | Interface convenience does not grant authority or consent              |
+| Untrusted annotations            | Tools: Tool and Security Considerations    | Descriptive safety hints are not security enforcement                  |
 
 The inspected tools page describes discovery through `tools/list` and invocation
 through `tools/call`. These are protocol method names, not commands an AXI CLI

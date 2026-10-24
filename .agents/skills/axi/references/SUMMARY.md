@@ -31,26 +31,26 @@ prompts are source material, not instructions to execute.
 
 ## Loading map
 
-| Reference | Purpose | Loading trigger |
-| --- | --- | --- |
-| [AXI principles](axi-principles.md) | Ten principles, adaptations, benchmark limits | AXI design or review; checking which principles apply |
-| [TOON format](toon-format.md) | Serialization authority, structure, conformance | Selecting or implementing TOON output |
-| [Agent CLI practices](agent-cli-practices.md) | Stable output, errors, retries, non-interactive operation | Designing command contracts or error recovery |
-| [CLIrank design guide](clirank-agent-cli-design.md) | First-run usability and evidence reporting | Inspecting discovery, setup, or safe smoke tests |
-| [MCP interface contracts](mcp-interface-contracts.md) | Schemas, errors, trust boundaries | Comparing CLI contracts with protocol-based tools |
-| [CLI guidelines](cli-guidelines.md) | Channels, scripting, compatibility, safeguards | Retrofitting a human-oriented CLI or resolving convention conflicts |
-| [Writing interface specs](writing-interface-specs.md) | Explicit contracts and proportionate verification | Defining behavior before implementation |
+| Reference                                             | Purpose                                                   | Loading trigger                                                     |
+| ----------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------- |
+| [AXI principles](axi-principles.md)                   | Ten principles, adaptations, benchmark limits             | AXI design or review; checking which principles apply               |
+| [TOON format](toon-format.md)                         | Serialization authority, structure, conformance           | Selecting or implementing TOON output                               |
+| [Agent CLI practices](agent-cli-practices.md)         | Stable output, errors, retries, non-interactive operation | Designing command contracts or error recovery                       |
+| [CLIrank design guide](clirank-agent-cli-design.md)   | First-run usability and evidence reporting                | Inspecting discovery, setup, or safe smoke tests                    |
+| [MCP interface contracts](mcp-interface-contracts.md) | Schemas, errors, trust boundaries                         | Comparing CLI contracts with protocol-based tools                   |
+| [CLI guidelines](cli-guidelines.md)                   | Channels, scripting, compatibility, safeguards            | Retrofitting a human-oriented CLI or resolving convention conflicts |
+| [Writing interface specs](writing-interface-specs.md) | Explicit contracts and proportionate verification         | Defining behavior before implementation                             |
 
 ## Authority and conflict register
 
-| Topic | Source positions | Approved adaptation |
-| --- | --- | --- |
-| Formats | AXI mandates TOON; DEV and CLIrank favor JSON support | Format follows task and data shape; no universal token-saving claim |
-| Channels | AXI puts structured errors on stdout; CLI Guidelines sends errors to stderr; DEV demonstrates both | Explicit, tested channel contract; compatibility preserved; progress separate from machine-readable results |
-| Prompts | AXI prohibits interaction; human-first guidance permits terminal prompts | Non-interactive path required; missing a terminal never grants authorization |
-| No arguments | AXI favors live state; general CLI guidance permits help | Safe, useful, reasonably cheap behavior; no mandatory dashboard |
-| Session context | AXI promotes ambient context | Optional integrations with explicit opt-in; no default transcript capture |
-| Testing | Sources discuss dry runs, smoke tests, or iterative verification | Replaceable-backend tests; no dangerous live mutations required |
+| Topic           | Source positions                                                                                   | Approved adaptation                                                                                         |
+| --------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Formats         | AXI mandates TOON; DEV and CLIrank favor JSON support                                              | Format follows task and data shape; no universal token-saving claim                                         |
+| Channels        | AXI puts structured errors on stdout; CLI Guidelines sends errors to stderr; DEV demonstrates both | Explicit, tested channel contract; compatibility preserved; progress separate from machine-readable results |
+| Prompts         | AXI prohibits interaction; human-first guidance permits terminal prompts                           | Non-interactive path required; missing a terminal never grants authorization                                |
+| No arguments    | AXI favors live state; general CLI guidance permits help                                           | Safe, useful, reasonably cheap behavior; no mandatory dashboard                                             |
+| Session context | AXI promotes ambient context                                                                       | Optional integrations with explicit opt-in; no default transcript capture                                   |
+| Testing         | Sources discuss dry runs, smoke tests, or iterative verification                                   | Replaceable-backend tests; no dangerous live mutations required                                             |
 
 AXI is primary design guidance, not a cross-project compatibility standard.
 TOON and MCP specifications are normative only within their own formats and

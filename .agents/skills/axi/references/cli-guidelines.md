@@ -31,16 +31,16 @@ advice must not be imported without considering the agent execution context.
 
 ## Relevant sections
 
-| Section | Source position | Approved adaptation |
-| --- | --- | --- |
-| The Basics | Success returns zero; failures nonzero; primary and machine-readable output goes to stdout; messaging and errors go to stderr | Explicit, tested exit/channel contract; existing consumers preserved |
-| Help | Discoverable help and useful no-argument behavior | Safe defaults; no mandatory live dashboard |
-| Output | JSON when requested; plain output and terminal-aware presentation; no animations in redirected stdout | Task-shaped format; no terminal art contaminating machine-readable results |
-| Errors | Clear, actionable diagnostics | Stable distinctions and recovery information without secret leakage |
-| Arguments and flags | Consistent, conventional interfaces and explicit input handling | Validation before side effects; no cosmetic breaking changes |
-| Interactivity | Prompts only when stdin is a terminal; `--no-input` disables interaction | Complete non-interactive path or clear failure with required flags |
-| Robustness | Recoverable behavior and safeguards | No unrequested side effects; failures do not masquerade as success |
-| Future-proofing | Interfaces evolve without surprising existing consumers | Existing output, flags, and semantics retained unless changes are authorized |
+| Section             | Source position                                                                                                               | Approved adaptation                                                          |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| The Basics          | Success returns zero; failures nonzero; primary and machine-readable output goes to stdout; messaging and errors go to stderr | Explicit, tested exit/channel contract; existing consumers preserved         |
+| Help                | Discoverable help and useful no-argument behavior                                                                             | Safe defaults; no mandatory live dashboard                                   |
+| Output              | JSON when requested; plain output and terminal-aware presentation; no animations in redirected stdout                         | Task-shaped format; no terminal art contaminating machine-readable results   |
+| Errors              | Clear, actionable diagnostics                                                                                                 | Stable distinctions and recovery information without secret leakage          |
+| Arguments and flags | Consistent, conventional interfaces and explicit input handling                                                               | Validation before side effects; no cosmetic breaking changes                 |
+| Interactivity       | Prompts only when stdin is a terminal; `--no-input` disables interaction                                                      | Complete non-interactive path or clear failure with required flags           |
+| Robustness          | Recoverable behavior and safeguards                                                                                           | No unrequested side effects; failures do not masquerade as success           |
+| Future-proofing     | Interfaces evolve without surprising existing consumers                                                                       | Existing output, flags, and semantics retained unless changes are authorized |
 
 The Interactivity section explicitly says that required input in no-input mode
 should fail with instructions for supplying it as a flag. It does not imply that

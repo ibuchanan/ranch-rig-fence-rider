@@ -24,12 +24,12 @@ file) without changing the repository or adding an SDK to the app.
 
 ## Who owns what
 
-| Owner | Responsibility |
-| --- | --- |
-| SecretSpec | The declaration format, profiles and inheritance, scopes, provider selection and authentication, fallback behavior, and every required/optional rule |
-| Forge CLI | Manifest parsing and substitution, installation, deployment, tunnels, the encrypted-variable store, and its own authentication |
-| Fence Rider | Mapping configured controls to Forge targets, selecting runtime members for upload, generating the scripts that run Forge under `secretspec run`, and reporting failures without values |
-| The package script | Workflow policy: consent, upgrades, non-interactive operation, and the order of `variables` and `deploy` |
+| Owner              | Responsibility                                                                                                                                                                          |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SecretSpec         | The declaration format, profiles and inheritance, scopes, provider selection and authentication, fallback behavior, and every required/optional rule                                    |
+| Forge CLI          | Manifest parsing and substitution, installation, deployment, tunnels, the encrypted-variable store, and its own authentication                                                          |
+| Fence Rider        | Mapping configured controls to Forge targets, selecting runtime members for upload, generating the scripts that run Forge under `secretspec run`, and reporting failures without values |
+| The package script | Workflow policy: consent, upgrades, non-interactive operation, and the order of `variables` and `deploy`                                                                                |
 
 Fence Rider adds no provider schema, variable inventory, or configuration
 format of its own. It asks SecretSpec for answers (scope membership, declared

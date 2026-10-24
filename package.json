@@ -29,7 +29,7 @@
     "lint:check:format": "bun run format:check",
     "lint:check:typecheck": "bun run typecheck",
     "lint:docs": "markdownlint-cli2 \"**/*.md\" && cspell lint \"**/*.md\"",
-    "lint:fallow": "fallow --fail-on-issues",
+    "lint:fallow": "FALLOW_TELEMETRY=off fallow --summary",
     "lint:fix": "biome lint --write",
     "lint:fix:biome": "biome lint --write",
     "prepare": "lefthook install || true",

@@ -32,14 +32,14 @@ accepting the usage claim as a validated study.
 
 ## Six rules
 
-| Guide section | Recommendation | Interface relevance |
-| --- | --- | --- |
-| Start with the job, not the command tree | Task-oriented first examples in help and README | Discovery starts from a concrete user goal |
-| Make install boring in a clean terminal | Explicit installation, configuration, and login requirements | Missing prerequisites are visible rather than guessed |
-| Return structured output by default when asked | JSON support, stable fields, useful exit codes, quiet mode | Composition needs an explicit output contract |
-| Treat errors as recovery instructions | Cause, relevant parameter or permission, retry safety, next command | Failures support an informed next action |
-| Add a safe first-run command | No-write `doctor`, `status`, `validate`, or equivalent | Connectivity and authentication can be checked without mutation |
-| Expose evidence hooks | Version, command, auth result, latency, output shape, limitations | Reports distinguish observed results from assumptions |
+| Guide section                                  | Recommendation                                                      | Interface relevance                                             |
+| ---------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Start with the job, not the command tree       | Task-oriented first examples in help and README                     | Discovery starts from a concrete user goal                      |
+| Make install boring in a clean terminal        | Explicit installation, configuration, and login requirements        | Missing prerequisites are visible rather than guessed           |
+| Return structured output by default when asked | JSON support, stable fields, useful exit codes, quiet mode          | Composition needs an explicit output contract                   |
+| Treat errors as recovery instructions          | Cause, relevant parameter or permission, retry safety, next command | Failures support an informed next action                        |
+| Add a safe first-run command                   | No-write `doctor`, `status`, `validate`, or equivalent              | Connectivity and authentication can be checked without mutation |
+| Expose evidence hooks                          | Version, command, auth result, latency, output shape, limitations   | Reports distinguish observed results from assumptions           |
 
 The guide's wording about structured defaults is ambiguous: its heading says
 "by default when asked," while the body emphasizes JSON support. It is not

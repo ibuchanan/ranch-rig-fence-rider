@@ -36,17 +36,17 @@ individual authorship of every specification revision.
 
 ## Relevant format properties
 
-| Property | Source section | Relevance |
-| --- | --- | --- |
-| JSON data model | §2 | Serialization need not dictate internal domain representations |
-| Encoding normalization | §3 | Non-JSON host values need documented treatment |
-| Strings and keys | §7 | Delimiters, quoting, escapes, and ambiguous scalar-like strings matter |
-| Objects | §8 | TOON supports objects as well as collections |
-| Arrays and tabular forms | §9 | Uniform records can declare fields once rather than repeat them per row |
-| Delimiters and whitespace | §§11–12 | Output cannot rely on ad hoc comma joining or arbitrary indentation |
-| Conformance and decode errors | §§13–14 | Correctness includes validation, not merely visual resemblance |
-| Security | §15 | Structured serialization is not a trust or authorization boundary |
-| Versioning and fixtures | §18, Appendix C | Implementations have version-specific contracts and conformance evidence |
+| Property                      | Source section  | Relevance                                                                |
+| ----------------------------- | --------------- | ------------------------------------------------------------------------ |
+| JSON data model               | §2              | Serialization need not dictate internal domain representations           |
+| Encoding normalization        | §3              | Non-JSON host values need documented treatment                           |
+| Strings and keys              | §7              | Delimiters, quoting, escapes, and ambiguous scalar-like strings matter   |
+| Objects                       | §8              | TOON supports objects as well as collections                             |
+| Arrays and tabular forms      | §9              | Uniform records can declare fields once rather than repeat them per row  |
+| Delimiters and whitespace     | §§11–12         | Output cannot rely on ad hoc comma joining or arbitrary indentation      |
+| Conformance and decode errors | §§13–14         | Correctness includes validation, not merely visual resemblance           |
+| Security                      | §15             | Structured serialization is not a trust or authorization boundary        |
+| Versioning and fixtures       | §18, Appendix C | Implementations have version-specific contracts and conformance evidence |
 
 In version 4.4, tabular columns can include nested-uniform object groups. It
 would be inaccurate to reduce all valid tabular TOON to flat records only.

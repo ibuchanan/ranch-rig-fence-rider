@@ -29,6 +29,10 @@
       "quoteStyle": "double"
     }
   },
+  "markdown": {
+    // SKILL.md and similar files open with YAML frontmatter
+    "parser": { "frontmatter": true }
+  },
   "assist": {
     "enabled": true,
     "actions": {

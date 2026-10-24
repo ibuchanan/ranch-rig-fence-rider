@@ -16,9 +16,9 @@ providers:
       plugins:
         - type: local
           path: ./fixtures/axi-plugin
-      skills: ['axi-eval:axi']
-      custom_allowed_tools: ['Read', 'Glob', 'Grep']
-      disallowed_tools: ['Bash', 'Write', 'Edit', 'WebFetch', 'WebSearch']
+      skills: ["axi-eval:axi"]
+      custom_allowed_tools: ["Read", "Glob", "Grep"]
+      disallowed_tools: ["Bash", "Write", "Edit", "WebFetch", "WebSearch"]
       max_turns: 12
       max_budget_usd: 1
       output_format: &response
@@ -32,13 +32,13 @@ providers:
               type: string
             findings:
               type: array
-              items: {type: string}
+              items: { type: string }
             recommendations:
               type: array
-              items: {type: string}
+              items: { type: string }
             verification:
               type: array
-              items: {type: string}
+              items: { type: string }
 
   - id: anthropic:claude-agent-sdk
     label: axi-baseline
@@ -46,8 +46,8 @@ providers:
       model: claude-sonnet-4-6
       working_dir: ./fixtures/project
       setting_sources: []
-      custom_allowed_tools: ['Read', 'Glob', 'Grep']
-      disallowed_tools: ['Bash', 'Write', 'Edit', 'WebFetch', 'WebSearch']
+      custom_allowed_tools: ["Read", "Glob", "Grep"]
+      disallowed_tools: ["Bash", "Write", "Edit", "WebFetch", "WebSearch"]
       max_turns: 12
       max_budget_usd: 1
       output_format: *response

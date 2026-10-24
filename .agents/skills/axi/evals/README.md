@@ -7,13 +7,13 @@
 
 This suite compares five review scenarios with and without the AXI skill:
 
-| Scenario | Expected distinction |
-| --- | --- |
-| Collection query | Compact output, honest partial results/truncation, usable discovery |
-| Single object | Suitable JSON is retained without compulsory TOON conversion |
-| Procedural operation | Useful logs remain; machine-readable output stays separate |
-| Existing retrofit | Compatibility and fake-backend mutation testing take priority |
-| Backend-only near miss | Correct retry-loop review without AXI activation or CLI redesign |
+| Scenario               | Expected distinction                                                |
+| ---------------------- | ------------------------------------------------------------------- |
+| Collection query       | Compact output, honest partial results/truncation, usable discovery |
+| Single object          | Suitable JSON is retained without compulsory TOON conversion        |
+| Procedural operation   | Useful logs remain; machine-readable output stays separate          |
+| Existing retrofit      | Compatibility and fake-backend mutation testing take priority       |
+| Backend-only near miss | Correct retry-loop review without AXI activation or CLI redesign    |
 
 The approved evaluation plan is in [the specification](../../../specs/axi.md).
 Expected behavior comes from the current [skill](../SKILL.md) and its

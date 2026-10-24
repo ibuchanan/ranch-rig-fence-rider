@@ -32,16 +32,16 @@ context, not all hosts or later protocol revisions.
 
 ## Eight rules and applicable distinctions
 
-| Article section | Source recommendation | Qualification for this skill |
-| --- | --- | --- |
-| 1. Structured Output Is Not Optional | JSON mode, stable types, stdout data, stderr messages, JSONL for streams | Format remains task-shaped; progress stays separate in machine-readable modes |
-| 2. Exit Codes Are the Agent's Control Flow | Document success, usage, not-found, permission, and conflict statuses | Stable semantics matter; its particular 0–5 mapping is not mandatory |
-| 3. Make Commands Idempotent | Retry-friendly operations and desired-state commands | Retry safety depends on actual service semantics; uncertain writes must not be blindly replayed |
-| 4. Help | Self-documenting command help with examples and constraints | Accurate, scoped help is part of the observable contract |
-| 5. Composition | Quiet output, explicit stdin support, batch operations | Additional flags or bulk operations are task-dependent, not automatic scope expansion |
-| 6. Provide Dry-Run and Confirmation Bypass | Structured previews and non-interactive execution flags | Bypass flags do not grant authorization; dry runs must not mutate |
-| 7. Errors Should Be Actionable | Stable error types, relevant failing input, recovery advice, retry distinctions | Sensitive inputs need redaction; retry advice must be truthful |
-| 8. Use Consistent Noun-Verb Grammar | Predictable hierarchical discovery | Existing command compatibility takes precedence over cosmetic renaming |
+| Article section                            | Source recommendation                                                           | Qualification for this skill                                                                    |
+| ------------------------------------------ | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| 1. Structured Output Is Not Optional       | JSON mode, stable types, stdout data, stderr messages, JSONL for streams        | Format remains task-shaped; progress stays separate in machine-readable modes                   |
+| 2. Exit Codes Are the Agent's Control Flow | Document success, usage, not-found, permission, and conflict statuses           | Stable semantics matter; its particular 0–5 mapping is not mandatory                            |
+| 3. Make Commands Idempotent                | Retry-friendly operations and desired-state commands                            | Retry safety depends on actual service semantics; uncertain writes must not be blindly replayed |
+| 4. Help                                    | Self-documenting command help with examples and constraints                     | Accurate, scoped help is part of the observable contract                                        |
+| 5. Composition                             | Quiet output, explicit stdin support, batch operations                          | Additional flags or bulk operations are task-dependent, not automatic scope expansion           |
+| 6. Provide Dry-Run and Confirmation Bypass | Structured previews and non-interactive execution flags                         | Bypass flags do not grant authorization; dry runs must not mutate                               |
+| 7. Errors Should Be Actionable             | Stable error types, relevant failing input, recovery advice, retry distinctions | Sensitive inputs need redaction; retry advice must be truthful                                  |
+| 8. Use Consistent Noun-Verb Grammar        | Predictable hierarchical discovery                                              | Existing command compatibility takes precedence over cosmetic renaming                          |
 
 The article's error example combines stderr diagnostics with structured stdout
 errors in JSON mode. This is more nuanced than a rule that all errors belong on

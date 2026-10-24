@@ -32,13 +32,13 @@ They are not treated as established empirical results here.
 
 ## Relevant source positions
 
-| Article section | Source position | Interface relevance |
-| --- | --- | --- |
-| 1. Start with a high-level vision | Clear goals and core requirements precede detail; planning permits clarification | Intended user task and observable success anchor the command contract |
-| 2. Structure the spec | Concrete commands, testing, structure, style, workflow, and boundaries reduce ambiguity | Examples include exact inputs and expected outputs, not vague aspirations |
-| 3. Context management | Smaller relevant pieces avoid overwhelming context | Reference detail is loaded by intent rather than copied into every prompt |
-| 4. Domain knowledge and minimalism | Existing knowledge matters; isolated tasks do not need an overbearing spec | Existing service semantics and repository conventions take precedence over invented abstractions |
-| 5. Test, iterate, and evolve | Verification and specification refinement are iterative | Observed behavior and contract tests can reveal missing requirements |
+| Article section                    | Source position                                                                         | Interface relevance                                                                              |
+| ---------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 1. Start with a high-level vision  | Clear goals and core requirements precede detail; planning permits clarification        | Intended user task and observable success anchor the command contract                            |
+| 2. Structure the spec              | Concrete commands, testing, structure, style, workflow, and boundaries reduce ambiguity | Examples include exact inputs and expected outputs, not vague aspirations                        |
+| 3. Context management              | Smaller relevant pieces avoid overwhelming context                                      | Reference detail is loaded by intent rather than copied into every prompt                        |
+| 4. Domain knowledge and minimalism | Existing knowledge matters; isolated tasks do not need an overbearing spec              | Existing service semantics and repository conventions take precedence over invented abstractions |
+| 5. Test, iterate, and evolve       | Verification and specification refinement are iterative                                 | Observed behavior and contract tests can reveal missing requirements                             |
 
 The article explicitly includes **Minimalism for simple tasks**. It does not
 support requiring a full PRD for every flag or formatting change.
@@ -48,14 +48,14 @@ support requiring a full PRD for every flag or formatting change.
 The following is this skill's application of the article, not an externally
 mandated document template:
 
-| Contract area | Information that may need definition |
-| --- | --- |
-| Invocation | Task, command shape, required inputs, defaults, relevant scope |
-| Results | Output format, field meanings, empty states, completeness, truncation |
-| Failures | Usage versus execution errors, channels, exit meanings, recovery |
-| Safety | Authorization, validation before side effects, secret handling |
-| Compatibility | Existing callers and behavior that must remain stable |
-| Verification | Observable expectations and safe backend substitutes |
+| Contract area | Information that may need definition                                  |
+| ------------- | --------------------------------------------------------------------- |
+| Invocation    | Task, command shape, required inputs, defaults, relevant scope        |
+| Results       | Output format, field meanings, empty states, completeness, truncation |
+| Failures      | Usage versus execution errors, channels, exit meanings, recovery      |
+| Safety        | Authorization, validation before side effects, secret handling        |
+| Compatibility | Existing callers and behavior that must remain stable                 |
+| Verification  | Observable expectations and safe backend substitutes                  |
 
 For a small change, these facts may fit in the implementation plan and tests.
 A persistent design document is useful only when the task warrants one. The

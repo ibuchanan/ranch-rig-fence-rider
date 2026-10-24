@@ -37,20 +37,20 @@ A single-command change gets a focused check, not a whole-CLI redesign.
 
 ## Interface decisions
 
-| Concern | Default |
-| --- | --- |
-| Table-like collections | Prefer TOON when it meaningfully reduces repetition |
-| Single objects | JSON is sufficient; no conversion merely for compliance |
-| Procedural operations | Plain-text progress and logs are valid |
-| Serialization | At the output boundary; internal representations stay independent |
-| Channels and exits | Explicit, tested contract; separate progress from machine-readable results; success 0, failures nonzero |
-| Schemas and aggregates | Smallest useful fields; cheap summaries only; never invent unavailable totals |
-| Completeness | Distinguish empty success, partial results, and failure; disclose pagination/truncation and retrieval paths |
-| Input | Validate required values, types, unknown flags and arguments before dependency calls or side effects |
-| Errors | Actionable causes and recovery; no raw dependency noise or leaked secrets |
-| Interaction | Complete with flags or fail clearly; prevent wrapped tools from prompting |
-| Discovery | Accurate command-specific help; relevant next commands without invented values or forced workflows |
-| No arguments | Safe, useful, reasonably cheap behavior; live dashboards are optional |
+| Concern                | Default                                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Table-like collections | Prefer TOON when it meaningfully reduces repetition                                                         |
+| Single objects         | JSON is sufficient; no conversion merely for compliance                                                     |
+| Procedural operations  | Plain-text progress and logs are valid                                                                      |
+| Serialization          | At the output boundary; internal representations stay independent                                           |
+| Channels and exits     | Explicit, tested contract; separate progress from machine-readable results; success 0, failures nonzero     |
+| Schemas and aggregates | Smallest useful fields; cheap summaries only; never invent unavailable totals                               |
+| Completeness           | Distinguish empty success, partial results, and failure; disclose pagination/truncation and retrieval paths |
+| Input                  | Validate required values, types, unknown flags and arguments before dependency calls or side effects        |
+| Errors                 | Actionable causes and recovery; no raw dependency noise or leaked secrets                                   |
+| Interaction            | Complete with flags or fail clearly; prevent wrapped tools from prompting                                   |
+| Discovery              | Accurate command-specific help; relevant next commands without invented values or forced workflows          |
+| No arguments           | Safe, useful, reasonably cheap behavior; live dashboards are optional                                       |
 
 Do not impose exact limits, aliases, SDKs, version fast paths, or a universal error
 channel. Preserve existing consumers through an explicit mode or separate entry

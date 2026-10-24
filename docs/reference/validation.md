@@ -8,13 +8,13 @@ the [development runbook](../../DEVELOPMENT.md#runbook).
 
 ## Version baseline
 
-| Component | Tested version | Evidence |
-| --- | --- | --- |
-| Bun | 1.4.3, macOS | Compiled CLI, TOML/YAML, subprocess and POSIX cleanup checks |
-| SecretSpec | 0.21.1 | Native schema, scope check and full-profile dotenv export through the compiled CLI; synthetic values only |
-| Forge CLI | 14.2.0 | Installed help, published source and official documentation; controlled delegation only |
-| Commander | 15.0.0 | Wrapper parsing, generated help, compiled and installed-package execution under Bun |
-| Fallow | 3.34.1 | The repository's lint gate |
+| Component  | Tested version | Evidence                                                                                                  |
+| ---------- | -------------- | --------------------------------------------------------------------------------------------------------- |
+| Bun        | 1.4.3, macOS   | Compiled CLI, TOML/YAML, subprocess and POSIX cleanup checks                                              |
+| SecretSpec | 0.21.1         | Native schema, scope check and full-profile dotenv export through the compiled CLI; synthetic values only |
+| Forge CLI  | 14.2.0         | Installed help, published source and official documentation; controlled delegation only                   |
+| Commander  | 15.0.0         | Wrapper parsing, generated help, compiled and installed-package execution under Bun                       |
+| Fallow     | 3.34.1         | The repository's lint gate                                                                                |
 
 These are observed versions, not a supported range. `fence-rider doctor`
 compares installed tools with the lowest supported and highest tested release
@@ -23,12 +23,12 @@ exercised. Only the dotenv provider is exercised.
 
 ## Evidence levels
 
-| Level | What ran | What it cannot show |
-| --- | --- | --- |
-| Controlled | The compiled CLI with recording or failing Forge and SecretSpec executables on `PATH` | What a real tool does |
-| Native | Real SecretSpec on `PATH` with synthetic dotenv values and defaults, including installed-package checks | Other providers, SDK features, cross-file `project.extends` |
-| Interface | Forge help, published source and documentation | Server acceptance or runtime behavior; running Forge's help under Bun only warns about its Node.js runtime |
-| Live | A separately authorized Forge app and service | Blocked; see below |
+| Level      | What ran                                                                                                | What it cannot show                                                                                        |
+| ---------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Controlled | The compiled CLI with recording or failing Forge and SecretSpec executables on `PATH`                   | What a real tool does                                                                                      |
+| Native     | Real SecretSpec on `PATH` with synthetic dotenv values and defaults, including installed-package checks | Other providers, SDK features, cross-file `project.extends`                                                |
+| Interface  | Forge help, published source and documentation                                                          | Server acceptance or runtime behavior; running Forge's help under Bun only warns about its Node.js runtime |
+| Live       | A separately authorized Forge app and service                                                           | Blocked; see below                                                                                         |
 
 Native tests skip when SecretSpec is absent, and POSIX interruption tests skip
 on Windows; a skip is not evidence. Controlled Forge executables do not
@@ -39,20 +39,20 @@ establish server acceptance, encryption at rest or runtime activation.
 From the published `secretspec@0.21.1` package, its configuration loader and its
 regression tests; the upstream tests were not executed.
 
-| Finding | Detail |
-| --- | --- |
-| SDK scope metadata | `Builder`, `Resolved` and `Report` expose only the selected scope, never scope lists or merged declarations, so the SDK cannot supply membership |
-| SDK `withNoValues()` | Omits values but does not guarantee avoiding provider I/O |
-| SDK `setAsEnv()` | Skips null values without clearing existing environment entries |
-| SDK `as_path` values | Secret-bearing temporary files with caller-owned disposal |
-| SDK runtime | Embeds a native addon; Bun compatibility not shown |
-| Resolver protocol | `secretspec.resolver/1` resolves exact names only; no whole-profile or manifest queries |
-| JSON export and schema | Export returns values without membership; schema returns names, types and requiredness without scope lists |
-| `project.extends` order | Depth-first in listed order; ancestors first, then overlays least to most specific, root last; shared ancestors once by canonical path; a cycle fails |
-| `extends` paths | `.toml` entries are files, others are directories holding `secretspec.toml`; relative paths resolve from the referring file's lexical location; missing files and unsupported revisions fail |
-| Scope removal | No disable or delete marker found in scope overlays |
-| `secretspec load` | Not a command in 0.21.1 |
-| `secretspec check` | May prompt or set missing values; a check followed by an export is not one coherent resolution |
+| Finding                 | Detail                                                                                                                                                                                       |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SDK scope metadata      | `Builder`, `Resolved` and `Report` expose only the selected scope, never scope lists or merged declarations, so the SDK cannot supply membership                                             |
+| SDK `withNoValues()`    | Omits values but does not guarantee avoiding provider I/O                                                                                                                                    |
+| SDK `setAsEnv()`        | Skips null values without clearing existing environment entries                                                                                                                              |
+| SDK `as_path` values    | Secret-bearing temporary files with caller-owned disposal                                                                                                                                    |
+| SDK runtime             | Embeds a native addon; Bun compatibility not shown                                                                                                                                           |
+| Resolver protocol       | `secretspec.resolver/1` resolves exact names only; no whole-profile or manifest queries                                                                                                      |
+| JSON export and schema  | Export returns values without membership; schema returns names, types and requiredness without scope lists                                                                                   |
+| `project.extends` order | Depth-first in listed order; ancestors first, then overlays least to most specific, root last; shared ancestors once by canonical path; a cycle fails                                        |
+| `extends` paths         | `.toml` entries are files, others are directories holding `secretspec.toml`; relative paths resolve from the referring file's lexical location; missing files and unsupported revisions fail |
+| Scope removal           | No disable or delete marker found in scope overlays                                                                                                                                          |
+| `secretspec load`       | Not a command in 0.21.1                                                                                                                                                                      |
+| `secretspec check`      | May prompt or set missing values; a check followed by an export is not one coherent resolution                                                                                               |
 
 ## Live Forge verification: blocked
 
