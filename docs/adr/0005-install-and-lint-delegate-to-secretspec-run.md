@@ -18,7 +18,6 @@ all that remained was three expansions and a pass-through. Lint never needed
 more than the environment. `secretspec run` already provides it, so these
 commands now run `secretspec run --scope "" -- …`: SecretSpec resolves the whole
 profile into the child environment.
-
 - Install and uninstall run `sh -c SCRIPT sh COMMAND ARGS…`. A fixed script
   derives `--environment`, `--site` and `--product`, refuses empty or
   dash-leading targets, and `exec`s Forge.

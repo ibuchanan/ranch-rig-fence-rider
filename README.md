@@ -71,7 +71,6 @@ do not enforce backend safety. Then call Fence Rider from short package scripts:
 `install`, `uninstall` and `tunnel`, prints a shell script that runs Forge under
 `secretspec run`; the package script runs it. **These commands change remote
 state.** Set up a disposable app first.
-
 - [Install it and add package scripts](docs/how-to/installation.md)
 - [Configure workstation providers](docs/how-to/configure-user-providers.md),
   then [declare app requirements and store secrets](docs/how-to/configure-app-secrets.md)

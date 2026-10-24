@@ -43,7 +43,6 @@ surface (digests, mirrors, platform checks).
 
 What was learned, as inspected on 2026-10-21 from the `secretspec@0.21.1`
 tarball and registry metadata:
-
 - The `secretspec` npm package is the **Node.js SDK**, not the CLI. It is a thin
   wrapper over a napi-rs native addon (`secretspec.node`) that statically embeds
   the same Rust resolver the CLI uses, so it inherits every provider. The

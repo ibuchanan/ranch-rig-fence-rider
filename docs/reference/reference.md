@@ -74,7 +74,6 @@ security-policy implementation.
 | Both scopes       | One resolved value                                  | Manifest check and encrypted upload                  |
 
 Scope constraints:
-
 - Local availability is implicit; no `local` scope exists. Other native scopes
   have no meaning for Fence Rider.
 - The full resolved environment reaches the delegated Forge processes.
@@ -153,7 +152,6 @@ does not select a same-named environment.
 | `FORGE_PRODUCT`     | Product for install and uninstall                           | Validated when declared; never injected into deployment                 |
 
 Control validation:
-
 - Controls need no named scope; selecting one for runtime upload fails before
   the first write.
 - Validation covers the whole active profile. A missing required

@@ -14,7 +14,6 @@ Forge itself keeps the two deploy steps independent, so a changed variable was
 always uploaded with every deploy, and an unchanged one was uploaded again.
 
 Each flow now splits in two:
-
 1. **Variable handling**, the part that needs values or names.
    - `fence-rider variables [-e TARGET]` is the only Bun-supervised workflow
      that touches values. It resolves the whole profile, runs the optional
@@ -75,7 +74,6 @@ runtime -- fence-rider variables --apply …` with the runtime names baked in, a
 
 It trades one residual for others, and none of them keep SecretSpec
 authoritative:
-
 - The names come from `secretspec check --json --scope runtime` and the values
   from `secretspec run`. If the two disagree on a scope's members, a name with no
   value is skipped as an absent optional member, and the run ends with

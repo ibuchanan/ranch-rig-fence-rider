@@ -149,7 +149,6 @@ alias needs operator setup, not a plaintext fallback or blanket
 ## Migrate existing aliases without rotating credentials
 
 For an app using `user_dotenv` and `app_secrets` or an implicit secret default:
-
 1. Bind `shared_config` to the existing non-secret settings backend.
 2. Bind `project_secrets` to the approved secret backend and verify its
    project/profile addressing.

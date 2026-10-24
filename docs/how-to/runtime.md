@@ -80,7 +80,6 @@ development tunnels; connected runtime receipt remains unverified here.
 
 `variables` uploads one value at a time and never rolls back. A failure after
 the first upload may leave remote variables changed.
-
 1. Read the error and fix the missing value, configuration, or authentication.
 2. Review the target environment's variable metadata with Forge before retrying;
    do not print credential values.
