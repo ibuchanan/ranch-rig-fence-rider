@@ -56,6 +56,9 @@ declared.
 | `manifest` member | Same local availability                             | Checked against Forge's `environment.variables`      |
 | `runtime` member  | Same local availability                             | Uploaded encrypted to the selected Forge environment |
 | Both scopes       | One resolved value                                  | Manifest check and encrypted upload                  |
+
+Scope constraints:
+
 - Local availability is implicit; no `local` scope exists. Other native scopes
   have no meaning for Fence Rider.
 - The full resolved environment reaches the delegated Forge processes.
@@ -132,6 +135,9 @@ does not select a same-named environment.
 | `FORGE_ENVIRONMENT` | Configured Forge environment (the only environment control) | Used after an explicit CLI option and before the `development` fallback |
 | `FORGE_SITE`        | Site for install and uninstall                              | Validated when declared; never injected into deployment                 |
 | `FORGE_PRODUCT`     | Product for install and uninstall                           | Validated when declared; never injected into deployment                 |
+
+Control validation:
+
 - Controls need no named scope; selecting one for runtime upload fails before
   the first write.
 - Validation covers the whole active profile. A missing required
