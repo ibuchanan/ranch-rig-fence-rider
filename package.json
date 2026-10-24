@@ -1,6 +1,6 @@
 {
   "name": "ranch-rig-fence-rider",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "A SecretSpec-powered CLI wrapper for syncing secrets to Atlassian Forge environments.",
   "license": "Apache-2.0",
