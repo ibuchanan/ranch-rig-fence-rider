@@ -139,11 +139,16 @@ and duplication checks.
 | `bun run test:watch`              | Interactive test feedback                                               |
 | `bun run lint`                    | Biome, formatting, typecheck, and Fallow in parallel                    |
 | `bun run lint:docs`               | All Markdown and spelling checks                                        |
-| `bun run check`                   | Forced pre-push gate: tests (failing if SecretSpec is missing) and lint |
+| `bun run check`                   | Direct parallel gate: lint and tests, requiring SecretSpec              |
 | `bun run build`                   | Compiled CLI at `dist/fence-rider`                                      |
 
-`lint:check:fallow` delegates to `lint:fallow`, which runs Fallow with
-`--fail-on-issues`. Reports and diagnostics are printed on success and failure,
+`check` runs `lint` and `test:check` directly through `run-p`, using Bun as
+the script runner. The pre-push hook calls `check`; `check` must not call
+Lefthook, or the two recurse. The isolated orchestration test verifies both
+tasks run and either task's failure makes the gate fail.
+
+`lint:check:fallow` delegates to `lint:fallow`, which runs Fallow with telemetry
+disabled and summary output. Reports are printed on success and failure,
 and nonzero exit statuses are preserved. Run `bun run lint:fallow` to inspect
 Fallow alone. `test:check` uses Bun's `--only-failures`; ordinary `test` remains
 verbose.

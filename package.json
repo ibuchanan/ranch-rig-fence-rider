@@ -18,7 +18,7 @@
   "scripts": {
     "build": "bun build --compile ./src/index.ts --outfile ./dist/fence-rider",
     "changelog": "git cliff --config cliff.toml --unreleased -o CHANGELOG.md",
-    "check": "lefthook run pre-push --force",
+    "check": "run-p --npm-path bun --print-label lint test:check",
     "clean": "rm -rf dist",
     "format": "biome format --write",
     "format:check": "biome format",
