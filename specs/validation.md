@@ -1,10 +1,11 @@
 # Tested versions and evidence
 
-The versions Fence Rider was built and tested against, and what each kind of
-evidence does and does not establish. The scenario IDs are defined in the
-[acceptance criteria](acceptance-criteria.md); the tests under
-[`tests/`](../../tests/) are the evidence for them. How to run the checks is in
-the [development runbook](../../DEVELOPMENT.md#runbook).
+This specification-to-code evidence record maps the acceptance scenarios to
+working code and records what the validation does and does not establish. It
+is maintainer evidence, not a consumer command reference. Scenario IDs are
+defined in the [acceptance criteria](../docs/reference/acceptance-criteria.md);
+the tests under [`tests/`](../tests/) provide the evidence. Check execution is
+described in the [development runbook](../DEVELOPMENT.md#runbook).
 
 ## Version baseline
 
@@ -29,6 +30,20 @@ exercised. Only the dotenv provider is exercised.
 | Native     | Real SecretSpec on `PATH` with synthetic dotenv values and defaults, including installed-package checks | Other providers, SDK features, cross-file `project.extends`                                                |
 | Interface  | Forge help, published source and documentation                                                          | Server acceptance or runtime behavior; running Forge's help under Bun only warns about its Node.js runtime |
 | Live       | A separately authorized Forge app and service                                                           | Blocked; see below                                                                                         |
+
+The native suite also runs `scripts/check-secretspec.sh`, which reads the
+provider guide's app declaration and the canonical package scripts. It checks
+shared controls, stdin-only synthetic credential generation, all seven
+workflows, combined release, and fail-fast behavior with real SecretSpec and
+fake Forge. It substitutes dotenv for the secret backend: this is not keyring
+or vault evidence. Relative file links and cross-file Markdown heading anchors
+are checked offline by `markdownlint-rule-relative-links` through `lint:docs`;
+markdownlint's MD051 checks same-document fragments. A disposable migration
+probe confirmed missing-file and missing-heading failures, valid reference links,
+spaced paths, duplicate headings, and ignored fenced examples. The lint glob
+excludes `.agents/`, `.claude/skills/`, and the root `SECURITY.md`,
+`CODE_OF_CONDUCT.md`, and `CONTRIBUTING.md` templates. External URLs are not
+validated.
 
 Native tests skip when SecretSpec is absent, and POSIX interruption tests skip
 on Windows; a skip is not evidence. Controlled Forge executables do not
@@ -69,6 +84,5 @@ evidence:
   disposable app.
 
 Local results are therefore not a release-readiness or live-compatibility pass.
-The authorization checklist is in the
-[runtime how-to](../how-to/runtime.md#arrange-a-live-smoke-test); the plan is
-[live Forge verification](../../specs/live-forge-verification.md).
+The authorization checklist and remaining acceptance work are in
+[live Forge verification](live-forge-verification.md#authorization-checklist).

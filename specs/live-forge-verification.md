@@ -6,7 +6,7 @@ Status: blocked. No authorization for a disposable app has been supplied.
 
 Every workflow is implemented and tested locally against real SecretSpec 0.21.1
 and controlled Forge executables for Forge CLI 14.2.0
-([tested versions and evidence](../docs/reference/validation.md)).
+([tested versions and evidence](validation.md)).
 Controlled executables prove argument boundaries, ordering, environments, and
 cleanup. They cannot prove what Forge's servers or runtime do.
 
@@ -18,7 +18,7 @@ cleanup. They cannot prove what Forge's servers or runtime do.
 | `variables` stores values encrypted, and a later deployment activates them in the same environment | Needs server metadata and a runtime comparison |
 | `install` and `install --upgrade` apply profile targets and consent options | Needs a real site, product, and consent flow |
 | `tunnel` delivers `FORGE_USER_VAR_<name>` values to a connected local runtime | Needs an invoked installed app |
-| `uninstall` removes a disposable installation, with Forge's prompts | Needs a real removal and terminal |
+| `uninstall` removes only the matched disposable installation | Needs a real removal; a confirmation prompt is not guaranteed |
 | Positional edge-case values (multiline, quotes) are accepted by Forge | Needs server-side acceptance |
 | Upload and deployment hit the same named environment | Needs environment identity from Forge |
 
@@ -42,11 +42,25 @@ cleanup. They cannot prove what Forge's servers or runtime do.
 | LV-05 | Uninstall removes only the disposable installation, and cleanup leaves no remote state. |
 | LV-06 | A multiline and a quoted value survive upload and read back equal. |
 
+## Authorization checklist
+
+Live verification requires separate authorization before any operation:
+
+1. Name the disposable app ID, site, product, and development environment.
+2. Name each synthetic variable and the permitted upload, deploy, install,
+   upgrade, tunnel, and uninstall operations.
+3. Specify allowed observations: a boolean-only runtime comparison and
+   encryption metadata, never a plaintext value or credential-bearing log.
+4. Agree on cleanup, including remote variables, deployments, and installations.
+5. Record the Forge CLI version and redact outputs before attaching evidence.
+
+Approval of this specification or a documentation edit does not authorize a
+live run. Stop if no named target and cleanup scope have been approved.
+
 ## Evidence rules
 
-- Authorization names the app ID, site, environment, exact variable names,
-  permitted operations, allowed observations, and cleanup. Follow the
-  [live smoke test checklist](../docs/how-to/runtime.md#arrange-a-live-smoke-test).
+- Authorization follows the checklist above; it is not inferred from a package
+  script's consent or non-interactive flags.
 - Record Forge CLI version and redacted outcomes. Mark each LV row passed,
   failed, or blocked; update the evidence map and delete this spec's rows as
   they pass.

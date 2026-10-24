@@ -7,6 +7,7 @@
     "diataxis",
     "feproduction",
     "napi",
+    "pipefail",
     "pocock",
     "preimplementation",
     "requiredness",
@@ -15,5 +16,14 @@
     "unredacted",
     "webtriggers"
   ],
-  "ignorePaths": ["node_modules/**", "vendor/**", ".scratch/**"]
+  "ignorePaths": [
+    "node_modules/**",
+    "vendor/**",
+    ".scratch/**",
+    ".agents/**",
+    ".claude/skills/**",
+    "SECURITY.md",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md"
+  ]
 }

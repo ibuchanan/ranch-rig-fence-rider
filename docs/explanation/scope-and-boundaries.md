@@ -11,8 +11,8 @@ behind individual changes lives in the [decision records](../adr/).
 
 A Forge app needs configuration in three places: local tooling, the manifest
 parser, and the deployed runtime
-([why those differ](explanation.md)). Without help, each fork of a sample app
-inherits prose instructions or a `.env.example`, and a missing value surfaces
+([why those differ](three-kinds-of-env-vars.md)). Without help, a sample-app
+fork inherits prose instructions or a `.env.example`, and a missing value surfaces
 late, far from where it should have been set. Targeting mistakes can also send
 runtime variables to one environment and the deployment to another.
 
@@ -33,8 +33,10 @@ file) without changing the repository or adding an SDK to the app.
 
 Fence Rider adds no provider schema, variable inventory, or configuration
 format of its own. It asks SecretSpec for answers (scope membership, declared
-names, whether values resolve) rather than reading `secretspec.toml` itself, so
-inheritance and validation stay SecretSpec's. SecretSpec and Forge are
+names, whether values resolve) rather than deriving those answers from TOML, so
+inheritance and validation stay SecretSpec's. Doctor makes a small advisory
+TOML read to warn about unrecognized root-file scope names; effective scope
+membership still comes from SecretSpec. SecretSpec and Forge are
 prerequisites on `PATH`; Fence Rider does not install them, log in to them, or
 register apps. A SecretSpec profile is not a Forge environment, and neither
 name is derived from the other.
@@ -48,9 +50,9 @@ name is derived from the other.
 - **Select uploads explicitly.** Only members of the `runtime` scope are
   uploaded, always encrypted. An absent scope means no uploads, never "upload
   everything", and never deletes remote values.
-- **One resolution, one value.** A variable shared by several destinations is
-  resolved once, so a rotating provider cannot give each destination a
-  different value.
+- **One export, one value per upload invocation.** `variables` reuses its
+  exported value for the local child environment and upload. A separate deploy
+  or tunnel resolves again; there is no cross-command snapshot of a provider.
 - **No shell interpretation of values.** Arguments reach Forge as distinct
   values. Generated scripts quote what they embed and never contain a resolved
   value.
@@ -85,6 +87,6 @@ simulated today, is tracked in the [specifications](../../specs/README.md).
 
 ## Related material
 
-- [Why Forge has three kinds of environment variables](explanation.md)
+- [Why Forge has three kinds of environment variables](three-kinds-of-env-vars.md)
 - [Variable compatibility reference](../reference/reference.md)
 - [Decision records](../adr/)

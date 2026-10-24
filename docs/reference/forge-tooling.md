@@ -1,77 +1,67 @@
-# SecretSpec and Forge tooling reference
+# SecretSpec provider configuration for Forge tooling
+
+This reference describes the provider layout used by the
+[user setup](../how-to/configure-user-providers.md) and
+[app setup](../how-to/configure-app-secrets.md) guides. Alias names are workflow
+conventions, not reserved Fence Rider names. The
+[variable contract](reference.md) defines command behavior and target rules;
+[command help](command-help.md) contains the CLI options.
 
 ## Configuration ownership
 
-| Location                                     | Contents                                                                                              | Storage of runtime secret values |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------- |
-| `~/.config/secretspec/config.toml`           | User defaults and `[defaults.providers]` alias definitions                                            | No                               |
-| User's dotenv file selected by `user_dotenv` | Non-secret Forge controls shared across apps                                                          | Not permitted by this workflow   |
-| App's `secretspec.toml`                      | Project name, profiles, requirement metadata, provider routes, scopes; optional project `[providers]` | No                               |
-| Backend selected by `app_secrets`            | App credential values                                                                                 | Yes; approved backend required   |
-| Forge runtime variable store                 | Explicitly uploaded encrypted runtime members                                                         | Yes                              |
+| Location                           | Contents                                                                        | Runtime credential storage                |
+| ---------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------- |
+| `~/.config/secretspec/config.toml` | User defaults and `[defaults.providers]` aliases                                | No                                        |
+| File selected by `user_dotenv`     | Non-secret target controls shared across apps                                   | Not used for credentials in this workflow |
+| App's `secretspec.toml`            | Project, profiles, declarations, routes, scopes, optional `[providers]` aliases | No secret literals                        |
+| Backend selected by `app_secrets`  | App credential values                                                           | Yes                                       |
+| Forge runtime variable store       | Uploaded encrypted runtime members                                              | Yes                                       |
 
-The user configuration location is subject to platform/XDG configuration
-resolution. Dotenv paths beginning with `~` require SecretSpec 0.18+; exact stdin
-input through `set --from-file -` requires 0.21+.
+The user configuration location follows platform/XDG configuration resolution.
+Dotenv paths beginning with `~` require SecretSpec 0.18+; exact stdin input
+through `set --from-file -` requires 0.21+.
 
-Global aliases use `[defaults.providers]`. Project aliases use `[providers]`
-and win on name conflict. Per-secret routes and profile-level provider defaults
-can override a user's default route. Scope membership is selection, not a
-storage backend or an authorization grant.
+## Provider selection and identity
 
-## App names and destinations
+Global aliases use `[defaults.providers]`; project aliases use `[providers]`
+and take precedence on name conflict. Per-secret routes and profile defaults
+can override the user's default provider. Scope membership selects destinations,
+not a storage backend or an authorization grant.
 
-| Name                | Declaration route                                        | Local use                                 | Runtime upload  |
-| ------------------- | -------------------------------------------------------- | ----------------------------------------- | --------------- |
-| `FORGE_SITE`        | `user_dotenv`                                            | Installation site hostname                | Never           |
-| `FORGE_PRODUCT`     | `user_dotenv`; default `jira`                            | Installation product                      | Never           |
-| `FORGE_ENVIRONMENT` | `user_dotenv`; default `development`                     | Forge target                              | Never           |
-| `RPC_BEARER_SECRET` | Current app: user default; guide: explicit `app_secrets` | Profile validation and approved processes | `runtime` scope |
+SecretSpec 0.21.1's `config global init --provider` accepts backend names, not
+aliases such as `app_secrets`. Keyring values are namespaced by project,
+profile, and key. Other backends have their own storage models. Changing a
+project or profile name can therefore change the lookup location. A SecretSpec
+profile and a Forge environment are independent selectors.
 
-Keyring values are namespaced by project, profile, and key. Changing these can
-change the lookup location. Backend-specific storage behavior remains
-SecretSpec's responsibility. A SecretSpec profile and a Forge environment are
-independent selectors.
+## Guide example routes
 
-## Package script effects
+| Name                | Provider route                       | Purpose                                                  |
+| ------------------- | ------------------------------------ | -------------------------------------------------------- |
+| `FORGE_SITE`        | `user_dotenv`                        | Installation site hostname; never uploaded               |
+| `FORGE_PRODUCT`     | `user_dotenv`; default `jira`        | Installation product; never uploaded                     |
+| `FORGE_ENVIRONMENT` | `user_dotenv`; default `development` | Forge target; never uploaded                             |
+| `APP_BEARER_TOKEN`  | `app_secrets`                        | Example runtime credential selected by the runtime scope |
 
-| Script                | Effect                                                     | Targets and policy                                                                         |
-| --------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `lint:forge`          | Local Forge lint under full-profile SecretSpec injection   | No environment/site/product flags injected                                                 |
-| `forge:variables:set` | Resolves profile and uploads runtime members encrypted     | Explicit wrapper `--environment`, else resolved control, else `development`; no Forge tail |
-| `forge:deploy`        | Runs generated Forge deployment script; no variable upload | Injects environment; includes `--non-interactive`                                          |
-| `forge:install`       | Installs configured app                                    | Environment/site/product; `--confirm-scopes --non-interactive`                             |
-| `forge:upgrade`       | Upgrades existing installation                             | Install behavior plus `--upgrade`                                                          |
-| `forge:uninstall`     | Removes installation                                       | Environment/site/product; no non-interactive flag                                          |
-| `forge:register`      | Calls Forge directly; creates app identity                 | No SecretSpec wrapper                                                                      |
+`APP_BEARER_TOKEN` is an example app name, not a required Fence Rider variable.
+The canonical [script example](../examples/package.json) is independent of app
+credential names and provider choices.
 
-Fence Rider's script-producing commands print POSIX shell. The package scripts
-execute it with `cmd=$(...) && sh -c "$cmd" sh`. A generation failure stops
-execution. Arguments appended to those package scripts become the generated
-script's positional arguments and reach Forge without another shell parse.
-`variables` instead performs uploads directly. No tunnel script currently
-exists in this app.
+## Value-free diagnostic interfaces
 
-## Diagnostics
+| Command                                   | Report                        | Provider access                              |
+| ----------------------------------------- | ----------------------------- | -------------------------------------------- |
+| `secretspec schema`                       | Declaration schema            | No resolved values                           |
+| `secretspec config global provider list`  | User alias locations          | No stored values; locations may be sensitive |
+| `secretspec check --scope '' --explain`   | Full-profile resolution trace | May access providers; no values printed      |
+| `secretspec check --scope runtime --json` | Runtime resolution report     | May access providers; no values printed      |
 
-| Command                                   | Result                                         | Secret/provider access                                                  |
-| ----------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------- |
-| `secretspec schema`                       | Declaration schema                             | No resolved values                                                      |
-| `secretspec config global provider list`  | User alias locations                           | No stored values; URIs may contain sensitive metadata                   |
-| `secretspec check --scope '' --explain`   | Full-profile resolution trace                  | May access providers; no values printed                                 |
-| `secretspec check --scope runtime --json` | Runtime resolution report                      | May access providers; no values printed                                 |
-| `bun run fence-rider doctor`              | Tools, schema, scopes, ambient-shadowing names | No full-profile resolve check; native scope checks may access providers |
-| `bun run fence-rider doctor --resolve`    | Adds required-value resolution check           | Provider access possible; no values printed                             |
-
+Fence Rider's diagnostic checks and exit status are specified in the
+[installation reference](installation.md#secretspec-and-forge-are-prerequisites).
 `secretspec get` and `export` can reveal values. Forge and child-process output
-is not automatically redacted. Missing required profile values block all
-configured workflows. Local controls in `runtime`, empty uploads, and
-leading-dash upload values are refused. Uploads are not transactional and do
-not remove previously stored remote values when an optional name is absent.
+are not automatically redacted.
 
 ## Upstream contracts
 
 - [SecretSpec configuration](https://secretspec.dev/reference/configuration/)
 - [SecretSpec CLI](https://secretspec.dev/reference/cli/)
-- [Fence Rider](https://github.com/ibuchanan/ranch-rig-fence-rider)
-- [Validation evidence and limits](secretspec-validation.md)

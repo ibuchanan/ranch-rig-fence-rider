@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Exercise the documented workflow with synthetic values and a fake Forge CLI.
+# Exercise the provider guide and canonical package scripts without real credentials.
 set -euo pipefail
 set +x
 umask 077
@@ -10,18 +10,68 @@ trap 'rm -rf "$fixture"' EXIT
 mkdir -p "$fixture/home/.config/secretspec" "$fixture/bin" "$fixture/app"
 export HOME="$fixture/home" XDG_CONFIG_HOME="$fixture/home/.config"
 export XDG_DATA_HOME="$fixture/home/.local/share" XDG_CACHE_HOME="$fixture/home/.cache"
-export XDG_STATE_HOME="$fixture/home/.local/state"
-# The smoke test needs no OpenSSL config; avoid the host's unrelated provider setup.
+export XDG_STATE_HOME="$fixture/home/.local/state" TMPDIR="$fixture"
 export OPENSSL_CONF=/dev/null
-unset SECRETSPEC_PROVIDER SECRETSPEC_PROFILE SECRETSPEC_SCOPE SECRETSPEC_FILE
-unset FORGE_SITE FORGE_PRODUCT FORGE_ENVIRONMENT RPC_BEARER_SECRET
+# Keep every SecretSpec selection local to this disposable fixture.
+for name in ${!SECRETSPEC_@}; do unset "$name"; done
+unset FORGE_SITE FORGE_PRODUCT FORGE_ENVIRONMENT APP_BEARER_TOKEN
+export SECRETSPEC_REASON='Validate synthetic Fence Rider documentation fixtures'
+export SECRETSPEC_PROFILE=default
 
-# The first TOML block is the app declaration readers copy from the guide.
+# Use the app declaration readers copy, not a parallel specification.
 awk '/^```toml$/ { block = 1; next } block && /^```$/ { exit } block { print }' \
   "$root/docs/how-to/configure-app-secrets.md" >"$fixture/app/secretspec.toml"
 export SECRETSPEC_FILE="$fixture/app/secretspec.toml"
+cp "$root/docs/examples/package.json" "$root/docs/examples/manifest.yml" "$fixture/app/"
+# The declaration has no manifest scope; the example manifest is only a test fragment.
+cat >"$fixture/bin/fence-rider" <<'SH'
+#!/bin/sh
+exec bun --no-env-file run "$TEST_FENCE_RIDER_SOURCE" "$@"
+SH
+export TEST_FENCE_RIDER_SOURCE="$root/src/index.ts"
 
-# Replace the real secret backend only in this disposable user configuration.
+# Every Forge call is intercepted, including diagnostics. No real Forge is needed.
+cat >"$fixture/bin/forge" <<'SH'
+#!/bin/sh
+set -eu
+if [ "${1-}" = --version ]; then echo 14.2.0; exit 0; fi
+test "$FORGE_SITE" = example.atlassian.net
+test "$FORGE_PRODUCT" = jira
+test "$FORGE_ENVIRONMENT" = development
+test "${#APP_BEARER_TOKEN}" -eq 64
+case "$1" in
+  lint) test "$#" -eq 1 ;;
+  deploy)
+    case "$*" in
+      'deploy --environment development --non-interactive --approve MAJOR_VERSION_RULE' | \
+      'deploy --environment development --non-interactive --approve MAJOR_VERSION_RULE --environment development') ;;
+      *) exit 1 ;;
+    esac ;;
+  install)
+    case "$*" in
+      'install --environment development --site example.atlassian.net --product jira --confirm-scopes --non-interactive' | \
+      'install --environment development --site example.atlassian.net --product jira --upgrade --confirm-scopes --non-interactive') ;;
+      *) exit 1 ;;
+    esac ;;
+  uninstall)
+    test "$*" = 'uninstall --environment development --site example.atlassian.net --product jira' ;;
+  tunnel)
+    test "$*" = 'tunnel --environment development --environment development'
+    test "$FORGE_USER_VAR_APP_BEARER_TOKEN" = "$APP_BEARER_TOKEN" ;;
+  variables)
+    test "$#" -eq 7
+    test "$2" = set && test "$3" = --encrypt && test "$4" = --environment
+    test "$5" = development && test "$6" = APP_BEARER_TOKEN
+    test "$7" = "$APP_BEARER_TOKEN" ;;
+  *) echo 'FAIL: unexpected Forge command' >&2; exit 1 ;;
+esac
+printf '%s\n' "$1" >> "$TEST_FORGE_CALLS"
+SH
+chmod +x "$fixture/bin/forge" "$fixture/bin/fence-rider"
+export PATH="$fixture/bin:$PATH" TEST_FORGE_CALLS="$fixture/calls"
+cd "$fixture/app"
+
+# Replace the vault only in the disposable user configuration with synthetic dotenv.
 secretspec config global provider add user_dotenv \
   'dotenv:~/.config/secretspec/user.env' >/dev/null
 secretspec config global provider add app_secrets \
@@ -31,76 +81,45 @@ secretspec set --provider user_dotenv --profile default FORGE_SITE example.atlas
 secretspec set --provider user_dotenv --profile default FORGE_PRODUCT jira >/dev/null
 secretspec set --provider user_dotenv --profile default FORGE_ENVIRONMENT development >/dev/null
 
-# Missing required runtime credentials must fail without printing a value.
 if secretspec check --scope '' --no-prompt >/dev/null 2>&1; then
   echo 'FAIL: a missing required runtime credential passed validation' >&2
   exit 1
 fi
 
-# This is the same stdin-only generation pipeline used in the guide.
+# Same stdin-only generation pipeline as the guide, never a real credential.
 openssl rand -hex 32 | tr -d '\n' |
   secretspec set --provider app_secrets --profile default \
-    --from-file - RPC_BEARER_SECRET >/dev/null
+    --from-file - APP_BEARER_TOKEN >/dev/null
 secretspec check --scope '' --explain >/dev/null
 secretspec check --scope runtime --json >/dev/null
-# The injected variables must expand in the child, not in this script.
 # shellcheck disable=SC2016
 secretspec run --scope '' -- sh -c '
   test "$FORGE_SITE" = example.atlassian.net &&
   test "$FORGE_PRODUCT" = jira &&
   test "$FORGE_ENVIRONMENT" = development &&
-  test "${#RPC_BEARER_SECRET}" -eq 64
+  test "${#APP_BEARER_TOKEN}" -eq 64
 '
 
-# No executable in this check can contact Forge: every Forge call is intercepted.
-cat >"$fixture/bin/forge" <<'SH'
-#!/bin/sh
-set -eu
-if [ "${1-}" = --version ]; then echo 14.2.0; exit 0; fi
-test "$FORGE_SITE" = example.atlassian.net
-test "$FORGE_PRODUCT" = jira
-test "$FORGE_ENVIRONMENT" = development
-test "${#RPC_BEARER_SECRET}" -eq 64
-case "$1" in
-  lint) test "$#" -eq 1 ;;
-  deploy) test "$*" = 'deploy --environment development --non-interactive --environment development' ;;
-  install)
-    case "$*" in
-      'install --environment development --site example.atlassian.net --product jira --confirm-scopes --non-interactive') ;;
-      'install --environment development --site example.atlassian.net --product jira --upgrade --confirm-scopes --non-interactive') ;;
-      *) exit 1 ;;
-    esac
-    ;;
-  uninstall) test "$*" = 'uninstall --environment development --site example.atlassian.net --product jira' ;;
-  variables)
-    test "$#" -eq 7
-    test "$2" = set
-    test "$3" = --encrypt && test "$4" = --environment
-    test "$5" = development && test "$6" = RPC_BEARER_SECRET
-    test "$7" = "$RPC_BEARER_SECRET"
-    ;;
-  *) echo 'FAIL: unexpected Forge command' >&2; exit 1 ;;
-esac
-printf '%s\n' "$1" >> "$TEST_FORGE_CALLS"
-SH
-chmod +x "$fixture/bin/forge"
-export PATH="$fixture/bin:$PATH" TEST_FORGE_CALLS="$fixture/calls"
-# Run copies of the actual package scripts away from the real project's dotenv.
-cp "$root/package.json" "$root/manifest.yml" "$fixture/app/"
-ln -s "$root/node_modules" "$fixture/app/node_modules"
-cd "$fixture/app"
 bun --no-env-file run fence-rider doctor --resolve >/dev/null
 bun --no-env-file run lint:forge >/dev/null
-bun --no-env-file run forge:variables:set --environment development >/dev/null
-bun --no-env-file run forge:deploy --environment development >/dev/null
-bun --no-env-file run forge:install >/dev/null
-bun --no-env-file run forge:upgrade >/dev/null
-bun --no-env-file run forge:uninstall >/dev/null
-test "$(cat "$fixture/calls")" = "$(printf 'lint\nvariables\ndeploy\ninstall\ninstall\nuninstall')"
+bun --no-env-file run variables --environment development >/dev/null
+bun --no-env-file run deploy --environment development >/dev/null
+bun --no-env-file run install:forge >/dev/null
+bun --no-env-file run upgrade:forge >/dev/null
+bun --no-env-file run uninstall:forge >/dev/null
+bun --no-env-file run tunnel --environment development >/dev/null
+bun --no-env-file run release >/dev/null
+expected=$(printf 'lint\nvariables\ndeploy\ninstall\ninstall\nuninstall\ntunnel\nvariables\ndeploy')
+actual=$(<"$fixture/calls")
+test "$actual" = "$expected"
+
 rm "$fixture/app/synthetic.env"
-if bun --no-env-file run lint:forge >/dev/null 2>&1; then
-  echo 'FAIL: missing runtime credential did not block configured lint' >&2
-  exit 1
-fi
-test "$(wc -l <"$fixture/calls" | tr -d ' ')" -eq 6
-echo 'PASS: shared controls, isolated app secret, fail-fast validation, stdin generation, injection and package scripts (fake Forge only)'
+for script in lint:forge release; do
+  if bun --no-env-file run "$script" >/dev/null 2>&1; then
+    echo "FAIL: missing runtime credential did not block $script" >&2
+    exit 1
+  fi
+done
+actual=$(<"$fixture/calls")
+test "$actual" = "$expected"
+echo 'PASS: provider setup, stdin generation, injection, all configured workflows and fail-fast checks (synthetic values; fake Forge only)'

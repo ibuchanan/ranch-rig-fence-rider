@@ -1,8 +1,10 @@
-# Tutorial: build the full set of package scripts
+# Tutorial: build a Forge workflow with package scripts
 
-In this tutorial you take a Forge app with nothing configured and give it every
-Fence Rider package script: `lint:forge`, `install:forge`, `variables`,
-`deploy`, `tunnel` and `release`. You use a dotenv file for values throughout.
+In this tutorial you configure a registered Forge app with Fence Rider scripts
+for lint, variable upload, deployment, installation, and tunneling. You use
+synthetic dotenv values throughout; do not replace them with real credentials.
+Live Forge behavior remains unverified in this repository. The remote steps
+below describe the expected results, not a recorded live validation pass.
 
 Steps marked **Changes remote state** contact Forge. Run them only against a
 disposable development app, site and environment that you are authorized to
@@ -117,7 +119,31 @@ bun run lint:forge
 Forge validates your manifest with the resolved values and reports no errors.
 Lint uploads nothing.
 
-## 6. Install the app
+## 6. Upload variables and deploy
+
+**Changes remote state.** Add the runtime scripts:
+
+```json
+{
+  "scripts": {
+    "variables": "fence-rider variables",
+    "deploy": "cmd=$(fence-rider deploy -- --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh",
+    "release": "fence-rider variables && cmd=$(fence-rider deploy -- --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh"
+  }
+}
+```
+
+Upload `API_TOKEN`, then deploy:
+
+```sh
+bun run variables --environment development &&
+  bun run deploy --environment development
+```
+
+`variables` prints `Uploaded 1 runtime variable(s).` and never shows the value.
+`deploy` ends with Forge's deployment summary for the development environment.
+
+## 7. Install the app
 
 **Changes remote state.** Add the install scripts:
 
@@ -139,37 +165,6 @@ bun run install:forge
 
 Forge reports that the app is installed on your site. You do not run
 `upgrade:forge` or `uninstall:forge` in this tutorial.
-
-## 7. Upload variables and deploy
-
-**Changes remote state.** Add the runtime scripts:
-
-```json
-{
-  "scripts": {
-    "variables": "fence-rider variables",
-    "deploy": "cmd=$(fence-rider deploy -- --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh",
-    "deploy:reviewed": "cmd=$(fence-rider deploy -- --non-interactive --approve REVIEWED_RULE_FROM_FORGE) && sh -c \"$cmd\" sh",
-    "release": "fence-rider variables && cmd=$(fence-rider deploy -- --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh"
-  }
-}
-```
-
-Upload `API_TOKEN`, then deploy:
-
-```sh
-bun run variables --environment development
-bun run deploy --environment development
-```
-
-`variables` prints `Uploaded 1 runtime variable(s).` and never shows the value.
-`deploy` ends with Forge's deployment summary for the development environment.
-
-Now run both in one step:
-
-```sh
-bun run release --environment development
-```
 
 ## 8. Start a tunnel
 
@@ -194,14 +189,17 @@ you invoke it. Stop with Ctrl-C. The output is live and unredacted.
 
 ## What you built
 
-Your `package.json` scripts now match the
-[tested package example](../examples/package.json).
+You now have scripts for the configured workflow. The
+[tested package example](../examples/package.json) includes these scripts and a
+separate reviewed-approval variant. Reuse the default-target `release` script
+when you want upload and deployment together; this lesson ran the two commands
+explicitly, with matching environments.
 
 ## Next steps
 
 - Change targets or profiles: [set local values](../how-to/local.md).
 - Add more manifest inputs: [declare manifest inputs](../how-to/manifest.md).
 - Use CI or recover from a failed upload: [runtime variables](../how-to/runtime.md).
-- Understand the three kinds of variables: [explanation](../explanation/explanation.md).
+- Understand the three kinds of variables: [explanation](../explanation/three-kinds-of-env-vars.md).
 - Look up every option: [command help](../reference/command-help.md) and the
   [variable contract](../reference/reference.md).

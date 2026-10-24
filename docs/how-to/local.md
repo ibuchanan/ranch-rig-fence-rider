@@ -45,34 +45,21 @@ change.
 3. Check the result. A profile name never selects a Forge environment, so pass
    `-e` (or declare `FORGE_ENVIRONMENT` in that profile) to change the target.
 
-## Install, upgrade or uninstall
+## Verify profile selection
 
-Installation and uninstall change remote state. Use only an authorized app,
-site and environment.
+Run a value-free report in the same shell and profile before any remote change:
 
-1. Add the package scripts from the [full script
-   set](installation.md#add-the-full-script-set): `install:forge`,
-   `upgrade:forge` and `uninstall:forge`.
-2. Run the one you need:
+```sh
+secretspec check --scope '' --explain
+bun run fence-rider doctor --resolve
+```
 
-   ```sh
-   SECRETSPEC_PROVIDER=dotenv:values.env bun run install:forge
-   ```
+Inspect the selected provider routes and required-name status without exporting
+values. Doctor checks validity and warns about ambient names; it does not
+print or confirm the target values. Review the non-secret controls in your
+selected configuration before execution.
 
-   Use `upgrade:forge` for an existing installation.
-3. Answer Forge's prompts yourself, or add `--confirm-scopes` and
-   `--non-interactive` to `install` and `upgrade` only when that policy is
-   intended. Forge 14.2.0 uninstall has no `--non-interactive`, so do not copy
-   it there.
-4. To target something the profile does not declare, run `secretspec` and
-   `forge` directly:
-
-   ```sh
-   secretspec run -- forge install --environment staging --site example.atlassian.net --product jira
-   ```
-
-See the [install and uninstall contracts][reference] for target precedence and
-what each command refuses, and [command help](../reference/command-help.md) for
-usage.
-
-[reference]: ../reference/reference.md#configured-installation
+For [installation management](use-forge-tooling.md), use the configured
+scripts with valid profile defaults. Appended Forge options can override those
+defaults, but do not bypass their validation. Consult the
+[command help](../reference/command-help.md) for wrapper and forwarded options.

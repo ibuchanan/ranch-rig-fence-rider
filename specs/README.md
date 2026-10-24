@@ -1,9 +1,15 @@
 # Specifications
 
-This directory holds work that is **planned but not done**. Current behavior is
-documented as-is under [`docs/`](../docs/); each spec here starts from that
-baseline and says what is missing. When a spec is finished, move what it
-established into `docs/` and delete the spec.
+This directory holds planned work and the record of how specifications map to
+working code. Consumer documentation lives under [`docs/`](../docs/).
+
+[Tested versions and evidence](validation.md) is the maintained validation
+record: it maps acceptance scenarios to tests and separates demonstrated
+behavior from gaps. It stays here even when the corresponding code is complete.
+
+The future-work specifications below start from current behavior and identify
+what is missing. When that work is finished, update the consumer docs and the
+validation record, then retire the completed plan.
 
 The original product specifications (deployment baseline AC-01–AC-18 and the
 configured-workflows plan CW-01–CW-22) were retired on 2026-10-21 because the

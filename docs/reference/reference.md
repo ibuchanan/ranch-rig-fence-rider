@@ -3,25 +3,26 @@
 This reference defines variable declarations, scope semantics, target
 precedence, per-command behavior and the failure boundary for Fence Rider.
 Tested versions and evidence levels are in the
-[version baseline](validation.md#version-baseline); procedures are in the
-[how-to guides](../how-to/installation.md); the reasoning is in
+[validation record](../../specs/validation.md#version-baseline); procedures are
+in the [how-to guides](../how-to/installation.md); the reasoning is in
 [Why Forge has three kinds of environment variables][explanation]. Usage text
 for each command lives only in the [command help](command-help.md).
 
 The repository-owned `secretspec.toml` specifies and validates every variable.
 There is no separate Fence Rider variable inventory or provider schema.
-Fence Rider reads no `secretspec.toml` itself and passes no `--file` or
-`--profile`; SecretSpec reads `SECRETSPEC_FILE` and `SECRETSPEC_PROFILE` from
-the inherited environment.
+Workflow resolution passes no `--file` or `--profile`; SecretSpec reads
+`SECRETSPEC_FILE` and `SECRETSPEC_PROFILE` from the inherited environment.
+Doctor's advisory TOML read identifies root-file scope names only; it does not
+replace SecretSpec's effective schema or scope reports.
 
-| Command                | Prints a script | Calls SecretSpec while running                             | Uploads                |
-| ---------------------- | --------------- | ---------------------------------------------------------- | ---------------------- |
-| `variables`            | No              | `schema`, `export`, `check --scope`                        | Yes, `runtime` members |
-| `deploy`               | Yes             | No                                                         | No                     |
-| `lint`                 | Yes             | No                                                         | No                     |
-| `install`, `uninstall` | Yes             | No                                                         | No                     |
-| `tunnel`               | Yes             | `schema`, `check --scope runtime` while printing           | No                     |
-| `doctor`               | No              | `check --scope manifest`; `--resolve` adds full resolution | No                     |
+| Command                | Prints a script | Calls SecretSpec while running                                                 | Uploads                |
+| ---------------------- | --------------- | ------------------------------------------------------------------------------ | ---------------------- |
+| `variables`            | No              | `schema`, `export`, `check --scope`                                            | Yes, `runtime` members |
+| `deploy`               | Yes             | No                                                                             | No                     |
+| `lint`                 | Yes             | No                                                                             | No                     |
+| `install`, `uninstall` | Yes             | No                                                                             | No                     |
+| `tunnel`               | Yes             | `schema`, `check --scope runtime` while printing                               | No                     |
+| `doctor`               | No              | `schema`, manifest/runtime scope checks; `--resolve` adds a full-profile check | No                     |
 
 Every printed script runs under `secretspec run --scope ''`, which resolves the
 whole active profile. `variables` is the only command that uploads, because
@@ -135,7 +136,8 @@ does not select a same-named environment.
   the first write.
 - Validation covers the whole active profile. A missing required
   `FORGE_ENVIRONMENT` blocks an explicit `-e production` before Forge runs.
-- Absent optional controls do not keep stale inherited values.
+- `variables` clears stale ambient values for absent optional declarations.
+  Generated scripts delegate to `secretspec run`, which may retain them.
 
 ## Resolution and validation boundary
 
@@ -256,8 +258,8 @@ isolation.
 
 ## Script commands
 
-`lint`, `install`, `uninstall` and `tunnel` run nothing. Each prints one shell
-script on stdout that a package script executes ([short
+`lint`, `deploy`, `install`, `uninstall`, and `tunnel` do not run Forge while
+printing. Each emits a shell script that a package script executes ([short
 scripts][short-scripts]).
 
 Wrapper options (e.g., `-e/--environment` for `deploy`, `variables`, `tunnel`)
@@ -403,9 +405,9 @@ not read-only or offline. See the [procedure][tunnel-guide].
 - [Forge environments][environments]
 - [Forge tunneling][tunneling]
 
-[explanation]: ../explanation/explanation.md
+[explanation]: ../explanation/three-kinds-of-env-vars.md
 [short-scripts]: ../how-to/installation.md#run-a-short-script
-[uninstall-guide]: ../how-to/local.md#install-upgrade-or-uninstall
+[uninstall-guide]: ../how-to/use-forge-tooling.md#remove-an-installation
 [tunnel-guide]: ../how-to/runtime.md#tunnel-during-development
 [scopes]: https://secretspec.dev/concepts/scopes/
 [configuration]: https://secretspec.dev/reference/configuration/

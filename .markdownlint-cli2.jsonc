@@ -1,8 +1,20 @@
 {
   // node_modules is installed, vendor/ is a nested checkout that brings its
   // own linting configuration, and .scratch/ holds working notes; none of
-  // them is ours to police.
-  "ignores": ["**/node_modules/**", "vendor/**", ".scratch/**"],
+  // them is ours to police. Agent skills and their Claude aliases are also
+  // outside the repository documentation checks. Governance templates retain
+  // their upstream style instead of following our stricter documentation rules.
+  "ignores": [
+    "**/node_modules/**",
+    "vendor/**",
+    ".scratch/**",
+    ".agents/**",
+    ".claude/skills/**",
+    "SECURITY.md",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md"
+  ],
+  "customRules": ["markdownlint-rule-relative-links"],
   // MD013 (line-length) can't reasonably apply to Markdown tables or code
   // blocks: wrapping a table cell or a shell command at 80 columns breaks
   // the content it's meant to check. Prose lines, quotes included, are

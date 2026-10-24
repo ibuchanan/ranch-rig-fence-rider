@@ -1,142 +1,72 @@
 # Why SecretSpec and Fence Rider belong together
 
-## From SSH keys to application credentials
+## Secret files are convenient, but discoverable
 
-Atlassian takes our Trust obligations with customers seriously.
-That's why we implement _internal_ policies like "no secrets on disk".
-That creates a constraint on even the public, OSS Forge repos we create.
-It's not enough that Git ignores files like `.env`.
-We take measures to make sure secrets,
-wherever they live,
-are never pushed to Git.
-That way,
-a process like an AI coding agent with access to the filesystem
-cannot copy a reusable private credential.
-For sample Forge apps,
-that means we can't build & test apps that would take the easy route of a `.env` file.
+A `.env` file is an easy way to supply application credentials. Ignoring it in
+Git prevents an ordinary commit, but does not prevent a filesystem search, a
+debugging tool, or a coding agent from reading it. Moving the file outside the
+repository reduces accidental discovery without restricting a process that can
+read that directory.
 
-This risk isn't new in the age of AI coding agents,
-but they have amplified the risks.
-AI coding agents routinely search files and collect context.
-A `.env` file can be read by a broad search,
-a debugging command,
-or a tool that ignores Git's ignore rules.
-An instruction saying "do not read `.env`" is not an access control!
-Moving the file outside the repository reduces accidental discovery
-but does not protect it from a process with access to that directory.
+A secret manager can reduce that exposure: credentials need not be copied into
+project files, shell history, or generated configuration. SecretSpec lets the
+repository declare what an app needs while each developer chooses where the
+values come from. The [provider setup guide](../how-to/configure-user-providers.md)
+uses a keyring for credentials and a separate dotenv file for non-secret target
+settings. Fence Rider also supports dotenv for credentials; avoiding plaintext
+storage is a choice of workflow, not a restriction enforced by the tool.
 
-That creates a design discipline
-that also helps consumers of Forge apps.
-We build and test without needing `.env` files,
-so that you can also keep your secrets safe.
-And, to the extent possible, out of:
+## Shared requirements do not require a shared secret manager
 
-- the repo, including `.env` files
-- home directories
-- shell history
-- generated configuration
+A sample app's authors and downstream developers may use different providers.
+Binding the app to one vault would make that organizational choice a dependency
+of every fork. Copying credentials into the repository would create a different
+problem: each copy would need protection and rotation.
 
-That is a design principle for Fence Rider.
+SecretSpec separates those decisions. A committed `secretspec.toml` describes
+names, requirements, and provider routes without holding credential values.
+User-level aliases bind those routes to a developer's provider. The app can
+share a configuration contract without sharing a vault identifier or a secret.
 
-## SecretSpec to the rescue
+Not every value needs secret storage. `FORGE_SITE`, `FORGE_PRODUCT`, and
+`FORGE_ENVIRONMENT` are local target controls, so a shared user dotenv file can
+hold them without holding app credentials. This separation makes convenient
+cross-project defaults compatible with a stricter credential-storage policy.
 
-There are many tools and practices
-that can satisfy the constraints.
-What makes a sample Forge app tricky is
-that what works for the authors
-might not work for the consumers.
-[SecretSpec](https://secretspec.dev/)
-lets the repository describe required variable names
-without storing their values.
-Each operator binds those declarations to an approved provider,
-then SecretSpec injects values into the process that needs them.
-That removes the need to materialize an application credential as a plaintext project file.
+## Forge delivery is a separate concern
 
-For example,
-Atlassians use their perferred secrets management tooling,
-write the `secretspec.toml` to make it clear what variables are needed,
-and consumers can decide how to store & recall those secrets.
-Some consumers may be willing to accept the trade-offs of the `.env` file;
-so be it, SecretSpec supports that.
-Or, developers can decide to wire-up their own secrets management tooling.
+SecretSpec resolves values into a local process. It does not select which
+values belong in Forge's runtime store or perform an encrypted upload. Forge's
+[three variable destinations](three-kinds-of-env-vars.md) have distinct delivery
+mechanisms even when they share a source.
 
-To be clear,
-this is just exposure reduction for secrets,
-not an agent sandbox.
-A coding agent that can run arbitrary commands as the user
-can also invoke SecretSpec or inspect permitted processes.
-Provider approval prompts,
-short-lived credentials,
-restricted agent permissions,
-and operator-controlled secret access remain important.
-Neither SecretSpec nor Fence Rider makes an authorized process unable
-to reveal a secret once it has received it.
+Fence Rider supplies that Forge-specific boundary while leaving provider
+syntax, authentication, profiles, and inheritance to SecretSpec. Upload
+selection is explicit, and every runtime upload requests encryption. Deployment
+is a separate operation so an ordinary code change need not rewrite credentials.
+The package script still owns ordering, consent, and the target environment;
+Fence Rider does not grant approval merely by generating a command.
 
-## Not every variable is a secret
+## Less exposure is not isolation
 
-Not only does SecretSpec decouple providers across different repository users,
-it can also be used to keep different kinds of variables in different places.
-For example, `FORGE_SITE`, `FORGE_PRODUCT`, and `FORGE_ENVIRONMENT` are common local target controls.
-A user-global dotenv file can safely hold those non-secret settings,
-and also make the same values available across repos.
+Avoiding a plaintext file does not sandbox an agent. A process authorized to
+invoke the provider or inspect another process may still obtain credentials.
+Provider approval, short-lived credentials, restricted agent permissions, and
+operator-controlled access remain important.
 
-## Binding SecretSpec to the Forge workflow
+The values also have to reach their consumers. Forge receives upload values as
+process arguments, which can be inspected locally. Forge output and application
+logs are not automatically redacted. Encrypted remote storage does not make a
+value safe to log or return to a browser, nor does it hide it from the platform.
 
-Forge needs configuration in distinct places:
+Fence Rider is development tooling, not a runtime secret service. It is not
+included in deployed functions and does not intercept their `process.env`
+access. Its value is reducing repeated configuration and avoidable exposure,
+not preventing every authorized process from revealing a value it receives.
 
-- Local CLI commands need target settings (like the examples above).
-- Manifest substitution may need build-time values.
-- Deployed functions read Forge runtime variables, not the workstation's environment.
+## Related material
 
-`secretspec run` handles local resolution and injection.
-It does not decide which variables belong in Forge's runtime store,
-upload them encrypted,
-or coordinate Forge's environment flags.
-Repeating that logic in every app's shell scripts makes it all-too-easy
-to deploy to one environment and upload to another,
-or to upload a local-only credential by mistake.
-
-Fence Rider supplies that Forge-specific boundary.
-It leaves provider syntax, profiles, inheritance,
-and required-value rules to SecretSpec.
-It interprets only the `runtime` and optional `manifest` scopes,
-validates targets,
-and provides commands used by package scripts.
-Runtime uploads are explicit and encrypted.
-(Indeed, even as `forge variables` defaults to unencrypted and provides choice,
-Fence Rider chooses to encrypt all variables.
-Let us know if you have a compelling case to support both.)
-Deployment is separate,
-so a normal code deployment need not rotate or upload credentials.
-
-## Early failure
-
-When using Fence Rider with configured package scripts,
-the entire selected profile is resolved before Forge starts, including lint.
-An unset required bearer secret therefore fails early
-even when the immediate command would not consume it.
-This deliberately checks readiness
-rather than deferring discovery until deployment
-or perhaps the first Forge function invocation.
-
-## Caveats of this development tooling
-
-Fence Rider is meant to be included as a `devDependency`.
-It is not deployed in app code.
-It does not provide any kind of proxy for Forge's access to environment variables through `process.env()`.
-It neither authenticates the user nor grants deployment approval.
-Forge output is not automatically redacted;
-runtime uploads pass values to the Forge CLI
-and are not atomic.
-Application logging,
-process access,
-provider permissions,
-and operator authorization remain separate responsibilities.
-
-For setup,
-see [user configuration](../how-to/configure-user-providers.md)
-and [app configuration](../how-to/configure-app-secrets.md).
-The [workflow guide](../how-to/use-forge-tooling.md) covers execution;
-the [validation record](../reference/secretspec-validation.md)
-distinguishes tested local behavior from unverified provider
-and live Forge behavior.
+- [Configure user providers](../how-to/configure-user-providers.md)
+- [Declare app requirements and store credentials](../how-to/configure-app-secrets.md)
+- [Run configured Forge workflows](../how-to/use-forge-tooling.md)
+- [Product responsibilities and limits](scope-and-boundaries.md)

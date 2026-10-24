@@ -69,19 +69,23 @@ Then call Fence Rider from short package scripts:
 `secretspec run`; the package script runs it. **These commands change remote
 state.** Set up a disposable app first.
 
-- [Install it in an app](docs/how-to/installation.md)
-- Set up [local values](docs/how-to/local.md),
-  [manifest inputs](docs/how-to/manifest.md) and
-  [runtime variables](docs/how-to/runtime.md)
-- [Package scripts for every workflow](docs/how-to/installation.md#add-the-full-script-set)
+- [Install it and add package scripts](docs/how-to/installation.md)
+- [Configure workstation providers](docs/how-to/configure-user-providers.md),
+  then [declare app requirements and store secrets](docs/how-to/configure-app-secrets.md)
+- Set up [local targets](docs/how-to/local.md) and [manifest inputs](docs/how-to/manifest.md)
+- [Validate and manage installations](docs/how-to/use-forge-tooling.md), or
+  [upload runtime variables, deploy, and tunnel](docs/how-to/runtime.md)
 
 ## Documentation
 
 - [Command help](docs/reference/command-help.md) and [variable contract](docs/reference/reference.md)
-- [Acceptance criteria](docs/reference/acceptance-criteria.md) and [tested versions](docs/reference/validation.md)
-- [Why Forge has three kinds of variables](docs/explanation/explanation.md)
+- [Provider configuration reference](docs/reference/forge-tooling.md)
+- [Why Forge has three kinds of variables](docs/explanation/three-kinds-of-env-vars.md)
+- [Why use SecretSpec with Fence Rider?](docs/explanation/secrets-and-forge-tooling.md)
 - [What Fence Rider is for, and where it stops](docs/explanation/scope-and-boundaries.md)
-- [Decision records](docs/adr/) and [planned future work](specs/README.md)
+- Maintainer material: [acceptance criteria](docs/reference/acceptance-criteria.md),
+  [specification validation](specs/validation.md), [decision records](docs/adr/),
+  and [specifications](specs/README.md)
 
 ## Contributing and support
 

@@ -4,6 +4,11 @@ status: accepted
 
 # Take install and uninstall targets from the profile only
 
+> The profile-default requirement remains, but explicit target overrides are
+> now accepted in the Forge argument tail after `--`. See the current
+> [installation contract](../reference/reference.md#configured-installation).
+> The options below record the original, stricter decision.
+
 `fence-rider install` and `fence-rider uninstall` used to read `-e`, `-s` and
 `-p` (and their long forms) themselves and merge them with the resolved
 `FORGE_ENVIRONMENT`, `FORGE_SITE` and `FORGE_PRODUCT`. They now take the three

@@ -1,9 +1,9 @@
 # Install Fence Rider as development tooling
 
 Use Bun 1.4.3+ on macOS/Linux arm64/x64. Install SecretSpec and the Forge
-CLI separately so both are on `PATH`, and authenticate Forge. See the
-[installation reference](../reference/installation.md). This project is private
-and unpublished; use a local package artifact, not a registry package.
+CLI separately so both are on `PATH`, and authenticate Forge. This project is private
+and unpublished; use a local package artifact, not a registry package. See the
+[tested versions and evidence](../../specs/validation.md).
 
 ## Pack and install
 
@@ -32,7 +32,7 @@ Add a consumer script to `package.json`:
 ```json
 {
   "scripts": {
-    "forge:lint": "cmd=$(fence-rider lint) && sh -c \"$cmd\" sh"
+    "lint:forge": "cmd=$(fence-rider lint) && sh -c \"$cmd\" sh"
   }
 }
 ```
@@ -54,7 +54,7 @@ guides for the procedures. Choose your own
 provider, then run:
 
 ```sh
-bun run forge:lint
+bun run lint:forge
 ```
 
 For local synthetic values, select `SECRETSPEC_PROVIDER=dotenv:values.env` in
@@ -75,33 +75,23 @@ into the app's existing `package.json`, retaining the installed development
 dependency. Obtain permission for the particular app, site and environment
 before running any command that contacts Forge.
 
-```json
-{
-  "variables": "fence-rider variables",
-  "deploy": "cmd=$(fence-rider deploy -- --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh",
-  "deploy:reviewed": "cmd=$(fence-rider deploy -- --non-interactive --approve REVIEWED_RULE_FROM_FORGE) && sh -c \"$cmd\" sh",
-  "release": "fence-rider variables && cmd=$(fence-rider deploy -- --non-interactive --approve MAJOR_VERSION_RULE) && sh -c \"$cmd\" sh",
-  "install:forge": "cmd=$(fence-rider install -- --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
-  "upgrade:forge": "cmd=$(fence-rider install -- --upgrade --confirm-scopes --non-interactive) && sh -c \"$cmd\" sh",
-  "uninstall:forge": "cmd=$(fence-rider uninstall) && sh -c \"$cmd\" sh",
-  "lint:forge": "cmd=$(fence-rider lint) && sh -c \"$cmd\" sh",
-  "tunnel": "cmd=$(fence-rider tunnel) && sh -c \"$cmd\" sh"
-}
+Review the example's deployment approval rules before copying them. The
+`deploy:reviewed` rule is a placeholder: replace it only with a rule Forge
+reports for an intentionally reviewed major version. Do not execute it unchanged.
+
+When writing a script, put wrapper options before Fence Rider's `--` and Forge
+options after it. When invoking a configured script, append Forge arguments
+after the script name; its wrapper separator is already consumed:
+
+```sh
+bun run deploy --environment development --verbose
 ```
 
-`MAJOR_VERSION_RULE` is the documented Forge approval rule. Replace the explicit
-`REVIEWED_RULE_FROM_FORGE` placeholder with a different exact rule reported by
-Forge before using that variant; no second server rule is certified here. The
-automated controlled test establishes distinct-token forwarding, not server
-acceptance. Rules are forwarded policy, not automatic approval of all changes.
-Deployment approval does not grant install scope consent. Pass Forge options
-after `--`;
-wrapper options like `-e/--environment` must come before the separator.
-Keep `--confirm-scopes`, `--non-interactive` and `--upgrade` only where that
-policy is intended.
+Use `variables` separately for uploads, or `release` for upload followed by
+deployment. Do not append target overrides to `release`: they reach only
+deployment. Follow the [runtime procedure](runtime.md#upload-variables-and-deploy)
+for matched targets and the [installation management guide](use-forge-tooling.md)
+for install, upgrade, and removal.
 
-`release` uploads runtime values with `variables` and then deploys; the `&&`
-stops before deploying if the upload fails. Forge 14.2.0 has no uninstall
-`--non-interactive` flag, so `uninstall:forge` injects no policy: run it only
-with removal authorization. Evidence limits and live blockers are in the
-[tested versions and evidence](../reference/validation.md).
+Evidence limits and live blockers are in the
+[tested versions and evidence](../../specs/validation.md).

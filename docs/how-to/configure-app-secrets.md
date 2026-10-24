@@ -45,15 +45,10 @@ providers = ["app_secrets"]
 secrets = ["APP_BEARER_TOKEN"]
 ```
 
-This declaration binds the runtime credential to a real backend
-through the user's `app_secrets` alias.
-The current app declaration may omit that explicit route
-and rely on the user's default provider;
-make it explicit to avoid a future user-default change sending writes to dotenv.
-Do not commit a secret `default` value
-or a developer's vault identifier.
-A project alias, if defined,
-shadows a same-named global alias.
+`APP_BEARER_TOKEN` is an example name; substitute the name your app reads.
+The declaration routes it through your `app_secrets` alias. Keep secret values
+and developer-specific vault identifiers out of the committed file. Never use
+a secret literal as a declaration's `default`.
 
 Keep local controls out of `runtime`;
 Fence Rider refuses to upload them.
@@ -99,8 +94,7 @@ It neither prints the token nor places it in shell history or an argument.
 It still writes wherever `app_secrets` points:
 verify that alias before use.
 `--from-file -` requires SecretSpec 0.21+.
-A failed pipeline is a failure;
-do not continue with upload or deployment.
+If the pipeline fails, stop before uploading or deploying.
 
 Do not regenerate on every deploy.
 Rotating this bearer credential requires coordinating approved API clients;
@@ -111,9 +105,9 @@ not a log or chat message.
 ## Validate without revealing the credential
 
 ```sh
-secretspec check --profile default --scope '' --explain
-secretspec check --profile default --scope runtime --json
-bun run fence-rider doctor --resolve
+SECRETSPEC_PROFILE=default secretspec check --scope '' --explain
+SECRETSPEC_PROFILE=default secretspec check --scope runtime --json
+SECRETSPEC_PROFILE=default bun run fence-rider doctor --resolve
 ```
 
 Expect all required names to resolve and the runtime selection
@@ -123,12 +117,16 @@ and trigger its authentication or audit behavior.
 Do not use `secretspec get`,
 JSON export,
 or `printenv` to inspect real values.
-Use [provider diagnosis](diagnose-secretspec.md) for failures.
+
+For unresolved names, check the selected profile and provider authentication.
+Inspect alias locations without printing credentials:
+
+```sh
+secretspec config global provider list
+```
 
 ## Activate the value in Forge
 
 After permission for the app and target environment,
-follow [upload and deployment](use-forge-tooling.md#upload-runtime-values-then-deploy).
+follow [upload and deployment](runtime.md#upload-variables-and-deploy).
 Storing a value in SecretSpec alone does not change a deployed function.
-
-Source: [SecretSpec CLI reference](https://secretspec.dev/reference/cli/).

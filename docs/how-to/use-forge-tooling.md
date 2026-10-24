@@ -1,141 +1,83 @@
-# Run Forge workflows with configured package scripts
+# Validate and manage a configured Forge installation
 
-Complete [user setup](configure-user-providers.md)
-and [app setup](configure-app-secrets.md) first.
-Run these commands from the repository root
-with the app, site, product, and environment reviewed.
-Existing scripts encode consent flags;
-their presence is not permission to run them.
+Use the package scripts from the [installation guide](installation.md#add-the-full-script-set)
+with a registered app and a site, product, and environment you are authorized to
+change. Complete [provider setup](configure-user-providers.md) and
+[app configuration](configure-app-secrets.md) first. Run commands from the app
+root. Scripted consent flags are not permission to run them.
 
 ## Validate before remote changes
 
 ```sh
-secretspec check --scope '' --explain
-npm run fence-rider doctor --resolve
-npm run lint:forge
-npm run check
+bun run fence-rider doctor --resolve && bun run lint:forge
 ```
 
-The configured lint script validates all required profile values
-before Forge starts, including runtime credentials.
-The same early validation applies to the other configured workflows.
+Fix failed checks before continuing. `doctor --resolve` reports unresolved
+required names without printing values; native scope checks may access providers.
+Lint resolves the whole profile before Forge starts, including required runtime
+credentials. For a provider failure, verify the selected file, profile, alias,
+and backend authentication using the [setup guide](configure-user-providers.md#verify-aliases-without-displaying-values).
+Do not diagnose it by printing credentials.
 
-## Upload runtime values, then deploy
+## Install after deployment
 
-When a runtime value is first provisioned or changes,
-upload it and deploy to the **same** environment:
+1. Set the environment, site, and product in your active profile following
+   [local target selection](local.md).
+2. [Upload changed runtime values and deploy](runtime.md#upload-variables-and-deploy)
+   to that environment.
+3. Install on the configured site and product:
 
-```sh
-npm run forge:variables:set --environment development &&
-  npm run forge:deploy --environment development
-```
+   ```sh
+   bun run install:forge
+   ```
 
-`forge:variables:set` runs `fence-rider variables`
-and uploads only `runtime` members, encrypted.
-It makes a remote change immediately.
-Uploads are sequential and are not rolled back on partial failure.
-Investigate a failed upload before rerunning;
-deployment must not proceed after failure.
-
-`forge:deploy` runs the generated script under SecretSpec and deploys code.
-It **never uploads runtime variables**.
-Forge activates a newly stored variable on a subsequent deployment.
-For code-only changes with unchanged runtime values, run just:
+The example script includes `--confirm-scopes --non-interactive`; review the
+requested permissions before execution. To override an authorized installation
+target, append Forge options to the package script:
 
 ```sh
-bun run forge:deploy --environment development
-```
-
-## Install, upgrade, and remove
-
-After a deployment, install the app on the selected site/product:
-
-```sh
-bun run forge:install
-```
-
-For an existing installation after a scope or egress change, deploy and then:
-
-```sh
-bun run forge:upgrade
-```
-
-Both installation scripts already pass `--confirm-scopes --non-interactive`;
-the upgrade script also passes `--upgrade`.
-Review those permissions before execution.
-Do not copy these flags onto unrelated Forge commands.
-
-To remove an authorized installation:
-
-```sh
-bun run forge:uninstall
-```
-
-Uninstall intentionally does not include `--non-interactive`;
-respond to Forge's confirmation.
-Registration is a separate one-time adoption operation:
-`bun run forge:register` calls Forge directly and creates an app identity.
-Do not register an already registered checkout as routine setup.
-
-## Select a profile or target deliberately
-
-Use `SECRETSPEC_PROFILE` for a profile already declared by the app.
-Use `SECRETSPEC_FILE` for another declaration file
-when intentionally sharing a schema.
-Neither a filename nor a profile called `production`
-automatically sets Forge's environment.
-
-`forge:variables:set --environment TARGET` is a Fence Rider option;
-it does not accept forwarded Forge flags.
-Appended arguments on the existing
-`forge:deploy`, install, upgrade, uninstall, and lint package scripts
-reach the executed Forge command.
-The scripts have already consumed Fence Rider's own `--` separator.
-
-For example, an explicitly authorized installation target override is:
-
-```sh
-bun run forge:install --environment development \
+bun run install:forge --environment development \
   --site example.atlassian.net --product jira
 ```
 
-Keep upload and deployment targets identical.
-Do not assume flags valid for install are valid for uninstall, lint, or deploy.
-This documentation provides has no tunnel script;
-use Fence Rider's upstream tunnel guide when adding one,
-then review permission to redirect development invocations before starting it.
+The script still requires valid profile-derived defaults before passing those
+overrides to Forge. A missing site or product cannot be repaired by an appended
+option; set it in the profile first.
 
-## Use raw SecretSpec for provider operations and narrow checks
+## Upgrade an existing installation
 
-Use SecretSpec directly to create aliases,
-authenticate a backend,
-set values,
-select profiles,
-and inspect value-free resolution reports.
-Fence Rider does not replace these operations.
-
-For local commands that need resolved settings
-but are not Forge workflows,
-use a deliberately narrow child command.
-This check emits no values:
+After a scope or egress change, deploy to the installation's environment, then:
 
 ```sh
-secretspec run --scope '' -- sh -c 'test -n "$FORGE_SITE"'
+bun run upgrade:forge
 ```
 
-It still resolves the whole profile and may access its providers.
-Use only trusted child processes.
-Do not run a coding-agent session, `env`, `printenv`, or a verbose debug tool
-under a fully injected secret environment.
+This script adds `--upgrade` to the installation options. Do not uninstall and
+reinstall merely to apply a permission change.
 
-Use raw Forge for separately approved administrative commands
-that the wrapper does not cover,
-such as authentication or logs.
-If you intentionally need to bypasses the app's target and workflow conventions,
-you may replace the existing configured deployment/installation scripts
-with an ad hoc `secretspec run -- forge ...`.
-But, beware that local injection alone does not upload runtime variables
-or provide Fence Rider's runtime selection checks.
+## Remove an installation
 
-For exact script effects,
-see the [reference](../reference/forge-tooling.md).
+Verify removal authorization and the profile's environment, site, and product,
+then run:
+
+```sh
+bun run uninstall:forge
+```
+
+A matched target can be removed directly; do not rely on a confirmation prompt.
+Forge CLI 14.2.0 has no uninstall `--non-interactive` option. Fence Rider adds
+neither a confirmation bypass nor a guarantee that Forge will prompt.
+
+## Other configured tasks
+
+- [Select a profile or file](local.md#select-a-file-or-profile).
+- [Upload variables and deploy](runtime.md#upload-variables-and-deploy).
+- [Tunnel during development](runtime.md#tunnel-during-development).
+- [Deploy in CI](runtime.md#deploy-in-ci-with-existing-authentication).
+- [Recover from a partial upload](runtime.md#recover-from-a-partial-upload).
+
+For provider operations such as login, alias configuration, and setting values,
+use SecretSpec directly. Use raw Forge for operations Fence Rider does not
+cover, such as authentication or logs. Run only trusted child processes with a
+resolved secret environment; do not inject the full profile into a coding-agent
+session or a command that prints its environment.

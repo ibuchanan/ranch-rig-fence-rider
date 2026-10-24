@@ -64,8 +64,9 @@ However, the same configuration can be written and confirmed in your favorite ed
 
 ## Set shared Forge controls
 
-From the target Forge app's repository root,
-where `secretspec.toml` declares the names:
+After creating the aliases above, add the declarations from
+[app setup](configure-app-secrets.md#declare-requirements-not-values) to the
+app's `secretspec.toml`. Then, from that app's repository root:
 
 ```sh
 secretspec set --provider user_dotenv --profile default FORGE_SITE
@@ -107,7 +108,8 @@ SecretSpec supports binding
 the provider's `config` credential to another provider
 and `secretspec config provider login` for credential setup;
 see the SecretSpec documentation.
-Do not use a plaintext `config_file` as a workaround for this workflow's no-plaintext-secrets goal.
+Do not use a plaintext `config_file` as a workaround for this workflow's
+no-plaintext-secrets goal.
 
 Keep a built-in secret backend such as `keyring`,
 not a plaintext dotenv backend,
@@ -121,7 +123,7 @@ as in the [app configuration guide](configure-app-secrets.md).
 
 ```sh
 secretspec config global provider list
-secretspec check --explain --scope ''
+SECRETSPEC_PROFILE=default secretspec check --explain --scope ''
 ```
 
 The alias list shows provider locations,
@@ -131,7 +133,5 @@ The check may access a vault or request authentication;
 the resolution trace does not print secret values.
 Missing variables may be expected until completing
 [app configuration](configure-app-secrets.md).
-For failures,
-use [provider diagnosis](diagnose-secretspec.md).
 
 [providers]: https://secretspec.dev/reference/providers/

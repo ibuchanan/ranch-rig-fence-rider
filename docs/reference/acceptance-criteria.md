@@ -2,7 +2,7 @@
 
 The scenarios that the test suite refers to by ID. This page defines what each
 ID requires today; the tests are the evidence. The tested versions and the
-evidence still missing are in [tested versions and evidence](validation.md).
+evidence still missing are in [tested versions and evidence](../../specs/validation.md).
 
 IDs are stable names. Where the contract changed after an ID was first
 written (see the [decision records](../adr/)), the text below is the current

@@ -1,5 +1,12 @@
 # **SecretSpec & Atlassian Forge Integration Guide**
 
+> Historical exploration, not current usage guidance or validation evidence.
+> Its package names, commands, and sample adapter predate Fence Rider's
+> implementation. Current consumer documentation starts at the
+> [README](../README.md); demonstrated behavior is recorded in
+> [specification validation](validation.md). Claims of verification below
+> belong to this original proposal, not to live Forge validation.
+
 This guide outlines the verified technical design and implementation for
 decoupling sample Atlassian Forge applications from local .env files using
 **SecretSpec**. By utilizing SecretSpec as a provider-agnostic configuration

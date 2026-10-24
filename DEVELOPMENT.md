@@ -97,8 +97,33 @@ See [delivery evidence and limits](docs/reference/installation.md). Installed
 consumer acceptance reads the checked-in `docs/examples` scripts/declarations
 rather than maintaining a second script specification; all seven workflows and
 a controls-only variant run with native SecretSpec and controlled Forge.
-[Tested versions and evidence](docs/reference/validation.md) separates
+[Tested versions and evidence](specs/validation.md) separates
 controlled, native, interface and blocked live results.
+
+The provider-setup guide also has an executable synthetic check:
+
+```sh
+bash scripts/check-secretspec.sh
+```
+
+It reads the app declaration from the guide and scripts from
+`docs/examples/package.json`, uses isolated temporary user configuration and
+synthetic dotenv values instead of a vault, and intercepts every Forge call.
+The native test suite runs it when SecretSpec is installed. It does not prove
+keyring or vault behavior, server acceptance, or runtime activation.
+
+`bun run lint:docs` checks relative Markdown links using the
+`markdownlint-rule-relative-links` development dependency, configured in
+`.markdownlint-cli2.jsonc`. It checks file and image targets and cross-file
+heading anchors; markdownlint's built-in MD051 checks same-document fragments.
+Agent documentation under `.agents/` and its `.claude/skills/` aliases is
+excluded from Markdown linting, spelling, and Biome formatting and analysis.
+The root `SECURITY.md`, `CODE_OF_CONDUCT.md`, and `CONTRIBUTING.md` templates
+are excluded from the same tools so they retain their upstream style.
+These checks run offline and report the source file and line. Markdown links
+inside code examples are ignored; HTML link elements are not validated.
+`tests/unit/docs.test.ts` retains the project-specific CLI help synchronization
+and duplication checks.
 
 ## Validation commands
 
@@ -157,7 +182,7 @@ thresholds or suppress findings to make a gate pass.
 2. Update `tested` in the tool table in `src/doctor.ts`; change `lowest` only if
    you exercised the older release.
 3. Update the version table and source findings in
-   [tested versions](docs/reference/validation.md), and the version in the test
+   [tested versions](specs/validation.md), and the version in the test
    tier tables above.
 4. Run `bun run lint:docs`.
 
@@ -213,9 +238,9 @@ fails until they match. Other pages link there rather than restating usage.
 - `tests/unit/`, `tests/integration/`: the two test tiers; `tests/support/`
   holds shared fixtures, fakes and runners.
 - `docs/`: task guides, reference, and architectural explanation.
-- `specs/`: planned future work; see `specs/README.md`. Current behavior is
-  documented in `docs/`, with scenario IDs in
-  `docs/reference/acceptance-criteria.md`.
+- `specs/`: future-work plans and the specification-to-code validation record;
+  see `specs/README.md`. Consumer behavior is documented in `docs/`, with
+  scenario IDs in `docs/reference/acceptance-criteria.md`.
 
 Never use real credentials in test fixtures. Live Forge checks require a
 separately authorized named disposable app, environment, allowed changes,

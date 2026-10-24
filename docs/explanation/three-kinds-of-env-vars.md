@@ -114,12 +114,12 @@ All declared variables are resolved and validated locally, so a separate
 behaviors to that local baseline: `manifest` adds a declaration check, and
 `runtime` authorizes an encrypted remote upload.
 
-A variable can be declared once and included in both scopes. Fence Rider's
-contract calls for the same resolved value to reach the local Forge CLI
-process and the remote variable store. Values come from a single export, and
-scope membership is asked of SecretSpec by name only, so separate provider
-reads cannot produce different values for a shared setting. Scope membership alone
-does not make a value secret or non-secret.
+A variable can be declared once and included in both scopes. Within one
+`variables` invocation, the local upload process and remote variable store
+receive the value from the same export. Scope queries supply names, not a
+second set of values. A later deploy or tunnel resolves independently, so a
+provider change between commands can still change the value. This is not a
+vault-wide snapshot. Scope membership does not determine sensitivity.
 
 A variable outside both scopes remains local configuration. In particular,
 no `runtime` scope means no uploads, not an error and not a request to upload
@@ -192,7 +192,7 @@ as an argument. Tunnel's script uses Forge's local prefixed environment instead
 of changing the remote variable store; printing it reads only names from
 SecretSpec. One resolution can serve these destinations without pretending they
 share a lifecycle. See the [tested versions and
-evidence](../reference/validation.md).
+evidence](../../specs/validation.md).
 
 ## Related material
 

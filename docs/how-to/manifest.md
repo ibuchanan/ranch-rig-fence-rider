@@ -47,8 +47,8 @@ manifest.
    It fails when a `manifest` scope member is missing from `manifest.yml`.
    Add `--resolve` to also confirm every required value resolves; that reads
    your provider and may prompt for authentication.
-2. Add the `lint:forge` script from the [full script
-   set](installation.md#add-the-full-script-set) and run it:
+2. Add the `lint:forge` script from the
+   [tested package example](../examples/package.json) and run it:
 
    ```sh
    SECRETSPEC_PROVIDER=dotenv:values.env bun run lint:forge
@@ -63,5 +63,5 @@ Omitting the `manifest` scope skips only the declaration check. The value is
 still resolved locally and Forge still substitutes it. Forge output is live
 and unredacted, so do not publish it.
 
-See [declaration ownership and the optional manifest
-check](../reference/reference.md#optional-manifest-check) for the contract.
+See the [validation record](../../specs/validation.md) for evidence levels
+and current limitations.
